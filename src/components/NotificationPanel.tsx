@@ -12,7 +12,7 @@ interface Notification {
   createdAt: string;
 }
 
-export default function NotificationPanel() {
+export default function NotificationPanel({ storeSlug }: { storeSlug: string }) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,10 +22,10 @@ export default function NotificationPanel() {
     // Poll every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [storeSlug]);
 
   const fetchNotifications = async () => {
-    const res = await fetch("/api/notifications");
+    const res = await fetch(`/api/${storeSlug}/notifications`);
     if (res.ok) {
       const data = await res.json();
       setNotifications(data);
@@ -34,7 +34,7 @@ export default function NotificationPanel() {
   };
 
   const markAsRead = async (id: string) => {
-    await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+    await fetch(`/api/${storeSlug}/notifications/${id}`, { method: "PATCH" });
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );

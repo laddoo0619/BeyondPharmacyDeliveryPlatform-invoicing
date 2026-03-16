@@ -28,7 +28,7 @@ export async function generateRecurringOrders() {
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
 
-  // Find active recurring orders for today's day of week
+  // Find active recurring orders for today's day of week (across all stores)
   const recurringOrders = await prisma.recurringOrder.findMany({
     where: {
       isActive: true,
@@ -36,6 +36,7 @@ export async function generateRecurringOrders() {
     },
     include: {
       deliveryZone: true,
+      store: true,
       skips: {
         where: {
           skipDate: {
@@ -59,12 +60,17 @@ export async function generateRecurringOrders() {
     }
 
     // Check if an order already exists for this recurring order today
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
     const existingOrder = await prisma.order.findFirst({
       where: {
         recurringOrderId: recurring.id,
         scheduledDate: {
-          gte: new Date(today.setHours(0, 0, 0, 0)),
-          lt: new Date(today.setHours(23, 59, 59, 999)),
+          gte: todayStart,
+          lt: todayEnd,
         },
       },
     });
@@ -76,7 +82,7 @@ export async function generateRecurringOrders() {
       continue;
     }
 
-    // Create the order with price snapshot
+    // Create the order with price snapshot and storeId
     await prisma.order.create({
       data: {
         patientName: recurring.patientName,
@@ -92,11 +98,12 @@ export async function generateRecurringOrders() {
         scheduledDate: new Date(),
         recurringOrderId: recurring.id,
         createdById: recurring.createdById,
+        storeId: recurring.storeId,
       },
     });
 
     created++;
-    console.log(`[CRON] Created order for ${recurring.patientName}`);
+    console.log(`[CRON] Created order for ${recurring.patientName} (${recurring.store.name})`);
   }
 
   console.log(`[CRON] Generated ${created} recurring orders`);

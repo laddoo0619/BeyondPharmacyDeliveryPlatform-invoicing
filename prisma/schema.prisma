@@ -7,6 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users           User[]
+  deliveryZones   DeliveryZone[]
+  orders          Order[]
+  recurringOrders RecurringOrder[]
+  invoices        Invoice[]
+  notifications   Notification[]
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -15,6 +30,8 @@ model User {
   role         String   @default("PHARMACY_ADMIN") // PHARMACY_ADMIN | DRIVER
   phone        String?
   isActive     Boolean  @default(true)
+  storeId      String?
+  store        Store?   @relation(fields: [storeId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -28,14 +45,18 @@ model User {
 
 model DeliveryZone {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
   price     Float
   isActive  Boolean  @default(true)
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   orders          Order[]
   recurringOrders RecurringOrder[]
+
+  @@unique([name, storeId])
 }
 
 model RecurringOrder {
@@ -50,6 +71,8 @@ model RecurringOrder {
   instructions       String?
   dayOfWeek          Int      @default(1) // 0=Sun..6=Sat
   isActive           Boolean  @default(true)
+  storeId            String
+  store              Store    @relation(fields: [storeId], references: [id])
   createdById        String
   createdBy          User     @relation(fields: [createdById], references: [id])
   createdAt          DateTime @default(now())
@@ -92,6 +115,8 @@ model Order {
   recurringOrder     RecurringOrder? @relation(fields: [recurringOrderId], references: [id])
   assignedDriverId   String?
   assignedDriver     User?    @relation("OrderAssignedDriver", fields: [assignedDriverId], references: [id])
+  storeId            String
+  store              Store    @relation(fields: [storeId], references: [id])
   createdById        String
   createdBy          User     @relation("OrderCreatedBy", fields: [createdById], references: [id])
   createdAt          DateTime @default(now())
@@ -120,6 +145,8 @@ model Invoice {
   periodEnd     DateTime
   totalAmount   Float
   status        String   @default("DRAFT") // DRAFT | FINALIZED
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
   generatedById String
   generatedBy   User     @relation(fields: [generatedById], references: [id])
   createdAt     DateTime @default(now())
@@ -141,6 +168,8 @@ model Notification {
   id        String   @id @default(cuid())
   orderId   String
   order     Order    @relation(fields: [orderId], references: [id])
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
   type      String   // DELIVERY_FAILED | DELIVERY_REATTEMPT
   message   String
   isRead    Boolean  @default(false)
