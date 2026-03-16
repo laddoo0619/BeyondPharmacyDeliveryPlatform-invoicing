@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("PHARMACY_ADMIN") // PHARMACY_ADMIN | DRIVER
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdOrders      Order[]              @relation("OrderCreatedBy")
+  assignedDeliveries Order[]              @relation("OrderAssignedDriver")
+  recurringOrders    RecurringOrder[]
+  recurringSkips     RecurringOrderSkip[]
+  proofsOfDelivery   ProofOfDelivery[]
+  generatedInvoices  Invoice[]
+}
+
+model DeliveryZone {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  price     Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders          Order[]
+  recurringOrders RecurringOrder[]
+}
+
+model RecurringOrder {
+  id                 String   @id @default(cuid())
+  patientName        String
+  patientPhone       String?
+  deliveryAddress    String
+  deliveryCity       String
+  deliveryPostalCode String
+  deliveryZoneId     String
+  deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
+  instructions       String?
+  dayOfWeek          Int      @default(1) // 0=Sun..6=Sat
+  isActive           Boolean  @default(true)
+  createdById        String
+  createdBy          User     @relation(fields: [createdById], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  orders Order[]
+  skips  RecurringOrderSkip[]
+}
+
+model RecurringOrderSkip {
+  id               String         @id @default(cuid())
+  recurringOrderId String
+  recurringOrder   RecurringOrder @relation(fields: [recurringOrderId], references: [id])
+  skipDate         DateTime
+  reason           String?
+  createdById      String
+  createdBy        User           @relation(fields: [createdById], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@unique([recurringOrderId, skipDate])
+}
+
+model Order {
+  id                 String   @id @default(cuid())
+  patientName        String
+  patientPhone       String?
+  deliveryAddress    String
+  deliveryCity       String
+  deliveryPostalCode String
+  deliveryZoneId     String
+  deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZoneName   String
+  priceAtCreation    Float
+  instructions       String?
+  status             String   @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | CANCELLED
+  scheduledDate      DateTime
+  recurringOrderId   String?
+  recurringOrder     RecurringOrder? @relation(fields: [recurringOrderId], references: [id])
+  assignedDriverId   String?
+  assignedDriver     User?    @relation("OrderAssignedDriver", fields: [assignedDriverId], references: [id])
+  createdById        String
+  createdBy          User     @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  proofOfDelivery  ProofOfDelivery?
+  invoiceLineItems InvoiceLineItem[]
+}
+
+model ProofOfDelivery {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id])
+  photoUrl      String
+  deliveredAt   DateTime @default(now())
+  deliveredById String
+  deliveredBy   User     @relation(fields: [deliveredById], references: [id])
+  notes         String?
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalAmount   Float
+  status        String   @default("DRAFT") // DRAFT | FINALIZED
+  generatedById String
+  generatedBy   User     @relation(fields: [generatedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  lineItems InvoiceLineItem[]
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id])
+  description String
+  amount      Float
+}
