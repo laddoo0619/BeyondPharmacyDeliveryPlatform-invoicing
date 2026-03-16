@@ -84,7 +84,9 @@ model Order {
   deliveryZoneName   String
   priceAtCreation    Float
   instructions       String?
-  status             String   @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | CANCELLED
+  status             String   @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
+  failedReason       String?
+  attemptCount       Int      @default(1)
   scheduledDate      DateTime
   recurringOrderId   String?
   recurringOrder     RecurringOrder? @relation(fields: [recurringOrderId], references: [id])
@@ -97,6 +99,7 @@ model Order {
 
   proofOfDelivery  ProofOfDelivery?
   invoiceLineItems InvoiceLineItem[]
+  notifications    Notification[]
 }
 
 model ProofOfDelivery {
@@ -132,4 +135,14 @@ model InvoiceLineItem {
   order       Order   @relation(fields: [orderId], references: [id])
   description String
   amount      Float
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  type      String   // DELIVERY_FAILED | DELIVERY_REATTEMPT
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

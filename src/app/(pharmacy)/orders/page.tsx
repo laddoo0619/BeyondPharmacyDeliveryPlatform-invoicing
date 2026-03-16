@@ -7,7 +7,8 @@ const statusColors: Record<string, string> = {
   ASSIGNED: "bg-blue-100 text-blue-800",
   IN_TRANSIT: "bg-purple-100 text-purple-800",
   DELIVERED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800",
+  FAILED: "bg-red-100 text-red-800",
+  CANCELLED: "bg-gray-100 text-gray-600",
 };
 
 export default async function OrdersPage({
@@ -58,7 +59,7 @@ export default async function OrdersPage({
         >
           All ({total})
         </Link>
-        {["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED", "CANCELLED"].map(
+        {["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
           (s) => (
             <Link
               key={s}

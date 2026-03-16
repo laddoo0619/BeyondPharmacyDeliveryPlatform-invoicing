@@ -24,7 +24,8 @@ export default async function DeliverPage({
   return (
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-4">
-        Deliver to {order.patientName}
+        {order.status === "FAILED" ? "Re-attempt: " : "Deliver to "}
+        {order.patientName}
       </h1>
 
       <div className="bg-white rounded-lg p-4 border shadow-sm mb-4">
@@ -39,9 +40,19 @@ export default async function DeliverPage({
             <p className="text-sm text-blue-600">{order.instructions}</p>
           </>
         )}
+        {order.status === "FAILED" && order.failedReason && (
+          <div className="mt-3 bg-red-50 rounded-lg p-3">
+            <p className="text-sm text-gray-500">Previous failure reason</p>
+            <p className="text-sm text-red-700 font-medium">{order.failedReason}</p>
+          </div>
+        )}
       </div>
 
-      <DeliveryForm orderId={order.id} currentStatus={order.status} />
+      <DeliveryForm
+        orderId={order.id}
+        currentStatus={order.status}
+        attemptCount={order.attemptCount}
+      />
     </div>
   );
 }

@@ -10,9 +10,10 @@ export async function POST(req: NextRequest) {
 
   const { periodStart, periodEnd } = await req.json();
 
+  // Include both DELIVERED and FAILED orders (attempted delivery is still billed)
   const orders = await prisma.order.findMany({
     where: {
-      status: "DELIVERED",
+      status: { in: ["DELIVERED", "FAILED"] },
       scheduledDate: {
         gte: new Date(periodStart),
         lte: new Date(periodEnd + "T23:59:59.999Z"),
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   if (orders.length === 0) {
     return NextResponse.json(
-      { error: "No delivered orders found in this period" },
+      { error: "No delivered/attempted orders found in this period" },
       { status: 400 }
     );
   }
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
       lineItems: {
         create: orders.map((order) => ({
           orderId: order.id,
-          description: `Delivery to ${order.deliveryAddress}, ${order.deliveryCity} (${order.deliveryZoneName})`,
+          description: `${order.status === "FAILED" ? "Attempted delivery" : "Delivery"} to ${order.deliveryAddress}, ${order.deliveryCity} (${order.deliveryZoneName})`,
           amount: order.priceAtCreation,
         })),
       },
