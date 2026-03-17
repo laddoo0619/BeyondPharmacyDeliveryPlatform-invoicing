@@ -8,7 +8,12 @@ export async function login(email: string, password: string) {
     await signIn("credentials", { email, password, redirectTo: "/" });
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Invalid email or password" };
+      // Log the actual error type for debugging
+      console.error("Auth error:", error.type, error.message);
+      if (error.type === "CredentialsSignin") {
+        return { error: "Invalid email or password" };
+      }
+      return { error: `Authentication error: ${error.type}` };
     }
     // Successful login throws a NEXT_REDIRECT — re-throw it
     throw error;
