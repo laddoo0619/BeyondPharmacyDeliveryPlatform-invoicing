@@ -5,7 +5,7 @@ const VALID_STORE_SLUGS = ["surrey", "abbotsford"];
 const ADMIN_SECTIONS = ["dashboard", "orders", "recurring", "pricing", "invoices", "users"];
 const DRIVER_SECTIONS = ["deliveries", "deliver"];
 
-export default auth((req) => {
+export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
