@@ -1,22 +1,28 @@
-import cron from "node-cron";
-import { prisma } from "./db";
+/**
+ * AWS Lambda handler for generating daily recurring orders.
+ *
+ * Deployment:
+ * 1. Bundle this file with its dependencies (prisma client, @prisma/client)
+ * 2. Create a Lambda function with Node.js 20.x runtime
+ * 3. Set environment variable DATABASE_URL to your PostgreSQL connection string
+ * 4. Create an EventBridge rule with cron expression: cron(0 6 * * ? *)
+ *    (runs daily at 6:00 AM UTC — adjust for your timezone)
+ * 5. Set the EventBridge rule target to this Lambda function
+ *
+ * Required IAM permissions:
+ * - Lambda basic execution role (CloudWatch Logs)
+ * - VPC access if your database is in a private subnet
+ *
+ * The logic mirrors src/lib/cron.ts generateRecurringOrders() exactly.
+ */
 
-let initialized = false;
+import { PrismaClient } from "@prisma/client";
 
-export function initCronJobs() {
-  if (initialized) return;
-  initialized = true;
+const prisma = new PrismaClient();
 
-  // Run every day at 6:00 AM to generate orders from recurring templates
-  cron.schedule("0 6 * * *", async () => {
-    console.log("[CRON] Generating recurring orders...");
-    await generateRecurringOrders();
-  });
+export async function handler() {
+  console.log("[LAMBDA] Generating recurring orders...");
 
-  console.log("[CRON] Recurring order scheduler initialized");
-}
-
-export async function generateRecurringOrders() {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
 
@@ -34,7 +40,7 @@ export async function generateRecurringOrders() {
       isActive: true,
       OR: [
         { isOnHold: false },
-        { holdEnd: { lt: today } }, // Hold has expired
+        { holdEnd: { lt: today } },
       ],
     },
     include: {
@@ -52,6 +58,7 @@ export async function generateRecurringOrders() {
   });
 
   let created = 0;
+  let skipped = 0;
 
   for (const recurring of recurringOrders) {
     // Parse activeDays and check if today is a delivery day
@@ -63,9 +70,8 @@ export async function generateRecurringOrders() {
     // Double-check vacation hold date range
     if (recurring.isOnHold && recurring.holdStart && recurring.holdEnd) {
       if (today >= recurring.holdStart && today <= recurring.holdEnd) {
-        console.log(
-          `[CRON] Skipping recurring order for ${recurring.patientName} (on vacation hold)`
-        );
+        console.log(`[LAMBDA] Skipping ${recurring.patientName} (on vacation hold)`);
+        skipped++;
         continue;
       }
     }
@@ -76,20 +82,17 @@ export async function generateRecurringOrders() {
         where: { id: recurring.id },
         data: { isOnHold: false, holdStart: null, holdEnd: null },
       });
-      console.log(
-        `[CRON] Auto-cleared expired vacation hold for ${recurring.patientName}`
-      );
+      console.log(`[LAMBDA] Auto-cleared expired hold for ${recurring.patientName}`);
     }
 
     // Skip if there's a skip record for this week
     if (recurring.skips.length > 0) {
-      console.log(
-        `[CRON] Skipping recurring order for ${recurring.patientName} (skip record exists)`
-      );
+      console.log(`[LAMBDA] Skipping ${recurring.patientName} (skip record exists)`);
+      skipped++;
       continue;
     }
 
-    // Check if an order already exists for this recurring order today
+    // Check if an order already exists for today (idempotency guard)
     const todayStart = new Date(today);
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(today);
@@ -98,17 +101,12 @@ export async function generateRecurringOrders() {
     const existingOrder = await prisma.order.findFirst({
       where: {
         recurringOrderId: recurring.id,
-        scheduledDate: {
-          gte: todayStart,
-          lt: todayEnd,
-        },
+        scheduledDate: { gte: todayStart, lt: todayEnd },
       },
     });
 
     if (existingOrder) {
-      console.log(
-        `[CRON] Order already exists for ${recurring.patientName} today`
-      );
+      console.log(`[LAMBDA] Order already exists for ${recurring.patientName} today`);
       continue;
     }
 
@@ -116,7 +114,6 @@ export async function generateRecurringOrders() {
     const defaultDriverId = recurring.deliveryZone.defaultDriverId;
     const status = defaultDriverId ? "ASSIGNED" : "PENDING";
 
-    // Create the order with price snapshot and storeId
     await prisma.order.create({
       data: {
         patientName: recurring.patientName,
@@ -138,9 +135,16 @@ export async function generateRecurringOrders() {
     });
 
     created++;
-    console.log(`[CRON] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}${defaultDriverId ? " (auto-assigned)" : ""}`);
+    console.log(`[LAMBDA] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}`);
   }
 
-  console.log(`[CRON] Generated ${created} recurring orders`);
-  return created;
+  await prisma.$disconnect();
+
+  const result = {
+    statusCode: 200,
+    body: { created, skipped, total: recurringOrders.length },
+  };
+
+  console.log(`[LAMBDA] Done: ${created} orders created, ${skipped} skipped`);
+  return result;
 }

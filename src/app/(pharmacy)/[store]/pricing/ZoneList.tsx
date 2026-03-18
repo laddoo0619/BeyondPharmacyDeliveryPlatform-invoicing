@@ -8,9 +8,15 @@ interface Zone {
   name: string;
   price: number;
   isActive: boolean;
+  defaultDriverId: string | null;
 }
 
-export default function ZoneList({ zones, storeSlug }: { zones: Zone[]; storeSlug: string }) {
+interface Driver {
+  id: string;
+  name: string;
+}
+
+export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[]; storeSlug: string; drivers: Driver[] }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState("");
@@ -41,6 +47,7 @@ export default function ZoneList({ zones, storeSlug }: { zones: Zone[]; storeSlu
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zone</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Default Driver</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -59,6 +66,19 @@ export default function ZoneList({ zones, storeSlug }: { zones: Zone[]; storeSlu
                   ) : (
                     <span className="text-gray-900">${zone.price.toFixed(2)}</span>
                   )}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <select
+                    value={zone.defaultDriverId || ""}
+                    onChange={(e) => updateZone(zone.id, { defaultDriverId: e.target.value || null })}
+                    disabled={loading}
+                    className="px-2 py-1 border rounded text-sm text-gray-700"
+                  >
+                    <option value="">None (manual)</option>
+                    {drivers.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${zone.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>

@@ -19,6 +19,7 @@ model Store {
   deliveryZones   DeliveryZone[]
   orders          Order[]
   recurringOrders RecurringOrder[]
+  patients        Patient[]
   invoices        Invoice[]
   notifications   Notification[]
 }
@@ -38,21 +39,41 @@ model User {
 
   createdOrders      Order[]              @relation("OrderCreatedBy")
   assignedDeliveries Order[]              @relation("OrderAssignedDriver")
+  defaultZones       DeliveryZone[]       @relation("ZoneDefaultDriver")
   recurringOrders    RecurringOrder[]
   recurringSkips     RecurringOrderSkip[]
   proofsOfDelivery   ProofOfDelivery[]
   generatedInvoices  Invoice[]
 }
 
+model Patient {
+  id             String   @id @default(cuid())
+  name           String
+  phone          String?
+  address        String
+  city           String
+  postalCode     String
+  storeId        String
+  store          Store    @relation(fields: [storeId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  recurringOrders RecurringOrder[]
+
+  @@index([storeId, name])
+}
+
 model DeliveryZone {
-  id        String   @id @default(cuid())
-  name      String
-  price     Float
-  isActive  Boolean  @default(true)
-  storeId   String
-  store     Store    @relation(fields: [storeId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  price           Float
+  isActive        Boolean  @default(true)
+  defaultDriverId String?
+  defaultDriver   User?    @relation("ZoneDefaultDriver", fields: [defaultDriverId], references: [id])
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   orders          Order[]
   recurringOrders RecurringOrder[]
@@ -62,6 +83,8 @@ model DeliveryZone {
 
 model RecurringOrder {
   id                 String   @id @default(cuid())
+  patientId          String?
+  patient            Patient? @relation(fields: [patientId], references: [id])
   patientName        String
   patientPhone       String?
   deliveryAddress    String

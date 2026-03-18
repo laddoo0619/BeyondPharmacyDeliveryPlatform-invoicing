@@ -1,0 +1,18 @@
+{
+  "Comment": "AWS EventBridge rule for daily recurring order generation. Deploy via AWS CLI or CloudFormation.",
+  "Rule": {
+    "Name": "DailyRecurringOrderGeneration",
+    "Description": "Triggers Lambda at 6:00 AM EST daily to generate recurring delivery orders",
+    "ScheduleExpression": "cron(0 11 * * ? *)",
+    "State": "ENABLED"
+  },
+  "Target": {
+    "Id": "GenerateRecurringOrdersLambda",
+    "Arn": "arn:aws:lambda:REGION:ACCOUNT_ID:function:generate-recurring-orders"
+  },
+  "DeployCLI": {
+    "step1_create_rule": "aws events put-rule --name DailyRecurringOrderGeneration --schedule-expression 'cron(0 11 * * ? *)' --description 'Daily recurring order generation at 6 AM EST'",
+    "step2_add_target": "aws events put-targets --rule DailyRecurringOrderGeneration --targets 'Id=GenerateRecurringOrdersLambda,Arn=arn:aws:lambda:REGION:ACCOUNT_ID:function:generate-recurring-orders'",
+    "step3_add_permission": "aws lambda add-permission --function-name generate-recurring-orders --statement-id EventBridgeInvoke --action lambda:InvokeFunction --principal events.amazonaws.com --source-arn arn:aws:events:REGION:ACCOUNT_ID:rule/DailyRecurringOrderGeneration"
+  }
+}
