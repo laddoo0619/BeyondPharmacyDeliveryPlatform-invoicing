@@ -28,11 +28,14 @@ export async function generateRecurringOrders() {
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
 
-  // Find active recurring orders for today's day of week (across all stores)
+  // Find active recurring orders that are not currently on hold
   const recurringOrders = await prisma.recurringOrder.findMany({
     where: {
       isActive: true,
-      dayOfWeek,
+      OR: [
+        { isOnHold: false },
+        { holdEnd: { lt: today } }, // Hold has expired
+      ],
     },
     include: {
       deliveryZone: true,
@@ -51,6 +54,33 @@ export async function generateRecurringOrders() {
   let created = 0;
 
   for (const recurring of recurringOrders) {
+    // Parse activeDays and check if today is a delivery day
+    const activeDays: number[] = JSON.parse(recurring.activeDays);
+    if (!activeDays.includes(dayOfWeek)) {
+      continue;
+    }
+
+    // Double-check vacation hold date range
+    if (recurring.isOnHold && recurring.holdStart && recurring.holdEnd) {
+      if (today >= recurring.holdStart && today <= recurring.holdEnd) {
+        console.log(
+          `[CRON] Skipping recurring order for ${recurring.patientName} (on vacation hold)`
+        );
+        continue;
+      }
+    }
+
+    // Auto-clear expired holds
+    if (recurring.isOnHold && recurring.holdEnd && today > recurring.holdEnd) {
+      await prisma.recurringOrder.update({
+        where: { id: recurring.id },
+        data: { isOnHold: false, holdStart: null, holdEnd: null },
+      });
+      console.log(
+        `[CRON] Auto-cleared expired vacation hold for ${recurring.patientName}`
+      );
+    }
+
     // Skip if there's a skip record for this week
     if (recurring.skips.length > 0) {
       console.log(

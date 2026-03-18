@@ -12,8 +12,11 @@ interface RecurringOrderItem {
   deliveryCity: string;
   zoneName: string;
   zonePrice: number;
-  dayOfWeek: number;
+  activeDays: number[];
   isActive: boolean;
+  isOnHold: boolean;
+  holdStart: string | null;
+  holdEnd: string | null;
   isSkippedThisWeek: boolean;
 }
 
@@ -26,6 +29,32 @@ export default function RecurringOrderList({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+
+  const toggleHold = async (id: string, isOnHold: boolean) => {
+    if (!isOnHold) {
+      // Prompt for dates — use simple prompt for now (frontend already has date pickers)
+      const holdStart = prompt("Hold start date (YYYY-MM-DD):");
+      if (!holdStart) return;
+      const holdEnd = prompt("Hold end date (YYYY-MM-DD):");
+      if (!holdEnd) return;
+
+      setLoading(id);
+      await fetch(`/api/${storeSlug}/recurring/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isOnHold: true, holdStart, holdEnd }),
+      });
+    } else {
+      setLoading(id);
+      await fetch(`/api/${storeSlug}/recurring/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isOnHold: false }),
+      });
+    }
+    setLoading(null);
+    router.refresh();
+  };
 
   const toggleSkip = async (id: string, currentlySkipped: boolean) => {
     setLoading(id);
@@ -63,16 +92,29 @@ export default function RecurringOrderList({
               <div>
                 <p className="font-medium text-gray-900">{order.patientName}</p>
                 <p className="text-sm text-gray-500">{order.deliveryAddress}, {order.deliveryCity}</p>
-                <p className="text-sm text-gray-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • Every {DAYS[order.dayOfWeek]}</p>
+                <p className="text-sm text-gray-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • Every {order.activeDays.map((d) => DAYS[d]).join(", ")}</p>
               </div>
               <div className="flex items-center space-x-3">
-                {order.isSkippedThisWeek && (
+                {order.isOnHold && (
+                  <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">
+                    On Hold {order.holdStart && order.holdEnd
+                      ? `${new Date(order.holdStart).toLocaleDateString()} – ${new Date(order.holdEnd).toLocaleDateString()}`
+                      : ""}
+                  </span>
+                )}
+                {order.isSkippedThisWeek && !order.isOnHold && (
                   <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium">Skipped this week</span>
                 )}
                 {!order.isActive && (
                   <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full font-medium">Inactive</span>
                 )}
                 {order.isActive && (
+                  <button onClick={() => toggleHold(order.id, order.isOnHold)} disabled={loading === order.id}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${order.isOnHold ? "text-green-700 border-green-300 hover:bg-green-50" : "text-purple-700 border-purple-300 hover:bg-purple-50"} disabled:opacity-50`}>
+                    {order.isOnHold ? "Remove Hold" : "Vacation Hold"}
+                  </button>
+                )}
+                {order.isActive && !order.isOnHold && (
                   <button onClick={() => toggleSkip(order.id, order.isSkippedThisWeek)} disabled={loading === order.id}
                     className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${order.isSkippedThisWeek ? "text-green-700 border-green-300 hover:bg-green-50" : "text-orange-700 border-orange-300 hover:bg-orange-50"} disabled:opacity-50`}>
                     {order.isSkippedThisWeek ? "Unskip" : "Skip This Week"}

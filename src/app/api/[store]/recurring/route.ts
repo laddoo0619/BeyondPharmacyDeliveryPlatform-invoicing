@@ -20,6 +20,21 @@ export async function POST(
 
   const body = await req.json();
 
+  // Validate activeDays if provided
+  const activeDays = body.activeDays ?? [1];
+  if (
+    !Array.isArray(activeDays) ||
+    activeDays.length === 0 ||
+    activeDays.some(
+      (d: unknown) => typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6
+    )
+  ) {
+    return NextResponse.json(
+      { error: "activeDays must be a non-empty array of day numbers (0-6)" },
+      { status: 400 }
+    );
+  }
+
   const recurringOrder = await prisma.recurringOrder.create({
     data: {
       patientName: body.patientName,
@@ -29,7 +44,7 @@ export async function POST(
       deliveryPostalCode: body.deliveryPostalCode,
       deliveryZoneId: body.deliveryZoneId,
       instructions: body.instructions || null,
-      dayOfWeek: body.dayOfWeek ?? 1,
+      activeDays: JSON.stringify(activeDays),
       createdById: session.user.id,
       storeId: store.id,
     },

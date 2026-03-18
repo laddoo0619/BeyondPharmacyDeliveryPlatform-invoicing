@@ -55,8 +55,11 @@ export default async function RecurringPage({
               deliveryCity: o.deliveryCity,
               zoneName: o.deliveryZone.name,
               zonePrice: o.deliveryZone.price,
-              dayOfWeek: o.dayOfWeek,
+              activeDays: JSON.parse(o.activeDays) as number[],
               isActive: o.isActive,
+              isOnHold: o.isOnHold,
+              holdStart: o.holdStart?.toISOString() ?? null,
+              holdEnd: o.holdEnd?.toISOString() ?? null,
               isSkippedThisWeek: o.skips.length > 0,
             }))}
           />

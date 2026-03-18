@@ -26,9 +26,72 @@ export async function PATCH(
 
   const body = await req.json();
 
+  const updateData: Record<string, unknown> = {};
+
+  // Toggle active/inactive
+  if (typeof body.isActive === "boolean") {
+    updateData.isActive = body.isActive;
+  }
+
+  // Custom delivery days
+  if (body.activeDays) {
+    if (
+      !Array.isArray(body.activeDays) ||
+      body.activeDays.length === 0 ||
+      body.activeDays.some(
+        (d: unknown) => typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6
+      )
+    ) {
+      return NextResponse.json(
+        { error: "activeDays must be a non-empty array of day numbers (0-6)" },
+        { status: 400 }
+      );
+    }
+    updateData.activeDays = JSON.stringify(body.activeDays);
+  }
+
+  // Vacation hold
+  if (typeof body.isOnHold === "boolean") {
+    updateData.isOnHold = body.isOnHold;
+    if (body.isOnHold) {
+      if (!body.holdStart || !body.holdEnd) {
+        return NextResponse.json(
+          { error: "holdStart and holdEnd are required when enabling hold" },
+          { status: 400 }
+        );
+      }
+      const start = new Date(body.holdStart);
+      const end = new Date(body.holdEnd);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return NextResponse.json(
+          { error: "holdStart and holdEnd must be valid dates" },
+          { status: 400 }
+        );
+      }
+      if (end <= start) {
+        return NextResponse.json(
+          { error: "holdEnd must be after holdStart" },
+          { status: 400 }
+        );
+      }
+      updateData.holdStart = start;
+      updateData.holdEnd = end;
+    } else {
+      updateData.holdStart = null;
+      updateData.holdEnd = null;
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json(
+      { error: "No valid fields to update" },
+      { status: 400 }
+    );
+  }
+
   const updated = await prisma.recurringOrder.update({
     where: { id, storeId: store.id },
-    data: { isActive: body.isActive },
+    data: updateData,
   });
 
   return NextResponse.json(updated);

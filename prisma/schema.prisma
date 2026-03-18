@@ -70,7 +70,10 @@ model RecurringOrder {
   deliveryZoneId     String
   deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
   instructions       String?
-  dayOfWeek          Int      @default(1) // 0=Sun..6=Sat
+  activeDays         String   @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
+  isOnHold           Boolean  @default(false)
+  holdStart          DateTime?
+  holdEnd            DateTime?
   isActive           Boolean  @default(true)
   storeId            String
   store              Store    @relation(fields: [storeId], references: [id])

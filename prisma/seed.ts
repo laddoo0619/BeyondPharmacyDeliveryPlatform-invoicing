@@ -169,7 +169,7 @@ async function main() {
         deliveryPostalCode: "V3T 1A1",
         deliveryZoneId: surreySurreyZone.id,
         instructions: "Weekly prescription",
-        dayOfWeek: 1,
+        activeDays: JSON.stringify([1]),
         createdById: admin.id,
         storeId: surreyStore.id,
       },
