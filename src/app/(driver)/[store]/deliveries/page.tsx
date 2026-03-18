@@ -3,9 +3,12 @@ import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import DeliveryPoller from "./DeliveryPoller";
+import PickUpButton from "./PickUpButton";
 
 const statusColors: Record<string, string> = {
   ASSIGNED: "bg-blue-100 text-blue-800",
+  PICKED_UP: "bg-teal-100 text-teal-800",
   IN_TRANSIT: "bg-purple-100 text-purple-800",
   DELIVERED: "bg-green-100 text-green-800",
   FAILED: "bg-red-100 text-red-800",
@@ -35,7 +38,7 @@ export default async function DeliveriesPage({
         assignedDriverId: session.user.id,
         storeId: store.id,
         scheduledDate: { gte: today, lt: tomorrow },
-        status: { in: ["ASSIGNED", "IN_TRANSIT", "DELIVERED", "FAILED"] },
+        status: { in: ["ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED"] },
       },
       include: { proofOfDelivery: true },
       orderBy: { createdAt: "asc" },
@@ -63,6 +66,7 @@ export default async function DeliveriesPage({
 
   return (
     <div>
+      <DeliveryPoller />
       <h1 className="text-xl font-bold text-gray-900 mb-4">
         Today&apos;s Deliveries
       </h1>
@@ -143,13 +147,17 @@ export default async function DeliveriesPage({
                   </Link>
                 )}
 
-                {(delivery.status === "ASSIGNED" ||
+                {delivery.status === "ASSIGNED" && (
+                  <PickUpButton orderId={delivery.id} storeSlug={store.slug} />
+                )}
+
+                {(delivery.status === "PICKED_UP" ||
                   delivery.status === "IN_TRANSIT") && (
                   <Link
                     href={`/${store.slug}/deliver/${delivery.id}`}
                     className="mt-3 block w-full text-center bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700"
                   >
-                    {delivery.status === "ASSIGNED"
+                    {delivery.status === "PICKED_UP"
                       ? "Start Delivery"
                       : "Complete Delivery"}
                   </Link>

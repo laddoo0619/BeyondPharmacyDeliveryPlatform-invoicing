@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
   ASSIGNED: "bg-blue-100 text-blue-800",
+  PICKED_UP: "bg-teal-100 text-teal-800",
   IN_TRANSIT: "bg-purple-100 text-purple-800",
   DELIVERED: "bg-green-100 text-green-800",
   FAILED: "bg-red-100 text-red-800",
@@ -64,12 +65,12 @@ export default async function DashboardPage({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <p className="text-sm text-gray-500">Today&apos;s Total</p>
           <p className="text-2xl font-bold">{totalToday}</p>
         </div>
-        {["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
+        {["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
           (status) => (
             <div
               key={status}

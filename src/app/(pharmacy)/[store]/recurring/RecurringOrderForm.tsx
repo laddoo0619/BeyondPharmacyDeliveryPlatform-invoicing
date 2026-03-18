@@ -15,6 +15,7 @@ export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedDays, setSelectedDays] = useState<number[]>([1]); // Default Monday
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,7 +34,7 @@ export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]
         deliveryPostalCode: formData.get("deliveryPostalCode"),
         deliveryZoneId: formData.get("deliveryZoneId"),
         instructions: formData.get("instructions"),
-        dayOfWeek: parseInt(formData.get("dayOfWeek") as string),
+        activeDays: selectedDays,
       }),
     });
 
@@ -42,6 +43,7 @@ export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]
       setError(err.error || "Failed to create");
     } else {
       (e.target as HTMLFormElement).reset();
+      setSelectedDays([1]);
       router.refresh();
     }
     setLoading(false);
@@ -65,11 +67,26 @@ export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]
             <option key={z.id} value={z.id}>{z.name} — ${z.price.toFixed(2)}</option>
           ))}
         </select>
-        <select name="dayOfWeek" className="w-full px-3 py-2 border rounded-lg text-sm" defaultValue="1">
-          {DAYS.map((day, i) => (
-            <option key={i} value={i}>{day}</option>
-          ))}
-        </select>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Days</label>
+          <div className="flex flex-wrap gap-2">
+            {DAYS.map((day, i) => (
+              <label key={i} className={`flex items-center px-3 py-1.5 border rounded-lg text-sm cursor-pointer ${selectedDays.includes(i) ? "bg-blue-100 border-blue-400 text-blue-800" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={selectedDays.includes(i)}
+                  onChange={() => {
+                    setSelectedDays((prev) =>
+                      prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort()
+                    );
+                  }}
+                />
+                {day}
+              </label>
+            ))}
+          </div>
+        </div>
         <textarea name="instructions" rows={2} placeholder="Instructions (optional)" className="w-full px-3 py-2 border rounded-lg text-sm" />
         <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
           {loading ? "Creating..." : "Create Recurring Order"}

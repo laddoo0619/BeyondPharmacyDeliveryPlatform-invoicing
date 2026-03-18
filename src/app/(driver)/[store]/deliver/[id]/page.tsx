@@ -20,7 +20,7 @@ export default async function DeliverPage({
     where: { id, assignedDriverId: session.user.id },
   });
 
-  if (!order || order.storeId !== store.id || order.status === "DELIVERED" || order.status === "CANCELLED") {
+  if (!order || order.storeId !== store.id || order.status === "DELIVERED" || order.status === "CANCELLED" || order.status === "PENDING") {
     notFound();
   }
 

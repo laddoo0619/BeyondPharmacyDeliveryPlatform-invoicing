@@ -102,8 +102,21 @@ export default function DeliveryForm({
     );
   }
 
-  // ASSIGNED — start delivery
+  // ASSIGNED — mark as picked up
   if (currentStatus === "ASSIGNED") {
+    return (
+      <button
+        onClick={() => updateStatus("PICKED_UP")}
+        disabled={loading}
+        className="w-full bg-teal-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+      >
+        {loading ? "Updating..." : "\u2713 Mark as Picked Up"}
+      </button>
+    );
+  }
+
+  // PICKED_UP — start delivery
+  if (currentStatus === "PICKED_UP") {
     return (
       <button
         onClick={() => updateStatus("IN_TRANSIT")}

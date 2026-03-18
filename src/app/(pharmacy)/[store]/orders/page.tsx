@@ -3,10 +3,12 @@ import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import OrderActions from "./OrderActions";
+import OrdersPoller from "./OrdersPoller";
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
   ASSIGNED: "bg-blue-100 text-blue-800",
+  PICKED_UP: "bg-teal-100 text-teal-800",
   IN_TRANSIT: "bg-purple-100 text-purple-800",
   DELIVERED: "bg-green-100 text-green-800",
   FAILED: "bg-red-100 text-red-800",
@@ -47,6 +49,7 @@ export default async function OrdersPage({
 
   return (
     <div>
+      <OrdersPoller />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
         <Link
@@ -67,7 +70,7 @@ export default async function OrdersPage({
         >
           All ({total})
         </Link>
-        {["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
+        {["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
           (s) => (
             <Link
               key={s}
