@@ -75,12 +75,16 @@ export default function NotificationPanel({ storeSlug }: { storeSlug: string }) 
                       className={`inline-block w-2 h-2 rounded-full ${
                         n.type === "DELIVERY_FAILED"
                           ? "bg-red-500"
+                          : n.type === "ORDER_PICKED_UP"
+                          ? "bg-teal-500"
                           : "bg-blue-500"
                       }`}
                     />
                     <span className="text-xs font-medium text-gray-500 uppercase">
                       {n.type === "DELIVERY_FAILED"
                         ? "Delivery Failed"
+                        : n.type === "ORDER_PICKED_UP"
+                        ? "Order Picked Up"
                         : "Re-attempt Started"}
                     </span>
                   </div>

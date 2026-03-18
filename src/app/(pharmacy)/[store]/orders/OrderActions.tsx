@@ -32,7 +32,7 @@ export default function OrderActions({
     router.refresh();
   };
 
-  if (currentStatus === "DELIVERED" || currentStatus === "CANCELLED") {
+  if (currentStatus === "DELIVERED" || currentStatus === "CANCELLED" || currentStatus === "PICKED_UP" || currentStatus === "IN_TRANSIT") {
     return null;
   }
 

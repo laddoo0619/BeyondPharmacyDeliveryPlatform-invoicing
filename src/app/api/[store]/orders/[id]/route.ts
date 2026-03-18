@@ -25,6 +25,34 @@ export async function PATCH(
   if (body.status) updateData.status = body.status;
   if (body.assignedDriverId) updateData.assignedDriverId = body.assignedDriverId;
 
+  // Handle PICKED_UP status — create notification for pharmacy
+  if (body.status === "PICKED_UP") {
+    const order = await prisma.order.findUnique({ where: { id, storeId: store.id } });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id, storeId: store.id },
+        data: updateData,
+      });
+
+      await tx.notification.create({
+        data: {
+          orderId: id,
+          type: "ORDER_PICKED_UP",
+          message: `Driver picked up delivery for ${order.patientName} at ${order.deliveryAddress}, ${order.deliveryCity}`,
+          storeId: store.id,
+        },
+      });
+
+      return updatedOrder;
+    });
+
+    return NextResponse.json(updated);
+  }
+
   // Handle FAILED status — save reason and create notification
   if (body.status === "FAILED") {
     updateData.failedReason = body.failedReason || "No reason provided";
