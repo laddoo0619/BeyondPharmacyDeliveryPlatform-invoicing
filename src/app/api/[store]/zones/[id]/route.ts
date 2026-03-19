@@ -29,6 +29,7 @@ export async function PATCH(
   const updateData: Record<string, unknown> = {};
   if (body.price !== undefined) updateData.price = body.price;
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
+  if ("defaultDriverId" in body) updateData.defaultDriverId = body.defaultDriverId || null;
 
   const zone = await prisma.deliveryZone.update({
     where: { id, storeId: store.id },

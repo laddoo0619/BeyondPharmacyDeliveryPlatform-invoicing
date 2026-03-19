@@ -13,10 +13,17 @@ export default async function PricingPage({
   const store = await resolveStore(storeSlug);
   if (!store) notFound();
 
-  const zones = await prisma.deliveryZone.findMany({
-    where: { storeId: store.id },
-    orderBy: { name: "asc" },
-  });
+  const [zones, drivers] = await Promise.all([
+    prisma.deliveryZone.findMany({
+      where: { storeId: store.id },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { storeId: store.id, role: "DRIVER", isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return (
     <div>
@@ -26,7 +33,7 @@ export default async function PricingPage({
           <ZoneForm storeSlug={storeSlug} />
         </div>
         <div className="lg:col-span-2">
-          <ZoneList storeSlug={storeSlug} zones={zones} />
+          <ZoneList storeSlug={storeSlug} zones={zones} drivers={drivers} />
         </div>
       </div>
     </div>

@@ -35,8 +35,25 @@ export async function POST(
     );
   }
 
+  // If no patientId provided but we have patient details, auto-create a Patient record
+  let patientId = body.patientId || null;
+  if (!patientId && body.patientName && body.deliveryAddress) {
+    const patient = await prisma.patient.create({
+      data: {
+        name: body.patientName,
+        phone: body.patientPhone || null,
+        address: body.deliveryAddress,
+        city: body.deliveryCity,
+        postalCode: body.deliveryPostalCode,
+        storeId: store.id,
+      },
+    });
+    patientId = patient.id;
+  }
+
   const recurringOrder = await prisma.recurringOrder.create({
     data: {
+      patientId,
       patientName: body.patientName,
       patientPhone: body.patientPhone || null,
       deliveryAddress: body.deliveryAddress,
