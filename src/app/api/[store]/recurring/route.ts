@@ -66,7 +66,38 @@ export async function POST(
       createdById: session.user.id,
       storeId: store.id,
     },
+    include: { deliveryZone: true },
   });
+
+  // If today is an active day, immediately create today's Order so it appears in the driver portal
+  const todayDow = new Date().getDay();
+  if (activeDays.includes(todayDow)) {
+    const driverId = body.assignedDriverId || recurringOrder.deliveryZone.defaultDriverId;
+    const status = driverId ? "ASSIGNED" : "PENDING";
+    try {
+      await prisma.order.create({
+        data: {
+          patientName: body.patientName,
+          patientPhone: body.patientPhone || null,
+          deliveryAddress: body.deliveryAddress,
+          deliveryCity: body.deliveryCity,
+          deliveryPostalCode: body.deliveryPostalCode,
+          deliveryZoneId: body.deliveryZoneId,
+          deliveryZoneName: recurringOrder.deliveryZone.name,
+          priceAtCreation: recurringOrder.deliveryZone.price,
+          instructions: body.instructions || null,
+          status,
+          assignedDriverId: driverId,
+          scheduledDate: new Date(),
+          recurringOrderId: recurringOrder.id,
+          createdById: session.user.id,
+          storeId: store.id,
+        },
+      });
+    } catch {
+      // Dedup: order may already exist for today (e.g. cron already ran)
+    }
+  }
 
   return NextResponse.json(recurringOrder, { status: 201 });
 }
