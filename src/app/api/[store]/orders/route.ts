@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
+import { toPacificMidnight } from "@/lib/timezone";
 import { z } from "zod";
 
 const createOrderSchema = z.object({
@@ -62,7 +63,7 @@ export async function POST(
       deliveryZoneName: zone.name,
       priceAtCreation: zone.price,
       instructions: data.instructions || null,
-      scheduledDate: new Date(data.scheduledDate),
+      scheduledDate: toPacificMidnight(data.scheduledDate),
       status: "PENDING",
       createdById: session.user.id,
       storeId: store.id,

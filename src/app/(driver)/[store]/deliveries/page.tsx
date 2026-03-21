@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
+import { getPacificDayRange } from "@/lib/timezone";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import DeliveryPoller from "./DeliveryPoller";
@@ -26,10 +27,7 @@ export default async function DeliveriesPage({
   const session = await auth();
   if (!session?.user) return null;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { start: today, end: tomorrow } = getPacificDayRange();
 
   // Fetch today's deliveries + any FAILED orders from previous days (for re-attempt)
   const [todayDeliveries, failedFromPreviousDays] = await Promise.all([
@@ -169,6 +167,9 @@ export default async function DeliveriesPage({
                     {new Date(
                       delivery.proofOfDelivery.deliveredAt
                     ).toLocaleTimeString()}
+                    {!delivery.proofOfDelivery.photoUrl && (
+                      <span className="text-gray-400 ml-1">(photo expired)</span>
+                    )}
                   </p>
                 )}
               </div>

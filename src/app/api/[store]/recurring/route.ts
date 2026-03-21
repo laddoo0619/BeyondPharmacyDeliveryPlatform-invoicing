@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
+import { getPacificDayOfWeek, getPacificDayRange } from "@/lib/timezone";
 
 export async function POST(
   req: NextRequest,
@@ -69,11 +70,12 @@ export async function POST(
     include: { deliveryZone: true },
   });
 
-  // If today is an active day, immediately create today's Order so it appears in the driver portal
-  const todayDow = new Date().getDay();
+  // If today (Pacific Time) is an active day, immediately create today's Order
+  const todayDow = getPacificDayOfWeek();
   if (activeDays.includes(todayDow)) {
     const driverId = body.assignedDriverId || recurringOrder.deliveryZone.defaultDriverId;
     const status = driverId ? "ASSIGNED" : "PENDING";
+    const { start: todayStart } = getPacificDayRange();
     try {
       await prisma.order.create({
         data: {
@@ -88,7 +90,7 @@ export async function POST(
           instructions: body.instructions || null,
           status,
           assignedDriverId: driverId,
-          scheduledDate: new Date(),
+          scheduledDate: todayStart,
           recurringOrderId: recurringOrder.id,
           createdById: session.user.id,
           storeId: store.id,

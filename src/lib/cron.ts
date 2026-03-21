@@ -1,5 +1,7 @@
 import cron from "node-cron";
+import { del } from "@vercel/blob";
 import { prisma } from "./db";
+import { getPacificDayRange, getPacificDayOfWeek } from "./timezone";
 
 let initialized = false;
 
@@ -19,30 +21,33 @@ export function initCronJobs() {
     await purgeOldInvoicedOrders();
   });
 
+  // Run every day at 3:00 AM to delete POD images older than 7 days
+  cron.schedule("0 3 * * *", async () => {
+    console.log("[CRON] Running 7-day POD image cleanup...");
+    await purgeExpiredPodImages();
+  });
+
   console.log("[CRON] Recurring order scheduler initialized");
   console.log("[CRON] Data retention cleanup scheduler initialized");
+  console.log("[CRON] POD image retention (7-day) scheduler initialized");
 }
 
 export async function generateRecurringOrders() {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
+  // Use Pacific Time for all day boundaries so cron running in UTC
+  // generates orders for the correct Pacific Time day
+  const dayOfWeek = getPacificDayOfWeek();
+  const { start: todayStart, end: todayEnd } = getPacificDayRange();
 
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(today);
-  todayEnd.setHours(23, 59, 59, 999);
-
-  // Get start of current week (Sunday)
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - dayOfWeek);
-  startOfWeek.setHours(0, 0, 0, 0);
+  // Get start of current week (Sunday) in Pacific Time
+  const startOfWeek = new Date(todayStart);
+  startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
 
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
 
   // Batch: auto-clear all expired holds in one query
   const clearedHolds = await prisma.recurringOrder.updateMany({
-    where: { isOnHold: true, holdEnd: { lt: today } },
+    where: { isOnHold: true, holdEnd: { lt: todayStart } },
     data: { isOnHold: false, holdStart: null, holdEnd: null },
   });
   if (clearedHolds.count > 0) {
@@ -114,7 +119,7 @@ export async function generateRecurringOrders() {
           instructions: recurring.instructions,
           status,
           assignedDriverId: driverId,
-          scheduledDate: new Date(),
+          scheduledDate: todayStart,
           recurringOrderId: recurring.id,
           createdById: recurring.createdById,
           storeId: recurring.storeId,
@@ -178,6 +183,65 @@ export async function purgeOldInvoicedOrders() {
     return totalPurged;
   } catch (error) {
     console.error("[CRON] Data cleanup failed:", error);
+    return 0;
+  }
+}
+
+const POD_BATCH_SIZE = 100;
+
+export async function purgeExpiredPodImages() {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    let totalPurged = 0;
+
+    while (true) {
+      const batch = await prisma.proofOfDelivery.findMany({
+        where: {
+          deliveredAt: { lt: sevenDaysAgo },
+          photoUrl: { not: null },
+        },
+        select: { id: true, photoUrl: true },
+        take: POD_BATCH_SIZE,
+      });
+
+      if (batch.length === 0) break;
+
+      // Delete blobs from Vercel Blob storage
+      const urls = batch
+        .map((p) => p.photoUrl)
+        .filter((url): url is string => url !== null && url.startsWith("http"));
+
+      if (urls.length > 0) {
+        try {
+          await del(urls);
+        } catch (err) {
+          console.warn("[CRON] Some blob deletions failed:", err);
+        }
+      }
+
+      // Null out photoUrl in database so UI shows "Photo expired"
+      const ids = batch.map((p) => p.id);
+      await prisma.proofOfDelivery.updateMany({
+        where: { id: { in: ids } },
+        data: { photoUrl: null },
+      });
+
+      totalPurged += batch.length;
+      console.log(`[CRON] Purged ${batch.length} expired POD images`);
+
+      if (batch.length < POD_BATCH_SIZE) break;
+    }
+
+    if (totalPurged === 0) {
+      console.log("[CRON] No expired POD images to purge");
+    } else {
+      console.log(`[CRON] Total purged: ${totalPurged} expired POD images`);
+    }
+    return totalPurged;
+  } catch (error) {
+    console.error("[CRON] POD image cleanup failed:", error);
     return 0;
   }
 }

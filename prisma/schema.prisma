@@ -172,7 +172,7 @@ model ProofOfDelivery {
   id            String   @id @default(cuid())
   orderId       String   @unique
   order         Order    @relation(fields: [orderId], references: [id])
-  photoUrl      String
+  photoUrl      String?  // null after 7-day auto-delete
   deliveredAt   DateTime @default(now())
   deliveredById String
   deliveredBy   User     @relation(fields: [deliveredById], references: [id])

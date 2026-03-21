@@ -17,6 +17,7 @@ export default function DeliveryForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [showFailForm, setShowFailForm] = useState(false);
@@ -190,10 +191,32 @@ export default function DeliveryForm({
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                if (file && file.size > 10 * 1024 * 1024) {
+                  setError("Photo must be under 10 MB");
+                  setPhoto(null);
+                  setPhotoPreview(null);
+                  return;
+                }
+                setPhoto(file);
+                if (file) {
+                  setPhotoPreview(URL.createObjectURL(file));
+                } else {
+                  setPhotoPreview(null);
+                }
+                setError("");
+              }}
               className="w-full text-sm"
             />
-            {photo && (
+            {photoPreview && (
+              <img
+                src={photoPreview}
+                alt="Preview"
+                className="mt-2 rounded-lg max-h-48 w-full object-cover"
+              />
+            )}
+            {photo && !photoPreview && (
               <p className="mt-1 text-xs text-green-600">
                 Photo selected: {photo.name}
               </p>

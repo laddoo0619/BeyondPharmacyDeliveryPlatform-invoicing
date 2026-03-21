@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 
 export async function POST(
   req: NextRequest,
@@ -41,22 +40,20 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Save file
-  const uploadsDir = path.join(process.cwd(), "uploads");
-  await mkdir(uploadsDir, { recursive: true });
-
+  // Upload to Vercel Blob
   const ext = file.name.split(".").pop() || "jpg";
-  const filename = `${orderId}-${Date.now()}.${ext}`;
-  const filepath = path.join(uploadsDir, filename);
+  const filename = `pod/${orderId}-${Date.now()}.${ext}`;
 
-  const bytes = await file.arrayBuffer();
-  await writeFile(filepath, Buffer.from(bytes));
+  const blob = await put(filename, file, {
+    access: "public",
+    addRandomSuffix: false,
+  });
 
   // Create proof of delivery record
   const pod = await prisma.proofOfDelivery.create({
     data: {
       orderId,
-      photoUrl: `/uploads/${filename}`,
+      photoUrl: blob.url,
       deliveredById: session.user.id,
       notes: notes || null,
     },
