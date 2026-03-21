@@ -35,6 +35,11 @@ export async function PATCH(
     updateData.cancelledAt = new Date();
   }
 
+  // Set completedAt when order reaches a terminal status
+  if (body.status === "DELIVERED" || body.status === "FAILED") {
+    updateData.completedAt = new Date();
+  }
+
   // Auto-promote PENDING to ASSIGNED when a driver is assigned without explicit status
   if (body.assignedDriverId && !body.status) {
     const current = await prisma.order.findUnique({ where: { id, storeId: store.id } });
@@ -111,6 +116,7 @@ export async function PATCH(
     if (order?.status === "FAILED") {
       updateData.attemptCount = (order.attemptCount || 1) + 1;
       updateData.failedReason = null;
+      updateData.completedAt = null;
 
       const updated = await prisma.$transaction(async (tx) => {
         const updatedOrder = await tx.order.update({
@@ -175,6 +181,14 @@ export async function DELETE(
 
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  // Guard: completed orders must be invoiced before deletion
+  if ((order.status === "DELIVERED" || order.status === "FAILED") && !order.isInvoiced) {
+    return NextResponse.json(
+      { error: "Cannot delete: this order has not been invoiced yet. Generate an invoice first." },
+      { status: 409 }
+    );
   }
 
   // Stage 1: If order is not yet cancelled, soft-delete it

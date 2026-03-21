@@ -25,11 +25,12 @@ export async function GET(
     return NextResponse.json({ error: "Start and end dates required" }, { status: 400 });
   }
 
-  // Include both DELIVERED and FAILED orders (attempted delivery is still billed)
+  // Include both DELIVERED and FAILED orders that haven't been invoiced yet
   const orders = await prisma.order.findMany({
     where: {
       storeId: store.id,
       status: { in: ["DELIVERED", "FAILED"] },
+      isInvoiced: false,
       scheduledDate: {
         gte: new Date(start),
         lte: new Date(end + "T23:59:59.999Z"),

@@ -20,11 +20,12 @@ export async function POST(
 
   const { periodStart, periodEnd } = await req.json();
 
-  // Include both DELIVERED and FAILED orders (attempted delivery is still billed)
+  // Include both DELIVERED and FAILED orders that haven't been invoiced yet
   const orders = await prisma.order.findMany({
     where: {
       storeId: store.id,
       status: { in: ["DELIVERED", "FAILED"] },
+      isInvoiced: false,
       scheduledDate: {
         gte: new Date(periodStart),
         lte: new Date(periodEnd + "T23:59:59.999Z"),
@@ -70,6 +71,12 @@ export async function POST(
       },
     },
     include: { lineItems: true },
+  });
+
+  // Mark all included orders as invoiced to prevent double-billing
+  await prisma.order.updateMany({
+    where: { id: { in: orders.map((o) => o.id) } },
+    data: { isInvoiced: true },
   });
 
   return NextResponse.json(invoice, { status: 201 });
