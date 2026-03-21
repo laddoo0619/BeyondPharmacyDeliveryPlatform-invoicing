@@ -13,7 +13,14 @@ export function initCronJobs() {
     await generateRecurringOrders();
   });
 
+  // Run every day at 2:00 AM to purge old invoiced records (3-month retention)
+  cron.schedule("0 2 * * *", async () => {
+    console.log("[CRON] Running 3-month data cleanup...");
+    await purgeOldInvoicedOrders();
+  });
+
   console.log("[CRON] Recurring order scheduler initialized");
+  console.log("[CRON] Data retention cleanup scheduler initialized");
 }
 
 export async function generateRecurringOrders() {
@@ -143,4 +150,42 @@ export async function generateRecurringOrders() {
 
   console.log(`[CRON] Generated ${created} recurring orders`);
   return created;
+}
+
+export async function purgeOldInvoicedOrders() {
+  try {
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    // Find invoiced orders completed more than 3 months ago
+    const orders = await prisma.order.findMany({
+      where: {
+        isInvoiced: true,
+        completedAt: { not: null, lt: threeMonthsAgo },
+        status: { in: ["DELIVERED", "FAILED", "CANCELLED"] },
+      },
+      select: { id: true, storeId: true },
+    });
+
+    if (orders.length === 0) {
+      console.log("[CRON] No old invoiced orders to purge");
+      return 0;
+    }
+
+    const orderIds = orders.map((o) => o.id);
+
+    // Cascade delete related records, then the orders
+    await prisma.$transaction(async (tx) => {
+      await tx.notification.deleteMany({ where: { orderId: { in: orderIds } } });
+      await tx.invoiceLineItem.deleteMany({ where: { orderId: { in: orderIds } } });
+      await tx.proofOfDelivery.deleteMany({ where: { orderId: { in: orderIds } } });
+      await tx.order.deleteMany({ where: { id: { in: orderIds } } });
+    });
+
+    console.log(`[CRON] Purged ${orders.length} old invoiced orders`);
+    return orders.length;
+  } catch (error) {
+    console.error("[CRON] Data cleanup failed:", error);
+    return 0;
+  }
 }

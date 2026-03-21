@@ -136,6 +136,8 @@ model Order {
   instructions       String?
   status             String   @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
   cancelledAt        DateTime?
+  isInvoiced         Boolean  @default(false)
+  completedAt        DateTime?
   failedReason       String?
   attemptCount       Int      @default(1)
   scheduledDate      DateTime

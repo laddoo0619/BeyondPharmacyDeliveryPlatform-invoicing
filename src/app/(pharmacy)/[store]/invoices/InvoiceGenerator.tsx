@@ -75,6 +75,15 @@ export default function InvoiceGenerator({ storeSlug }: { storeSlug: string }) {
         </button>
       </form>
 
+      <a
+        href={`/api/${storeSlug}/orders/export`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full text-center mt-3 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+      >
+        Export Uninvoiced (CSV)
+      </a>
+
       {preview && (
         <div className="mt-4 border-t pt-4">
           <p className="text-sm font-medium text-gray-700">{preview.orders.length} delivered orders</p>
