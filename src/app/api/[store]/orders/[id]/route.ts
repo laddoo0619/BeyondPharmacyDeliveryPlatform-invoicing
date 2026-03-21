@@ -30,6 +30,11 @@ export async function PATCH(
   if (body.status) updateData.status = body.status;
   if (body.assignedDriverId) updateData.assignedDriverId = body.assignedDriverId;
 
+  // Set cancelledAt timestamp when cancelling an order (Stage 1 of soft delete)
+  if (body.status === "CANCELLED") {
+    updateData.cancelledAt = new Date();
+  }
+
   // Auto-promote PENDING to ASSIGNED when a driver is assigned without explicit status
   if (body.assignedDriverId && !body.status) {
     const current = await prisma.order.findUnique({ where: { id, storeId: store.id } });
@@ -141,4 +146,86 @@ export async function PATCH(
   });
 
   return NextResponse.json(order);
+}
+
+const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ store: string; id: string }> }
+) {
+  const { store: storeSlug, id } = await params;
+  const store = await resolveStore(storeSlug);
+  if (!store) {
+    return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  }
+
+  const session = await auth();
+  if (!session?.user || session.user.role !== "PHARMACY_ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.user.storeId && session.user.storeId !== store.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id, storeId: store.id },
+  });
+
+  if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  // Stage 1: If order is not yet cancelled, soft-delete it
+  if (order.status !== "CANCELLED") {
+    const updated = await prisma.order.update({
+      where: { id, storeId: store.id },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    });
+    return NextResponse.json({
+      message: "Order cancelled. It can be permanently deleted after 24 hours.",
+      order: updated,
+    });
+  }
+
+  // Stage 2: Order is already cancelled — check cooldown
+  if (!order.cancelledAt) {
+    // Edge case: cancelled before cancelledAt field existed — set it now
+    await prisma.order.update({
+      where: { id, storeId: store.id },
+      data: { cancelledAt: new Date() },
+    });
+    return NextResponse.json(
+      {
+        error: "Cooldown period started. You can permanently delete this order after 24 hours.",
+        cancelledAt: new Date().toISOString(),
+      },
+      { status: 409 }
+    );
+  }
+
+  const elapsed = Date.now() - new Date(order.cancelledAt).getTime();
+  if (elapsed < COOLDOWN_MS) {
+    const remainingMs = COOLDOWN_MS - elapsed;
+    const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+    return NextResponse.json(
+      {
+        error: `Cannot permanently delete yet. ${remainingHours} hour(s) remaining in the 24-hour cooldown.`,
+        cancelledAt: order.cancelledAt,
+        canDeleteAfter: new Date(new Date(order.cancelledAt).getTime() + COOLDOWN_MS).toISOString(),
+      },
+      { status: 409 }
+    );
+  }
+
+  // Cooldown passed — permanently delete (cascade related records)
+  await prisma.$transaction(async (tx) => {
+    await tx.notification.deleteMany({ where: { orderId: id } });
+    await tx.invoiceLineItem.deleteMany({ where: { orderId: id } });
+    await tx.proofOfDelivery.deleteMany({ where: { orderId: id } });
+    await tx.order.delete({ where: { id, storeId: store.id } });
+  });
+
+  return NextResponse.json({ message: "Order permanently deleted." });
 }

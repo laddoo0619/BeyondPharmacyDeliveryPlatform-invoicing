@@ -135,6 +135,7 @@ model Order {
   priceAtCreation    Float
   instructions       String?
   status             String   @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
+  cancelledAt        DateTime?
   failedReason       String?
   attemptCount       Int      @default(1)
   scheduledDate      DateTime
