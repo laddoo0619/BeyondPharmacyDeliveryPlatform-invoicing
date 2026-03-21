@@ -107,6 +107,8 @@ model RecurringOrder {
 
   orders Order[]
   skips  RecurringOrderSkip[]
+
+  @@index([isActive, isOnHold])
 }
 
 model RecurringOrderSkip {
@@ -155,6 +157,12 @@ model Order {
   proofOfDelivery  ProofOfDelivery?
   invoiceLineItems InvoiceLineItem[]
   notifications    Notification[]
+
+  @@index([storeId, scheduledDate])
+  @@index([storeId, status])
+  @@index([assignedDriverId, storeId, scheduledDate])
+  @@index([recurringOrderId, scheduledDate])
+  @@index([isInvoiced, completedAt])
 }
 
 model ProofOfDelivery {

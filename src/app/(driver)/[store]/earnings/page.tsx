@@ -32,21 +32,36 @@ export default async function EarningsPage({
   }
   rangeStart.setHours(0, 0, 0, 0);
 
-  // Fetch only this driver's DELIVERED orders
-  const deliveries = await prisma.order.findMany({
-    where: {
-      assignedDriverId: session.user.id,
-      storeId: store.id,
-      status: "DELIVERED",
-      scheduledDate: { gte: rangeStart },
-    },
-    orderBy: { scheduledDate: "desc" },
-  });
+  const earningsWhere = {
+    assignedDriverId: session.user.id,
+    storeId: store.id,
+    status: "DELIVERED" as const,
+    scheduledDate: { gte: rangeStart },
+  };
 
-  const totalEarnings = deliveries.reduce(
-    (sum, d) => sum + d.priceAtCreation,
-    0
-  );
+  // Use aggregate for totals (efficient DB-level sum) + paginated list
+  const [stats, deliveries] = await Promise.all([
+    prisma.order.aggregate({
+      where: earningsWhere,
+      _sum: { priceAtCreation: true },
+      _count: true,
+    }),
+    prisma.order.findMany({
+      where: earningsWhere,
+      select: {
+        id: true,
+        patientName: true,
+        deliveryZoneName: true,
+        priceAtCreation: true,
+        scheduledDate: true,
+      },
+      orderBy: { scheduledDate: "desc" },
+      take: 100,
+    }),
+  ]);
+
+  const totalEarnings = stats._sum.priceAtCreation ?? 0;
+  const totalCount = stats._count;
 
   const startStr = rangeStart.toISOString().split("T")[0];
   const endStr = now.toISOString().split("T")[0];
@@ -59,7 +74,7 @@ export default async function EarningsPage({
       <div className="flex space-x-2 mb-4">
         <Link
           href={`/${storeSlug}/earnings?range=week`}
-          className={`px-4 py-2 rounded-full text-sm font-medium ${
+          className={`px-4 py-3 rounded-full text-sm font-medium ${
             range === "week"
               ? "bg-green-100 text-green-700"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -69,7 +84,7 @@ export default async function EarningsPage({
         </Link>
         <Link
           href={`/${storeSlug}/earnings?range=month`}
-          className={`px-4 py-2 rounded-full text-sm font-medium ${
+          className={`px-4 py-3 rounded-full text-sm font-medium ${
             range === "month"
               ? "bg-green-100 text-green-700"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -85,7 +100,7 @@ export default async function EarningsPage({
           <div>
             <p className="text-sm text-gray-500">Completed Deliveries</p>
             <p className="text-2xl font-bold text-gray-900">
-              {deliveries.length}
+              {totalCount}
             </p>
           </div>
           <div className="text-right">
