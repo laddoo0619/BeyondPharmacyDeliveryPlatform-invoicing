@@ -38,6 +38,26 @@ export default function RecurringOrderList({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateMsg, setGenerateMsg] = useState("");
+
+  const generateToday = async () => {
+    setGenerating(true);
+    setGenerateMsg("");
+    try {
+      const res = await fetch(`/api/${storeSlug}/recurring/generate`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setGenerateMsg(`${data.created} order${data.created === 1 ? "" : "s"} generated for today.`);
+        router.refresh();
+      } else {
+        setGenerateMsg("Failed to generate orders.");
+      }
+    } catch {
+      setGenerateMsg("Network error. Please try again.");
+    }
+    setGenerating(false);
+  };
 
   const toggleHold = async (id: string, isOnHold: boolean) => {
     if (!isOnHold) {
@@ -110,8 +130,20 @@ export default function RecurringOrderList({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b flex items-center justify-between">
         <h2 className="text-lg font-semibold">Recurring Orders</h2>
+        <div className="flex items-center gap-3">
+          {generateMsg && (
+            <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded">{generateMsg}</span>
+          )}
+          <button
+            onClick={generateToday}
+            disabled={generating}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border text-blue-700 border-blue-300 hover:bg-blue-50 disabled:opacity-50"
+          >
+            {generating ? "Generating..." : "Generate Today\u2019s Orders"}
+          </button>
+        </div>
       </div>
       {orders.length === 0 ? (
         <div className="px-6 py-12 text-center text-gray-500">No recurring orders configured.</div>
