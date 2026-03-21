@@ -96,3 +96,35 @@ export async function PATCH(
 
   return NextResponse.json(updated);
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ store: string; id: string }> }
+) {
+  const { store: storeSlug, id } = await params;
+  const store = await resolveStore(storeSlug);
+  if (!store) {
+    return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  }
+
+  const session = await auth();
+  if (!session?.user || session.user.role !== "PHARMACY_ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const existing = await prisma.recurringOrder.findUnique({ where: { id, storeId: store.id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Recurring order not found" }, { status: 404 });
+  }
+
+  await prisma.$transaction([
+    // Delete all skip records (required FK)
+    prisma.recurringOrderSkip.deleteMany({ where: { recurringOrderId: id } }),
+    // Unlink existing orders (preserve delivery history)
+    prisma.order.updateMany({ where: { recurringOrderId: id }, data: { recurringOrderId: null } }),
+    // Delete the recurring order
+    prisma.recurringOrder.delete({ where: { id } }),
+  ]);
+
+  return NextResponse.json({ message: "Recurring order deleted" });
+}
