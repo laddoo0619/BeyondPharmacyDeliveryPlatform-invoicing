@@ -61,6 +61,7 @@ export async function POST(
       deliveryPostalCode: body.deliveryPostalCode,
       deliveryZoneId: body.deliveryZoneId,
       instructions: body.instructions || null,
+      assignedDriverId: body.assignedDriverId || null,
       activeDays: JSON.stringify(activeDays),
       createdById: session.user.id,
       storeId: store.id,

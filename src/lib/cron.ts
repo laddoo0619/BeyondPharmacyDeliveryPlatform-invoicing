@@ -95,9 +95,9 @@ export async function generateRecurringOrders() {
       continue;
     }
 
-    // Auto-assign driver from zone's default driver, or leave PENDING
-    const defaultDriverId = recurring.deliveryZone.defaultDriverId;
-    const status = defaultDriverId ? "ASSIGNED" : "PENDING";
+    // Priority: recurring order's assigned driver > zone's default driver > PENDING
+    const driverId = recurring.assignedDriverId || recurring.deliveryZone.defaultDriverId;
+    const status = driverId ? "ASSIGNED" : "PENDING";
 
     // Create the order — catch unique constraint errors for race condition safety
     try {
@@ -113,7 +113,7 @@ export async function generateRecurringOrders() {
           priceAtCreation: recurring.deliveryZone.price,
           instructions: recurring.instructions,
           status,
-          assignedDriverId: defaultDriverId,
+          assignedDriverId: driverId,
           scheduledDate: new Date(),
           recurringOrderId: recurring.id,
           createdById: recurring.createdById,
@@ -121,7 +121,7 @@ export async function generateRecurringOrders() {
         },
       });
       created++;
-      console.log(`[CRON] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}${defaultDriverId ? " (auto-assigned)" : ""}`);
+      console.log(`[CRON] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}${driverId ? " (auto-assigned)" : ""}`);
     } catch (err) {
       // Race condition: another instance may have created this order
       console.warn(`[CRON] Skipped duplicate for ${recurring.patientName}:`, err);

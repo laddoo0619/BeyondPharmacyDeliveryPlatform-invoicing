@@ -13,11 +13,12 @@ export default async function RecurringPage({
   const store = await resolveStore(storeSlug);
   if (!store) notFound();
 
-  const [recurringOrders, zones] = await Promise.all([
+  const [recurringOrders, zones, drivers] = await Promise.all([
     prisma.recurringOrder.findMany({
       where: { storeId: store.id },
       include: {
         deliveryZone: true,
+        assignedDriver: { select: { id: true, name: true } },
         skips: {
           where: {
             skipDate: {
@@ -33,6 +34,11 @@ export default async function RecurringPage({
       where: { isActive: true, storeId: store.id },
       orderBy: { name: "asc" },
     }),
+    prisma.user.findMany({
+      where: { role: "DRIVER", isActive: true, storeId: store.id },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -43,11 +49,13 @@ export default async function RecurringPage({
           <RecurringOrderForm
             storeSlug={storeSlug}
             zones={zones.map((z) => ({ id: z.id, name: z.name, price: z.price }))}
+            drivers={drivers}
           />
         </div>
         <div className="lg:col-span-2">
           <RecurringOrderList
             storeSlug={storeSlug}
+            drivers={drivers}
             orders={recurringOrders.map((o) => ({
               id: o.id,
               patientName: o.patientName,
@@ -61,6 +69,8 @@ export default async function RecurringPage({
               holdStart: o.holdStart?.toISOString() ?? null,
               holdEnd: o.holdEnd?.toISOString() ?? null,
               isSkippedThisWeek: o.skips.length > 0,
+              assignedDriverId: o.assignedDriverId,
+              assignedDriverName: o.assignedDriver?.name ?? null,
             }))}
           />
         </div>
