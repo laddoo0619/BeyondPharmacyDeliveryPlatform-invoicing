@@ -50,6 +50,12 @@ export default function DeliveryForm({
       return;
     }
 
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (photo.size > MAX_FILE_SIZE) {
+      setError("Photo is too large (max 10MB). Please try a smaller photo.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
@@ -65,7 +71,8 @@ export default function DeliveryForm({
       });
 
       if (!uploadRes.ok) {
-        throw new Error("Failed to upload proof of delivery");
+        const data = await uploadRes.json().catch(() => null);
+        throw new Error(data?.error || "Failed to upload proof of delivery");
       }
 
       const statusRes = await fetch(`/api/${storeSlug}/orders/${orderId}`, {

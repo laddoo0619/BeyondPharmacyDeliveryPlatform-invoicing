@@ -41,26 +41,52 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Save file
-  const uploadsDir = path.join(process.cwd(), "uploads");
-  await mkdir(uploadsDir, { recursive: true });
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const filename = `${orderId}-${Date.now()}.${ext}`;
-  const filepath = path.join(uploadsDir, filename);
+  try {
+    // Save file
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    await mkdir(uploadsDir, { recursive: true });
 
-  const bytes = await file.arrayBuffer();
-  await writeFile(filepath, Buffer.from(bytes));
+    const ext = file.name.split(".").pop() || "jpg";
+    const filename = `${orderId}-${Date.now()}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
 
-  // Create proof of delivery record
-  const pod = await prisma.proofOfDelivery.create({
-    data: {
-      orderId,
-      photoUrl: `/uploads/${filename}`,
-      deliveredById: session.user.id,
-      notes: notes || null,
-    },
-  });
+    const bytes = await file.arrayBuffer();
 
-  return NextResponse.json(pod, { status: 201 });
+    if (bytes.byteLength > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 10MB." },
+        { status: 413 }
+      );
+    }
+
+    await writeFile(filepath, Buffer.from(bytes));
+
+    // Create or update proof of delivery record (upsert handles retries)
+    const pod = await prisma.proofOfDelivery.upsert({
+      where: { orderId },
+      update: {
+        photoUrl: `/uploads/${filename}`,
+        deliveredById: session.user.id,
+        deliveredAt: new Date(),
+        notes: notes || null,
+      },
+      create: {
+        orderId,
+        photoUrl: `/uploads/${filename}`,
+        deliveredById: session.user.id,
+        notes: notes || null,
+      },
+    });
+
+    return NextResponse.json(pod, { status: 201 });
+  } catch (err) {
+    console.error("Upload failed:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json(
+      { error: `Failed to save proof of delivery: ${message}` },
+      { status: 500 }
+    );
+  }
 }
