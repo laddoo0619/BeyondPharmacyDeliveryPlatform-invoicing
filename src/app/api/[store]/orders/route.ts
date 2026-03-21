@@ -13,6 +13,7 @@ const createOrderSchema = z.object({
   deliveryZoneId: z.string().min(1),
   instructions: z.string().optional().default(""),
   scheduledDate: z.string().min(1),
+  assignedDriverId: z.string().optional(),
 });
 
 export async function POST(
@@ -51,6 +52,18 @@ export async function POST(
     return NextResponse.json({ error: "Invalid delivery zone" }, { status: 400 });
   }
 
+  // If a driver is specified, validate and auto-assign
+  let assignedDriverId: string | null = null;
+  if (data.assignedDriverId) {
+    const driver = await prisma.user.findUnique({
+      where: { id: data.assignedDriverId },
+    });
+    if (!driver || driver.role !== "DRIVER" || !driver.isActive || driver.storeId !== store.id) {
+      return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
+    }
+    assignedDriverId = driver.id;
+  }
+
   const order = await prisma.order.create({
     data: {
       patientName: data.patientName,
@@ -63,7 +76,8 @@ export async function POST(
       priceAtCreation: zone.price,
       instructions: data.instructions || null,
       scheduledDate: new Date(data.scheduledDate),
-      status: "PENDING",
+      status: assignedDriverId ? "ASSIGNED" : "PENDING",
+      assignedDriverId,
       createdById: session.user.id,
       storeId: store.id,
     },
