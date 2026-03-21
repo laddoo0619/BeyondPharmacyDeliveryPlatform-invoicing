@@ -14,7 +14,7 @@ export default function EarningsExport({
       href={`/api/${storeSlug}/driver/earnings?start=${start}&end=${end}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="block w-full text-center bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+      className="block w-full text-center bg-green-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-green-700"
     >
       Generate Record (CSV)
     </a>

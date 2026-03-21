@@ -24,12 +24,23 @@ export default function DeliveryForm({
 
   const updateStatus = async (status: string, extra?: Record<string, unknown>) => {
     setLoading(true);
-    await fetch(`/api/${storeSlug}/orders/${orderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, ...extra }),
-    });
-    router.refresh();
+    setError("");
+    try {
+      const res = await fetch(`/api/${storeSlug}/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, ...extra }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to update status");
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error. Please try again.");
+      setLoading(false);
+      throw err;
+    }
     setLoading(false);
   };
 
@@ -42,30 +53,37 @@ export default function DeliveryForm({
     setError("");
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append("file", photo);
-    formData.append("orderId", orderId);
-    formData.append("notes", notes);
+    try {
+      const formData = new FormData();
+      formData.append("file", photo);
+      formData.append("orderId", orderId);
+      formData.append("notes", notes);
 
-    const res = await fetch(`/api/${storeSlug}/upload`, {
-      method: "POST",
-      body: formData,
-    });
+      const uploadRes = await fetch(`/api/${storeSlug}/upload`, {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!res.ok) {
-      setError("Failed to upload proof of delivery");
+      if (!uploadRes.ok) {
+        throw new Error("Failed to upload proof of delivery");
+      }
+
+      const statusRes = await fetch(`/api/${storeSlug}/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DELIVERED" }),
+      });
+
+      if (!statusRes.ok) {
+        throw new Error("Photo uploaded but failed to mark as delivered. Please try again.");
+      }
+
+      router.push(`/${storeSlug}/deliveries`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error. Please try again.");
       setLoading(false);
-      return;
     }
-
-    await fetch(`/api/${storeSlug}/orders/${orderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "DELIVERED" }),
-    });
-
-    router.push(`/${storeSlug}/deliveries`);
-    router.refresh();
   };
 
   const markFailed = async () => {
@@ -74,15 +92,22 @@ export default function DeliveryForm({
       return;
     }
     setError("");
-    await updateStatus("FAILED", { failedReason: failReason.trim() });
-    router.push(`/${storeSlug}/deliveries`);
-    router.refresh();
+    try {
+      await updateStatus("FAILED", { failedReason: failReason.trim() });
+      router.push(`/${storeSlug}/deliveries`);
+      router.refresh();
+    } catch {
+      // error already set by updateStatus
+    }
   };
 
   // FAILED order — show re-attempt button
   if (currentStatus === "FAILED") {
     return (
       <div className="space-y-3">
+        {error && (
+          <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm">{error}</div>
+        )}
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-sm font-medium text-red-800">
             Previous attempt failed
@@ -92,9 +117,9 @@ export default function DeliveryForm({
           </p>
         </div>
         <button
-          onClick={() => updateStatus("IN_TRANSIT")}
+          onClick={() => updateStatus("IN_TRANSIT").catch(() => {})}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-blue-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
         >
           {loading ? "Starting..." : "Re-attempt Delivery"}
         </button>
@@ -105,26 +130,36 @@ export default function DeliveryForm({
   // ASSIGNED — mark as picked up
   if (currentStatus === "ASSIGNED") {
     return (
-      <button
-        onClick={() => updateStatus("PICKED_UP")}
-        disabled={loading}
-        className="w-full bg-teal-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
-      >
-        {loading ? "Updating..." : "\u2713 Mark as Picked Up"}
-      </button>
+      <div>
+        {error && (
+          <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>
+        )}
+        <button
+          onClick={() => updateStatus("PICKED_UP").catch(() => {})}
+          disabled={loading}
+          className="w-full bg-teal-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+        >
+          {loading ? "Updating..." : "\u2713 Mark as Picked Up"}
+        </button>
+      </div>
     );
   }
 
   // PICKED_UP — start delivery
   if (currentStatus === "PICKED_UP") {
     return (
-      <button
-        onClick={() => updateStatus("IN_TRANSIT")}
-        disabled={loading}
-        className="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-      >
-        {loading ? "Updating..." : "Start Delivery (Mark In Transit)"}
-      </button>
+      <div>
+        {error && (
+          <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>
+        )}
+        <button
+          onClick={() => updateStatus("IN_TRANSIT").catch(() => {})}
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "Updating..." : "Start Delivery (Mark In Transit)"}
+        </button>
+      </div>
     );
   }
 
@@ -181,14 +216,14 @@ export default function DeliveryForm({
           <button
             onClick={markDelivered}
             disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            className="w-full bg-green-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
           >
             {loading ? "Completing..." : "Mark as Delivered"}
           </button>
 
           <button
             onClick={() => setShowFailForm(true)}
-            className="w-full bg-red-50 text-red-700 border border-red-200 py-3 rounded-lg text-sm font-medium hover:bg-red-100"
+            className="w-full bg-red-50 text-red-700 border border-red-200 py-3.5 rounded-lg text-sm font-medium hover:bg-red-100"
           >
             Failed Delivery
           </button>
@@ -230,7 +265,7 @@ export default function DeliveryForm({
               <button
                 onClick={markFailed}
                 disabled={loading}
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                className="flex-1 bg-red-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
               >
                 {loading ? "Submitting..." : "Confirm Failed"}
               </button>
@@ -240,7 +275,7 @@ export default function DeliveryForm({
                   setFailReason("");
                   setError("");
                 }}
-                className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200"
+                className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-lg text-sm font-medium hover:bg-gray-200"
               >
                 Cancel
               </button>

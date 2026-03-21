@@ -95,12 +95,12 @@ export default async function DeliveriesPage({
                   delivery.status === "FAILED" ? "border-red-300" : ""
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 truncate">
                       {delivery.patientName}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 mt-1 break-words">
                       {delivery.deliveryAddress}
                     </p>
                     <p className="text-sm text-gray-500">
@@ -141,7 +141,7 @@ export default async function DeliveriesPage({
                 {delivery.status === "FAILED" && (
                   <Link
                     href={`/${store.slug}/deliver/${delivery.id}`}
-                    className="mt-3 block w-full text-center bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600"
+                    className="mt-3 block w-full text-center bg-orange-500 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-orange-600"
                   >
                     Re-attempt Delivery
                   </Link>
@@ -155,7 +155,7 @@ export default async function DeliveriesPage({
                   delivery.status === "IN_TRANSIT") && (
                   <Link
                     href={`/${store.slug}/deliver/${delivery.id}`}
-                    className="mt-3 block w-full text-center bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+                    className="mt-3 block w-full text-center bg-green-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-green-700"
                   >
                     {delivery.status === "PICKED_UP"
                       ? "Start Delivery"

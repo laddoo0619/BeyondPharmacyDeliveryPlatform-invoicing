@@ -32,10 +32,13 @@ export async function POST(
     );
   }
 
-  // Verify order belongs to store before saving upload
+  // Verify order belongs to store and is assigned to this driver
   const order = await prisma.order.findUnique({ where: { id: orderId, storeId: store.id } });
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+  if (order.assignedDriverId !== session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Save file
