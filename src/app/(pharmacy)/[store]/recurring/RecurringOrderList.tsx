@@ -78,6 +78,16 @@ export default function RecurringOrderList({
     router.refresh();
   };
 
+  const deleteOrder = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this recurring order? This cannot be undone. Existing delivery records will be preserved.")) {
+      return;
+    }
+    setLoading(id);
+    await fetch(`/api/${storeSlug}/recurring/${id}`, { method: "DELETE" });
+    setLoading(null);
+    router.refresh();
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="px-6 py-4 border-b">
@@ -123,6 +133,10 @@ export default function RecurringOrderList({
                 <button onClick={() => toggleActive(order.id, order.isActive)} disabled={loading === order.id}
                   className="text-xs text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50">
                   {order.isActive ? "Deactivate" : "Activate"}
+                </button>
+                <button onClick={() => deleteOrder(order.id)} disabled={loading === order.id}
+                  className="text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50">
+                  Delete
                 </button>
               </div>
             </div>
