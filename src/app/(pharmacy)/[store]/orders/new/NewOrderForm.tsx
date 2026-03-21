@@ -1,21 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface Zone {
   id: string;
   name: string;
   price: number;
+  defaultDriverId: string | null;
 }
 
-export default function NewOrderForm({ zones, storeSlug }: { zones: Zone[]; storeSlug: string }) {
+interface Driver {
+  id: string;
+  name: string;
+}
+
+export default function NewOrderForm({
+  zones,
+  drivers,
+  storeSlug,
+}: {
+  zones: Zone[];
+  drivers: Driver[];
+  storeSlug: string;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedZoneId, setSelectedZoneId] = useState("");
+  const [selectedDriverId, setSelectedDriverId] = useState("");
 
   const selectedZone = zones.find((z) => z.id === selectedZoneId);
+
+  // Auto-fill driver when zone changes
+  useEffect(() => {
+    if (selectedZone?.defaultDriverId) {
+      setSelectedDriverId(selectedZone.defaultDriverId);
+    } else {
+      setSelectedDriverId("");
+    }
+  }, [selectedZone]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -23,7 +47,7 @@ export default function NewOrderForm({ zones, storeSlug }: { zones: Zone[]; stor
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const data = {
+    const data: Record<string, string> = {
       patientName: formData.get("patientName") as string,
       patientPhone: formData.get("patientPhone") as string,
       deliveryAddress: formData.get("deliveryAddress") as string,
@@ -33,6 +57,10 @@ export default function NewOrderForm({ zones, storeSlug }: { zones: Zone[]; stor
       instructions: formData.get("instructions") as string,
       scheduledDate: formData.get("scheduledDate") as string,
     };
+
+    if (selectedDriverId) {
+      data.assignedDriverId = selectedDriverId;
+    }
 
     const res = await fetch(`/api/${storeSlug}/orders`, {
       method: "POST",
@@ -94,6 +122,18 @@ export default function NewOrderForm({ zones, storeSlug }: { zones: Zone[]; stor
           <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Date *</label>
           <input name="scheduledDate" type="date" required defaultValue={new Date().toISOString().split("T")[0]} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
         </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Assign Driver</label>
+        <select value={selectedDriverId} onChange={(e) => setSelectedDriverId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">No driver (assign later)</option>
+          {drivers.map((driver) => (
+            <option key={driver.id} value={driver.id}>{driver.name}</option>
+          ))}
+        </select>
+        {selectedZone?.defaultDriverId && selectedDriverId === selectedZone.defaultDriverId && (
+          <p className="mt-1 text-xs text-blue-600">Auto-filled from zone default</p>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Instructions</label>
