@@ -160,7 +160,6 @@ export async function purgeOldInvoicedOrders() {
       await prisma.$transaction(async (tx) => {
         await tx.notification.deleteMany({ where: { orderId: { in: batchIds } } });
         await tx.invoiceLineItem.deleteMany({ where: { orderId: { in: batchIds } } });
-        await tx.proofOfDelivery.deleteMany({ where: { orderId: { in: batchIds } } });
         await tx.order.deleteMany({ where: { id: { in: batchIds } } });
       });
 

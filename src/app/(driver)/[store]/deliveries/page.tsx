@@ -40,7 +40,6 @@ export default async function DeliveriesPage({
         scheduledDate: { gte: today, lt: tomorrow },
         status: { in: ["ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED"] },
       },
-      include: { proofOfDelivery: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.order.findMany({
@@ -50,7 +49,6 @@ export default async function DeliveriesPage({
         scheduledDate: { lt: today },
         status: "FAILED",
       },
-      include: { proofOfDelivery: true },
       orderBy: { scheduledDate: "desc" },
     }),
   ]);
@@ -163,12 +161,10 @@ export default async function DeliveriesPage({
                   </Link>
                 )}
 
-                {delivery.proofOfDelivery && (
+                {delivery.status === "DELIVERED" && delivery.completedAt && (
                   <p className="mt-2 text-xs text-green-600 font-medium">
                     Delivered at{" "}
-                    {new Date(
-                      delivery.proofOfDelivery.deliveredAt
-                    ).toLocaleTimeString()}
+                    {new Date(delivery.completedAt).toLocaleTimeString()}
                   </p>
                 )}
               </div>

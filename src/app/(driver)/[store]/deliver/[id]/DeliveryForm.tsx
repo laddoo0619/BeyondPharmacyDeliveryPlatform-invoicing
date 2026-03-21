@@ -16,7 +16,6 @@ export default function DeliveryForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [photo, setPhoto] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [showFailForm, setShowFailForm] = useState(false);
@@ -45,51 +44,13 @@ export default function DeliveryForm({
   };
 
   const markDelivered = async () => {
-    if (!photo) {
-      setError("Please take a photo as proof of delivery");
-      return;
-    }
-
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (photo.size > MAX_FILE_SIZE) {
-      setError("Photo is too large (max 10MB). Please try a smaller photo.");
-      return;
-    }
-
     setError("");
-    setLoading(true);
-
     try {
-      const formData = new FormData();
-      formData.append("file", photo);
-      formData.append("orderId", orderId);
-      formData.append("notes", notes);
-
-      const uploadRes = await fetch(`/api/${storeSlug}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        const data = await uploadRes.json().catch(() => null);
-        throw new Error(data?.error || "Failed to upload proof of delivery");
-      }
-
-      const statusRes = await fetch(`/api/${storeSlug}/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "DELIVERED" }),
-      });
-
-      if (!statusRes.ok) {
-        throw new Error("Photo uploaded but failed to mark as delivered. Please try again.");
-      }
-
+      await updateStatus("DELIVERED");
       router.push(`/${storeSlug}/deliveries`);
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error. Please try again.");
-      setLoading(false);
+    } catch {
+      // error already set by updateStatus
     }
   };
 
@@ -189,24 +150,6 @@ export default function DeliveryForm({
 
       {!showFailForm ? (
         <>
-          <div className="bg-white rounded-lg p-4 border">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Proof of Delivery Photo *
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-              className="w-full text-sm"
-            />
-            {photo && (
-              <p className="mt-1 text-xs text-green-600">
-                Photo selected: {photo.name}
-              </p>
-            )}
-          </div>
-
           <div className="bg-white rounded-lg p-4 border">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Delivery Notes (optional)
