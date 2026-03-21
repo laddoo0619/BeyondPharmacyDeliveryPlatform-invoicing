@@ -37,10 +37,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  createdOrders      Order[]              @relation("OrderCreatedBy")
-  assignedDeliveries Order[]              @relation("OrderAssignedDriver")
-  defaultZones       DeliveryZone[]       @relation("ZoneDefaultDriver")
-  recurringOrders    RecurringOrder[]
+  createdOrders           Order[]              @relation("OrderCreatedBy")
+  assignedDeliveries     Order[]              @relation("OrderAssignedDriver")
+  defaultZones           DeliveryZone[]       @relation("ZoneDefaultDriver")
+  recurringOrders        RecurringOrder[]
+  assignedRecurringOrders RecurringOrder[]    @relation("RecurringOrderAssignedDriver")
   recurringSkips     RecurringOrderSkip[]
   proofsOfDelivery   ProofOfDelivery[]
   generatedInvoices  Invoice[]
@@ -93,6 +94,8 @@ model RecurringOrder {
   deliveryZoneId     String
   deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
   instructions       String?
+  assignedDriverId   String?
+  assignedDriver     User?    @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
   activeDays         String   @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
   isOnHold           Boolean  @default(false)
   holdStart          DateTime?

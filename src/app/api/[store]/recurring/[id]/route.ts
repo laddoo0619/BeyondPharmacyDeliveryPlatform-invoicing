@@ -82,6 +82,11 @@ export async function PATCH(
     }
   }
 
+  // Driver assignment (null to unassign, string to assign)
+  if ("assignedDriverId" in body) {
+    updateData.assignedDriverId = body.assignedDriverId || null;
+  }
+
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json(
       { error: "No valid fields to update" },

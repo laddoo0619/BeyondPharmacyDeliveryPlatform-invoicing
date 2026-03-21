@@ -5,6 +5,11 @@ import { useState } from "react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+interface Driver {
+  id: string;
+  name: string;
+}
+
 interface RecurringOrderItem {
   id: string;
   patientName: string;
@@ -18,13 +23,17 @@ interface RecurringOrderItem {
   holdStart: string | null;
   holdEnd: string | null;
   isSkippedThisWeek: boolean;
+  assignedDriverId: string | null;
+  assignedDriverName: string | null;
 }
 
 export default function RecurringOrderList({
   orders,
+  drivers,
   storeSlug,
 }: {
   orders: RecurringOrderItem[];
+  drivers: Driver[];
   storeSlug: string;
 }) {
   const router = useRouter();
@@ -78,6 +87,17 @@ export default function RecurringOrderList({
     router.refresh();
   };
 
+  const reassignDriver = async (id: string, assignedDriverId: string | null) => {
+    setLoading(id);
+    await fetch(`/api/${storeSlug}/recurring/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignedDriverId }),
+    });
+    setLoading(null);
+    router.refresh();
+  };
+
   const deleteOrder = async (id: string) => {
     if (!confirm("Are you sure you want to delete this recurring order? This cannot be undone. Existing delivery records will be preserved.")) {
       return;
@@ -103,6 +123,20 @@ export default function RecurringOrderList({
                 <p className="font-medium text-gray-900">{order.patientName}</p>
                 <p className="text-sm text-gray-500">{order.deliveryAddress}, {order.deliveryCity}</p>
                 <p className="text-sm text-gray-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • Every {order.activeDays.map((d) => DAYS[d]).join(", ")}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-gray-400">Driver:</span>
+                  <select
+                    value={order.assignedDriverId || ""}
+                    onChange={(e) => reassignDriver(order.id, e.target.value || null)}
+                    disabled={loading === order.id}
+                    className="text-xs border rounded px-2 py-1 text-gray-700 disabled:opacity-50"
+                  >
+                    <option value="">Zone default</option>
+                    {drivers.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex items-center space-x-3">
                 {order.isOnHold && (

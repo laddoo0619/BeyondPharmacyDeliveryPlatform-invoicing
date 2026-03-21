@@ -11,6 +11,11 @@ interface Zone {
   price: number;
 }
 
+interface Driver {
+  id: string;
+  name: string;
+}
+
 interface Patient {
   id: string;
   name: string;
@@ -20,7 +25,7 @@ interface Patient {
   postalCode: string;
 }
 
-export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]; storeSlug: string }) {
+export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zones: Zone[]; drivers: Driver[]; storeSlug: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -130,6 +135,7 @@ export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]
         deliveryCity: deliveryCity || formData.get("deliveryCity"),
         deliveryPostalCode: deliveryPostalCode || formData.get("deliveryPostalCode"),
         deliveryZoneId: formData.get("deliveryZoneId"),
+        assignedDriverId: formData.get("assignedDriverId") || null,
         instructions: formData.get("instructions"),
         activeDays: selectedDays,
       }),
@@ -245,6 +251,12 @@ export default function RecurringOrderForm({ zones, storeSlug }: { zones: Zone[]
           <option value="">Select zone...</option>
           {zones.map((z) => (
             <option key={z.id} value={z.id}>{z.name} — ${z.price.toFixed(2)}</option>
+          ))}
+        </select>
+        <select name="assignedDriverId" className="w-full px-3 py-2 border rounded-lg text-sm">
+          <option value="">Assign Driver (optional — uses zone default)</option>
+          {drivers.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
           ))}
         </select>
         <div>
