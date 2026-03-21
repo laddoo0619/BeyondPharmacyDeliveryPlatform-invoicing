@@ -31,7 +31,17 @@ export default async function OrdersPage({
   const page = parseInt(sp.page || "1");
   const perPage = 20;
 
-  const where = { storeId: store.id, ...(status ? { status } : {}) };
+  // Hide cancelled orders older than 24 hours (they're past the cooldown window)
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const where = {
+    storeId: store.id,
+    ...(status ? { status } : {}),
+    // Exclude cancelled orders whose cancelledAt is older than 24h
+    NOT: {
+      status: "CANCELLED",
+      cancelledAt: { lt: twentyFourHoursAgo },
+    },
+  };
 
   const [orders, total, drivers] = await Promise.all([
     prisma.order.findMany({
@@ -127,6 +137,7 @@ export default async function OrdersPage({
                         orderId={order.id}
                         currentStatus={order.status}
                         currentDriverId={order.assignedDriverId}
+                        cancelledAt={order.cancelledAt?.toISOString() ?? null}
                         storeSlug={storeSlug}
                         drivers={drivers.map((d) => ({ id: d.id, name: d.name }))}
                       />
