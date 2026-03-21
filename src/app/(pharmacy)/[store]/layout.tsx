@@ -1,6 +1,7 @@
 import PharmacyNav from "@/components/PharmacyNav";
 import { resolveStore } from "@/lib/store";
-import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 
 export default async function PharmacyLayout({
   children,
@@ -27,6 +28,24 @@ export default async function PharmacyLayout({
   }
 
   if (!store) notFound();
+
+  // Verify user belongs to this store
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  // Drivers should use the driver portal, not pharmacy
+  if (session.user.role === "DRIVER") {
+    redirect(`/${session.user.storeSlug || storeSlug}/deliveries`);
+  }
+
+  // Admins with a specific store assignment can only access their store
+  // Admins without storeId (super-admins) can access any store
+  if (session.user.storeId && session.user.storeId !== store.id) {
+    if (session.user.storeSlug) {
+      redirect(`/${session.user.storeSlug}/dashboard`);
+    }
+    redirect("/");
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -48,6 +48,7 @@ export async function POST(
   const count = await prisma.invoice.count({
     where: {
       invoiceNumber: { startsWith: `INV-${year}-${month}` },
+      storeId: store.id,
     },
   });
   const invoiceNumber = `INV-${year}-${month}-${String(count + 1).padStart(3, "0")}`;

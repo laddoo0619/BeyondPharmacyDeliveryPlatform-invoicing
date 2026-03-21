@@ -1,6 +1,7 @@
 import DriverNav from "@/components/DriverNav";
 import { resolveStore } from "@/lib/store";
-import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 
 export default async function DriverLayout({
   children,
@@ -27,6 +28,17 @@ export default async function DriverLayout({
   }
 
   if (!store) notFound();
+
+  // Verify driver belongs to this store
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (session.user.storeId && session.user.storeId !== store.id) {
+    // Redirect driver to their assigned store
+    if (session.user.storeSlug) {
+      redirect(`/${session.user.storeSlug}/deliveries`);
+    }
+    redirect("/");
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

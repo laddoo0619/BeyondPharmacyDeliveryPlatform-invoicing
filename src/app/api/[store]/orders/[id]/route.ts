@@ -18,6 +18,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify user belongs to this store
+  if (session.user.storeId && session.user.storeId !== store.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await req.json();
 
   const updateData: Record<string, unknown> = {};
