@@ -4,7 +4,13 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 
 export default async function Home() {
-  const session = await auth();
+  let session;
+  try {
+    session = await auth();
+  } catch (error) {
+    console.error("[Home] Auth error:", error);
+    redirect("/login");
+  }
 
   if (!session?.user) {
     redirect("/login");
@@ -27,10 +33,23 @@ export default async function Home() {
   }
 
   // Admins see store selector
-  const stores = await prisma.store.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
+  let stores;
+  try {
+    stores = await prisma.store.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+    });
+  } catch (error) {
+    console.error("[Home] Database error:", error);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Service Unavailable</h1>
+          <p className="text-gray-600">Unable to load stores. Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
