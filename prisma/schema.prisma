@@ -43,7 +43,6 @@ model User {
   recurringOrders        RecurringOrder[]
   assignedRecurringOrders RecurringOrder[]    @relation("RecurringOrderAssignedDriver")
   recurringSkips     RecurringOrderSkip[]
-  proofsOfDelivery   ProofOfDelivery[]
   generatedInvoices  Invoice[]
 }
 
@@ -157,7 +156,6 @@ model Order {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  proofOfDelivery  ProofOfDelivery?
   invoiceLineItems InvoiceLineItem[]
   notifications    Notification[]
 
@@ -166,17 +164,6 @@ model Order {
   @@index([assignedDriverId, storeId, scheduledDate])
   @@index([recurringOrderId, scheduledDate])
   @@index([isInvoiced, completedAt])
-}
-
-model ProofOfDelivery {
-  id            String   @id @default(cuid())
-  orderId       String   @unique
-  order         Order    @relation(fields: [orderId], references: [id])
-  photoUrl      String
-  deliveredAt   DateTime @default(now())
-  deliveredById String
-  deliveredBy   User     @relation(fields: [deliveredById], references: [id])
-  notes         String?
 }
 
 model Invoice {

@@ -237,7 +237,6 @@ export async function DELETE(
   await prisma.$transaction(async (tx) => {
     await tx.notification.deleteMany({ where: { orderId: id } });
     await tx.invoiceLineItem.deleteMany({ where: { orderId: id } });
-    await tx.proofOfDelivery.deleteMany({ where: { orderId: id } });
     await tx.order.delete({ where: { id, storeId: store.id } });
   });
 
