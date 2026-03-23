@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import DeliveryPoller from "./DeliveryPoller";
 import PickUpButton from "./PickUpButton";
+import DateNavigation from "./DateNavigation";
 
 const statusColors: Record<string, string> = {
   ASSIGNED: "bg-blue-100 text-blue-800",
@@ -16,8 +17,10 @@ const statusColors: Record<string, string> = {
 
 export default async function DeliveriesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ store: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const { store: storeSlug } = await params;
   const store = await resolveStore(storeSlug);
@@ -26,35 +29,53 @@ export default async function DeliveriesPage({
   const session = await auth();
   if (!session?.user) return null;
 
+  const sp = await searchParams;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Fetch today's deliveries + any FAILED orders from previous days (for re-attempt)
-  const [todayDeliveries, failedFromPreviousDays] = await Promise.all([
+  let selectedDate: Date;
+  if (sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date)) {
+    const parsed = new Date(sp.date + "T00:00:00");
+    selectedDate = isNaN(parsed.getTime()) ? new Date(today) : parsed;
+  } else {
+    selectedDate = new Date(today);
+  }
+  selectedDate.setHours(0, 0, 0, 0);
+
+  const nextDay = new Date(selectedDate);
+  nextDay.setDate(nextDay.getDate() + 1);
+
+  const isToday = selectedDate.getTime() === today.getTime();
+
+  const currentDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+
+  // Fetch deliveries for selected date + any FAILED orders from previous days (only when viewing today)
+  const [dateDeliveries, failedFromPreviousDays] = await Promise.all([
     prisma.order.findMany({
       where: {
         assignedDriverId: session.user.id,
         storeId: store.id,
-        scheduledDate: { gte: today, lt: tomorrow },
+        scheduledDate: { gte: selectedDate, lt: nextDay },
         status: { in: ["ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED"] },
       },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.order.findMany({
-      where: {
-        assignedDriverId: session.user.id,
-        storeId: store.id,
-        scheduledDate: { lt: today },
-        status: "FAILED",
-      },
-      orderBy: { scheduledDate: "desc" },
-    }),
+    isToday
+      ? prisma.order.findMany({
+          where: {
+            assignedDriverId: session.user.id,
+            storeId: store.id,
+            scheduledDate: { lt: today },
+            status: "FAILED",
+          },
+          orderBy: { scheduledDate: "desc" },
+        })
+      : Promise.resolve([]),
   ]);
 
-  // Combine: failed from previous days first, then today's
-  const allDeliveries = [...failedFromPreviousDays, ...todayDeliveries];
+  // Combine: failed from previous days first, then selected date's
+  const allDeliveries = [...failedFromPreviousDays, ...dateDeliveries];
 
   const pending = allDeliveries.filter(
     (d) => d.status !== "DELIVERED"
@@ -65,8 +86,16 @@ export default async function DeliveriesPage({
   return (
     <div>
       <DeliveryPoller />
+      <DateNavigation storeSlug={store.slug} currentDate={currentDateStr} />
       <h1 className="text-xl font-bold text-gray-900 mb-4">
-        Today&apos;s Deliveries
+        {isToday
+          ? "Today\u2019s Deliveries"
+          : `Deliveries for ${selectedDate.toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}`}
       </h1>
 
       <p className="text-sm text-gray-500 mb-4">
@@ -78,13 +107,13 @@ export default async function DeliveriesPage({
 
       {allDeliveries.length === 0 ? (
         <div className="bg-white rounded-lg p-8 text-center text-gray-500 border">
-          No deliveries assigned for today.
+          No orders scheduled for this date.
         </div>
       ) : (
         <div className="space-y-3">
           {allDeliveries.map((delivery) => {
             const isFromPreviousDay =
-              new Date(delivery.scheduledDate) < today;
+              new Date(delivery.scheduledDate) < selectedDate;
 
             return (
               <div
