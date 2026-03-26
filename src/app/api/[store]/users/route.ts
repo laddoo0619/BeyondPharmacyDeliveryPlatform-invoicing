@@ -71,6 +71,55 @@ export async function DELETE(
   return NextResponse.json({ message: "Driver account deactivated" });
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ store: string }> }
+) {
+  const { store: storeSlug } = await params;
+  const store = await resolveStore(storeSlug);
+  if (!store) {
+    return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  }
+
+  const session = await auth();
+  if (!session?.user || session.user.role !== "PHARMACY_ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { userId, password } = await req.json();
+
+  if (!userId || !password) {
+    return NextResponse.json({ error: "userId and password are required" }, { status: 400 });
+  }
+
+  if (password.length < 6) {
+    return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  if (!user.isActive) {
+    return NextResponse.json({ error: "Cannot change password for inactive user" }, { status: 400 });
+  }
+
+  // For drivers, verify they belong to this store
+  if (user.role === "DRIVER" && user.storeId !== store.id) {
+    return NextResponse.json({ error: "User not found in this store" }, { status: 404 });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+
+  return NextResponse.json({ message: "Password updated successfully" });
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ store: string }> }
