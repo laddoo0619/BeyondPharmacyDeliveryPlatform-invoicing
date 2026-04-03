@@ -48,7 +48,11 @@ export default function RecurringOrderList({
       const res = await fetch(`/api/${storeSlug}/recurring/generate`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        setGenerateMsg(`${data.created} order${data.created === 1 ? "" : "s"} generated for today.`);
+        setGenerateMsg(
+          data.created > 0
+            ? `${data.created} order${data.created === 1 ? "" : "s"} generated for today.`
+            : "Today\u2019s orders have already been generated."
+        );
         router.refresh();
       } else {
         setGenerateMsg("Failed to generate orders.");

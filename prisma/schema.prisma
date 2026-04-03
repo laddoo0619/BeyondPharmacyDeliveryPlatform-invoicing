@@ -162,7 +162,7 @@ model Order {
   @@index([storeId, scheduledDate])
   @@index([storeId, status])
   @@index([assignedDriverId, storeId, scheduledDate])
-  @@index([recurringOrderId, scheduledDate])
+  @@unique([recurringOrderId, scheduledDate])
   @@index([isInvoiced, completedAt])
 }
 

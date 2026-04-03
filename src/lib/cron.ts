@@ -114,7 +114,7 @@ export async function generateRecurringOrders() {
           instructions: recurring.instructions,
           status,
           assignedDriverId: driverId,
-          scheduledDate: new Date(),
+          scheduledDate: todayStart,
           recurringOrderId: recurring.id,
           createdById: recurring.createdById,
           storeId: recurring.storeId,
