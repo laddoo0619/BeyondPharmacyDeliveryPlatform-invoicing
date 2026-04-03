@@ -73,6 +73,9 @@ export default async function DeliveriesPage({
   );
   const completed = allDeliveries.filter((d) => d.status === "DELIVERED");
   const failed = allDeliveries.filter((d) => d.status === "FAILED");
+  const eligibleForBatchDeliver = allDeliveries.filter(
+    (d) => ["ASSIGNED", "PICKED_UP", "IN_TRANSIT"].includes(d.status)
+  ).length;
 
   return (
     <div>
@@ -112,6 +115,8 @@ export default async function DeliveriesPage({
         }))}
         storeSlug={store.slug}
         selectedDate={currentDateStr}
+        isToday={isToday}
+        eligibleForBatchDeliver={eligibleForBatchDeliver}
       />
     </div>
   );
