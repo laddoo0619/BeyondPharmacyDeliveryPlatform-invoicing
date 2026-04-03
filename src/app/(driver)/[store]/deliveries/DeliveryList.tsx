@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import PickUpButton from "./PickUpButton";
+import BatchDeliverButton from "./BatchDeliverButton";
 
 const statusColors: Record<string, string> = {
   ASSIGNED: "bg-blue-100 text-blue-800",
@@ -30,10 +31,14 @@ export default function DeliveryList({
   deliveries,
   storeSlug,
   selectedDate,
+  isToday,
+  eligibleForBatchDeliver,
 }: {
   deliveries: SerializedDelivery[];
   storeSlug: string;
   selectedDate: string;
+  isToday: boolean;
+  eligibleForBatchDeliver: number;
 }) {
   const [search, setSearch] = useState("");
   const [showDelivered, setShowDelivered] = useState(false);
@@ -144,6 +149,13 @@ export default function DeliveryList({
 
   return (
     <div>
+      {isToday && eligibleForBatchDeliver > 0 && (
+        <BatchDeliverButton
+          storeSlug={storeSlug}
+          eligibleCount={eligibleForBatchDeliver}
+        />
+      )}
+
       {/* Search bar */}
       <div className="relative mb-4">
         <input
