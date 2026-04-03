@@ -57,6 +57,11 @@ export async function handler() {
     },
   });
 
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
+
   let created = 0;
   let skipped = 0;
 
@@ -93,11 +98,6 @@ export async function handler() {
     }
 
     // Check if an order already exists for today (idempotency guard)
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-
     const existingOrder = await prisma.order.findFirst({
       where: {
         recurringOrderId: recurring.id,
@@ -114,28 +114,32 @@ export async function handler() {
     const defaultDriverId = recurring.deliveryZone.defaultDriverId;
     const status = defaultDriverId ? "ASSIGNED" : "PENDING";
 
-    await prisma.order.create({
-      data: {
-        patientName: recurring.patientName,
-        patientPhone: recurring.patientPhone,
-        deliveryAddress: recurring.deliveryAddress,
-        deliveryCity: recurring.deliveryCity,
-        deliveryPostalCode: recurring.deliveryPostalCode,
-        deliveryZoneId: recurring.deliveryZoneId,
-        deliveryZoneName: recurring.deliveryZone.name,
-        priceAtCreation: recurring.deliveryZone.price,
-        instructions: recurring.instructions,
-        status,
-        assignedDriverId: defaultDriverId,
-        scheduledDate: new Date(),
-        recurringOrderId: recurring.id,
-        createdById: recurring.createdById,
-        storeId: recurring.storeId,
-      },
-    });
-
-    created++;
-    console.log(`[LAMBDA] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}`);
+    try {
+      await prisma.order.create({
+        data: {
+          patientName: recurring.patientName,
+          patientPhone: recurring.patientPhone,
+          deliveryAddress: recurring.deliveryAddress,
+          deliveryCity: recurring.deliveryCity,
+          deliveryPostalCode: recurring.deliveryPostalCode,
+          deliveryZoneId: recurring.deliveryZoneId,
+          deliveryZoneName: recurring.deliveryZone.name,
+          priceAtCreation: recurring.deliveryZone.price,
+          instructions: recurring.instructions,
+          status,
+          assignedDriverId: defaultDriverId,
+          scheduledDate: todayStart,
+          recurringOrderId: recurring.id,
+          createdById: recurring.createdById,
+          storeId: recurring.storeId,
+        },
+      });
+      created++;
+      console.log(`[LAMBDA] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}`);
+    } catch (err) {
+      // Unique constraint violation — order already exists for this recurring order today
+      console.warn(`[LAMBDA] Skipped duplicate for ${recurring.patientName}:`, err);
+    }
   }
 
   await prisma.$disconnect();
