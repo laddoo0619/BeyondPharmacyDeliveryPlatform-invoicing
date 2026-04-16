@@ -20,9 +20,35 @@ export async function GET(
 
   const start = req.nextUrl.searchParams.get("start");
   const end = req.nextUrl.searchParams.get("end");
+  const driverIdParam = req.nextUrl.searchParams.get("driverId");
 
   if (!start || !end) {
     return NextResponse.json({ error: "Start and end dates required" }, { status: 400 });
+  }
+  if (!driverIdParam) {
+    return NextResponse.json({ error: "driverId is required" }, { status: 400 });
+  }
+
+  // "unassigned" selects orders without a driver; any other value is a user id
+  // that must belong to a DRIVER in this store.
+  let assignedDriverFilter: { assignedDriverId: string | null };
+  let driverName = "Unassigned";
+  if (driverIdParam === "unassigned") {
+    assignedDriverFilter = { assignedDriverId: null };
+  } else {
+    const driver = await prisma.user.findFirst({
+      where: {
+        id: driverIdParam,
+        role: "DRIVER",
+        storeId: store.id,
+      },
+      select: { id: true, name: true },
+    });
+    if (!driver) {
+      return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
+    }
+    assignedDriverFilter = { assignedDriverId: driver.id };
+    driverName = driver.name;
   }
 
   // Include both DELIVERED and FAILED orders that haven't been invoiced yet
@@ -35,6 +61,7 @@ export async function GET(
         gte: new Date(start),
         lte: new Date(end + "T23:59:59.999Z"),
       },
+      ...assignedDriverFilter,
     },
     orderBy: { scheduledDate: "asc" },
   });
@@ -42,6 +69,7 @@ export async function GET(
   const total = orders.reduce((sum, o) => sum + o.priceAtCreation, 0);
 
   return NextResponse.json({
+    driverName,
     orders: orders.map((o) => ({
       id: o.id,
       patientName: o.patientName,

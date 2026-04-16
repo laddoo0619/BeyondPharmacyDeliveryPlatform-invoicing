@@ -44,6 +44,7 @@ model User {
   assignedRecurringOrders RecurringOrder[]     @relation("RecurringOrderAssignedDriver")
   recurringSkips          RecurringOrderSkip[]
   generatedInvoices       Invoice[]
+  driverInvoices          Invoice[]            @relation("InvoiceDriver")
 }
 
 model Patient {
@@ -199,6 +200,8 @@ model Invoice {
   periodEnd     DateTime
   totalAmount   Float
   status        String   @default("DRAFT") // DRAFT | FINALIZED
+  driverId      String?
+  driver        User?    @relation("InvoiceDriver", fields: [driverId], references: [id])
   storeId       String
   store         Store    @relation(fields: [storeId], references: [id])
   generatedById String
@@ -206,6 +209,8 @@ model Invoice {
   createdAt     DateTime @default(now())
 
   lineItems InvoiceLineItem[]
+
+  @@index([storeId, driverId])
 }
 
 model InvoiceLineItem {

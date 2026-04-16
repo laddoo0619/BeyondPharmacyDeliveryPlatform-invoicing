@@ -1,9 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const ALL = "__all__";
+const UNASSIGNED = "__unassigned__";
 
 interface Driver {
   id: string;
@@ -40,6 +43,25 @@ export default function RecurringOrderList({
   const [loading, setLoading] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
+  const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
+
+  const driverCounts = useMemo(() => {
+    const counts: Record<string, number> = { [ALL]: orders.length, [UNASSIGNED]: 0 };
+    for (const d of drivers) counts[d.id] = 0;
+    for (const o of orders) {
+      const key = o.assignedDriverId ?? UNASSIGNED;
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }, [orders, drivers]);
+
+  const visibleOrders = useMemo(() => {
+    if (activeDriverFilter === ALL) return orders;
+    if (activeDriverFilter === UNASSIGNED) {
+      return orders.filter((o) => !o.assignedDriverId);
+    }
+    return orders.filter((o) => o.assignedDriverId === activeDriverFilter);
+  }, [orders, activeDriverFilter]);
 
   const generateToday = async () => {
     setGenerating(true);
@@ -149,11 +171,38 @@ export default function RecurringOrderList({
           </button>
         </div>
       </div>
-      {orders.length === 0 ? (
-        <div className="px-6 py-12 text-center text-gray-500">No recurring orders configured.</div>
+      <div className="px-6 py-3 border-b bg-gray-50 flex flex-wrap gap-2">
+        <DriverTab
+          label="All"
+          count={driverCounts[ALL]}
+          active={activeDriverFilter === ALL}
+          onClick={() => setActiveDriverFilter(ALL)}
+        />
+        <DriverTab
+          label="Unassigned"
+          count={driverCounts[UNASSIGNED] ?? 0}
+          active={activeDriverFilter === UNASSIGNED}
+          onClick={() => setActiveDriverFilter(UNASSIGNED)}
+        />
+        {drivers.map((d) => (
+          <DriverTab
+            key={d.id}
+            label={d.name}
+            count={driverCounts[d.id] ?? 0}
+            active={activeDriverFilter === d.id}
+            onClick={() => setActiveDriverFilter(d.id)}
+          />
+        ))}
+      </div>
+      {visibleOrders.length === 0 ? (
+        <div className="px-6 py-12 text-center text-gray-500">
+          {orders.length === 0
+            ? "No recurring orders configured."
+            : "No recurring orders for this driver."}
+        </div>
       ) : (
         <div className="divide-y divide-gray-200">
-          {orders.map((order) => (
+          {visibleOrders.map((order) => (
             <div key={order.id} className="px-6 py-4 flex items-center justify-between">
               <div>
                 <p className="font-medium text-gray-900">{order.patientName}</p>
@@ -214,5 +263,31 @@ export default function RecurringOrderList({
         </div>
       )}
     </div>
+  );
+}
+
+function DriverTab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${
+        active
+          ? "bg-blue-600 text-white border-blue-600"
+          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+      }`}
+    >
+      {label} <span className={active ? "opacity-80" : "text-gray-500"}>({count})</span>
+    </button>
   );
 }
