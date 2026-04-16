@@ -18,9 +18,42 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { periodStart, periodEnd } = await req.json();
+  const { periodStart, periodEnd, driverId } = await req.json();
 
-  // Include both DELIVERED and FAILED orders that haven't been invoiced yet
+  if (!periodStart || !periodEnd) {
+    return NextResponse.json(
+      { error: "periodStart and periodEnd are required" },
+      { status: 400 }
+    );
+  }
+  if (!driverId) {
+    return NextResponse.json(
+      { error: "driverId is required — one invoice per driver" },
+      { status: 400 }
+    );
+  }
+
+  // Resolve driver: "unassigned" => null FK; any other value must be a
+  // DRIVER belonging to this store.
+  let persistedDriverId: string | null;
+  let driverName: string;
+  if (driverId === "unassigned") {
+    persistedDriverId = null;
+    driverName = "Unassigned";
+  } else {
+    const driver = await prisma.user.findFirst({
+      where: { id: driverId, role: "DRIVER", storeId: store.id },
+      select: { id: true, name: true },
+    });
+    if (!driver) {
+      return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
+    }
+    persistedDriverId = driver.id;
+    driverName = driver.name;
+  }
+
+  // Include both DELIVERED and FAILED orders that haven't been invoiced yet,
+  // scoped to this driver's deliveries only.
   const orders = await prisma.order.findMany({
     where: {
       storeId: store.id,
@@ -30,13 +63,14 @@ export async function POST(
         gte: new Date(periodStart),
         lte: new Date(periodEnd + "T23:59:59.999Z"),
       },
+      assignedDriverId: persistedDriverId,
     },
     orderBy: { scheduledDate: "asc" },
   });
 
   if (orders.length === 0) {
     return NextResponse.json(
-      { error: "No delivered/attempted orders found in this period" },
+      { error: `No delivered/attempted orders found for ${driverName} in this period` },
       { status: 400 }
     );
   }
@@ -60,6 +94,7 @@ export async function POST(
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
       totalAmount,
+      driverId: persistedDriverId,
       generatedById: session.user.id,
       storeId: store.id,
       lineItems: {

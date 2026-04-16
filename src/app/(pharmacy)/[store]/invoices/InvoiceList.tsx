@@ -10,6 +10,7 @@ interface InvoiceItem {
   lineItemCount: number;
   createdAt: string;
   generatedBy: string;
+  driverName: string | null;
 }
 
 export default function InvoiceList({
@@ -44,6 +45,7 @@ export default function InvoiceList({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice #</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Driver</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
@@ -55,6 +57,9 @@ export default function InvoiceList({
             {invoices.map((inv) => (
               <tr key={inv.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 text-sm font-medium text-gray-900">{inv.invoiceNumber}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  {inv.driverName ?? <span className="text-gray-400 italic">All drivers</span>}
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-500">
                   {new Date(inv.periodStart).toLocaleDateString()} – {new Date(inv.periodEnd).toLocaleDateString()}
                 </td>
