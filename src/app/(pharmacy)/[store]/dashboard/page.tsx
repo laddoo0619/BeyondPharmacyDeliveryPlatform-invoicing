@@ -3,16 +3,7 @@ import Link from "next/link";
 import NotificationPanel from "@/components/NotificationPanel";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
-
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  ASSIGNED: "bg-blue-100 text-blue-800",
-  PICKED_UP: "bg-teal-100 text-teal-800",
-  IN_TRANSIT: "bg-purple-100 text-purple-800",
-  DELIVERED: "bg-green-100 text-green-800",
-  FAILED: "bg-red-100 text-red-800",
-  CANCELLED: "bg-gray-100 text-gray-600",
-};
+import TodayDeliveriesTable from "./TodayDeliveriesTable";
 
 export default async function DashboardPage({
   params,
@@ -28,7 +19,7 @@ export default async function DashboardPage({
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [todayOrders, stats] = await Promise.all([
+  const [todayOrders, stats, drivers] = await Promise.all([
     prisma.order.findMany({
       where: {
         storeId: store.id,
@@ -44,6 +35,11 @@ export default async function DashboardPage({
         scheduledDate: { gte: today, lt: tomorrow },
       },
       _count: true,
+    }),
+    prisma.user.findMany({
+      where: { role: "DRIVER", isActive: true, storeId: store.id },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -98,80 +94,23 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Orders */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold">Today&apos;s Deliveries</h2>
-          </div>
-          {todayOrders.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
-              No deliveries scheduled for today.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Patient
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Address
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Driver
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Price
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {todayOrders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className={`hover:bg-gray-50 ${
-                        order.status === "FAILED" ? "bg-red-50" : ""
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {order.patientName}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {order.deliveryAddress}, {order.deliveryCity}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {order.assignedDriver?.name || "Unassigned"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            statusColors[order.status] || "bg-gray-100"
-                          }`}
-                        >
-                          {order.status.replace("_", " ")}
-                        </span>
-                        {order.status === "FAILED" && order.failedReason && (
-                          <p className="text-xs text-red-600 mt-1">
-                            {order.failedReason}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        ${order.priceAtCreation.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <div className="lg:col-span-2">
+          <TodayDeliveriesTable
+            orders={todayOrders.map((o) => ({
+              id: o.id,
+              patientName: o.patientName,
+              deliveryAddress: o.deliveryAddress,
+              deliveryCity: o.deliveryCity,
+              assignedDriverId: o.assignedDriverId,
+              assignedDriverName: o.assignedDriver?.name ?? null,
+              status: o.status,
+              failedReason: o.failedReason,
+              priceAtCreation: o.priceAtCreation,
+            }))}
+            drivers={drivers}
+          />
         </div>
 
-        {/* Notifications Panel */}
         <div className="lg:col-span-1">
           <NotificationPanel storeSlug={store.slug} />
         </div>
