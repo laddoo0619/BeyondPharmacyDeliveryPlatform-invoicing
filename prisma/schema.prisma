@@ -38,29 +38,49 @@ model User {
   updatedAt    DateTime @updatedAt
 
   createdOrders           Order[]              @relation("OrderCreatedBy")
-  assignedDeliveries     Order[]              @relation("OrderAssignedDriver")
-  defaultZones           DeliveryZone[]       @relation("ZoneDefaultDriver")
-  recurringOrders        RecurringOrder[]
-  assignedRecurringOrders RecurringOrder[]    @relation("RecurringOrderAssignedDriver")
-  recurringSkips     RecurringOrderSkip[]
-  generatedInvoices  Invoice[]
+  assignedDeliveries      Order[]              @relation("OrderAssignedDriver")
+  defaultZones            DeliveryZone[]       @relation("ZoneDefaultDriver")
+  recurringOrders         RecurringOrder[]
+  assignedRecurringOrders RecurringOrder[]     @relation("RecurringOrderAssignedDriver")
+  recurringSkips          RecurringOrderSkip[]
+  generatedInvoices       Invoice[]
 }
 
 model Patient {
-  id             String   @id @default(cuid())
-  name           String
-  phone          String?
-  address        String
-  city           String
-  postalCode     String
-  storeId        String
-  store          Store    @relation(fields: [storeId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  phone      String?
+  address    String
+  city       String
+  postalCode String
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   recurringOrders RecurringOrder[]
+  addresses       Address[]
+  orders          Order[]
 
   @@index([storeId, name])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  label      String   @default("Primary")
+  address    String
+  city       String
+  postalCode String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders Order[] @relation("OrderDeliveryAddress")
+
+  @@index([patientId])
+  @@index([patientId, isDefault])
 }
 
 model DeliveryZone {
@@ -82,9 +102,9 @@ model DeliveryZone {
 }
 
 model RecurringOrder {
-  id                 String   @id @default(cuid())
+  id                 String       @id @default(cuid())
   patientId          String?
-  patient            Patient? @relation(fields: [patientId], references: [id])
+  patient            Patient?     @relation(fields: [patientId], references: [id])
   patientName        String
   patientPhone       String?
   deliveryAddress    String
@@ -94,18 +114,18 @@ model RecurringOrder {
   deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
   instructions       String?
   assignedDriverId   String?
-  assignedDriver     User?    @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
-  activeDays         String   @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
-  isOnHold           Boolean  @default(false)
+  assignedDriver     User?        @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
+  activeDays         String       @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
+  isOnHold           Boolean      @default(false)
   holdStart          DateTime?
   holdEnd            DateTime?
-  isActive           Boolean  @default(true)
+  isActive           Boolean      @default(true)
   storeId            String
-  store              Store    @relation(fields: [storeId], references: [id])
+  store              Store        @relation(fields: [storeId], references: [id])
   createdById        String
-  createdBy          User     @relation(fields: [createdById], references: [id])
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdBy          User         @relation(fields: [createdById], references: [id])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   orders Order[]
   skips  RecurringOrderSkip[]
@@ -127,42 +147,48 @@ model RecurringOrderSkip {
 }
 
 model Order {
-  id                 String   @id @default(cuid())
+  id                 String          @id @default(cuid())
+  idempotencyKey     String?         @unique
+  patientId          String?
+  patient            Patient?        @relation(fields: [patientId], references: [id])
   patientName        String
   patientPhone       String?
   deliveryAddress    String
   deliveryCity       String
   deliveryPostalCode String
+  deliveryAddressId  String?
+  deliveryAddressRef Address?        @relation("OrderDeliveryAddress", fields: [deliveryAddressId], references: [id])
   deliveryZoneId     String
-  deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZone       DeliveryZone    @relation(fields: [deliveryZoneId], references: [id])
   deliveryZoneName   String
   priceAtCreation    Float
   instructions       String?
-  status             String   @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
+  status             String          @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
   cancelledAt        DateTime?
-  isInvoiced         Boolean  @default(false)
+  isInvoiced         Boolean         @default(false)
   completedAt        DateTime?
   failedReason       String?
-  attemptCount       Int      @default(1)
+  attemptCount       Int             @default(1)
   scheduledDate      DateTime
   recurringOrderId   String?
   recurringOrder     RecurringOrder? @relation(fields: [recurringOrderId], references: [id])
   assignedDriverId   String?
-  assignedDriver     User?    @relation("OrderAssignedDriver", fields: [assignedDriverId], references: [id])
+  assignedDriver     User?           @relation("OrderAssignedDriver", fields: [assignedDriverId], references: [id])
   storeId            String
-  store              Store    @relation(fields: [storeId], references: [id])
+  store              Store           @relation(fields: [storeId], references: [id])
   createdById        String
-  createdBy          User     @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdBy          User            @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   invoiceLineItems InvoiceLineItem[]
   notifications    Notification[]
 
+  @@unique([recurringOrderId, scheduledDate])
   @@index([storeId, scheduledDate])
   @@index([storeId, status])
+  @@index([storeId, patientId])
   @@index([assignedDriverId, storeId, scheduledDate])
-  @@unique([recurringOrderId, scheduledDate])
   @@index([isInvoiced, completedAt])
 }
 
@@ -198,7 +224,7 @@ model Notification {
   order     Order    @relation(fields: [orderId], references: [id])
   storeId   String
   store     Store    @relation(fields: [storeId], references: [id])
-  type      String   // DELIVERY_FAILED | DELIVERY_REATTEMPT
+  type      String // DELIVERY_FAILED | DELIVERY_REATTEMPT
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
