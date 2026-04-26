@@ -71,9 +71,10 @@ export default function RecurringOrderList({
       if (res.ok) {
         const data = await res.json();
         setGenerateMsg(
-          data.created > 0
-            ? `${data.created} order${data.created === 1 ? "" : "s"} generated for today.`
-            : "Today\u2019s orders have already been generated."
+          data.message ||
+            (data.created > 0
+              ? `${data.created} order${data.created === 1 ? "" : "s"} generated for today.`
+              : "Today\u2019s orders have already been generated.")
         );
         router.refresh();
       } else {
