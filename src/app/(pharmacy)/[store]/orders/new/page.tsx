@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import NewOrderForm from "./NewOrderForm";
+import { pageTitle } from "@/lib/portalStyles";
 
 export default async function NewOrderPage({
   params,
@@ -25,7 +26,9 @@ export default async function NewOrderPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Order</h1>
+      <h1 className={`${pageTitle} mb-6`}>
+        Create New <span className="italic font-semibold">Order</span>
+      </h1>
       <NewOrderForm
         storeSlug={storeSlug}
         zones={zones.map((z) => ({ id: z.id, name: z.name, price: z.price, defaultDriverId: z.defaultDriverId }))}

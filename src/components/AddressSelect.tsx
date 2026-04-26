@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useMemo } from "react";
 import { usePatientAddresses, type SavedAddress } from "@/hooks/usePatientAddresses";
+import { cn, input, inputReadOnly, label } from "@/lib/portalStyles";
 
 export interface AddressValue {
   addressId: string | null;
@@ -75,11 +76,11 @@ function AddressSelectInner({
     <div className="space-y-3">
       {showPicker && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Saved Address</label>
+          <label className={label}>Saved Address</label>
           <select
             value={value.addressId ?? NEW_ADDRESS}
             onChange={handleSelect}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={input}
           >
             {addresses.map((a: SavedAddress) => (
               <option key={a.id} value={a.id}>
@@ -93,48 +94,48 @@ function AddressSelectInner({
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address *</label>
+        <label className={label}>Delivery Address *</label>
         <input
           required
           value={value.address}
           readOnly={!isEditing}
           onChange={(e) => onChange({ ...value, address: e.target.value })}
-          className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!isEditing ? "bg-gray-50" : ""}`}
+          className={cn(input, !isEditing && inputReadOnly)}
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+          <label className={label}>City *</label>
           <input
             required
             value={value.city}
             readOnly={!isEditing}
             onChange={(e) => onChange({ ...value, city: e.target.value })}
-            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!isEditing ? "bg-gray-50" : ""}`}
+            className={cn(input, !isEditing && inputReadOnly)}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code *</label>
+          <label className={label}>Postal Code *</label>
           <input
             required
             value={value.postalCode}
             readOnly={!isEditing}
             onChange={(e) => onChange({ ...value, postalCode: e.target.value })}
-            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!isEditing ? "bg-gray-50" : ""}`}
+            className={cn(input, !isEditing && inputReadOnly)}
           />
         </div>
       </div>
 
       {isEditing && (
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-slate-600">
           <input
             type="checkbox"
             checked={saveToPatient}
             onChange={(e) => onSaveToPatientChange(e.target.checked)}
             disabled={!patientId}
-            className="rounded border-gray-300"
+            className="rounded border-slate-300 text-[#6f8f72] focus:ring-[#6f8f72]"
           />
-          <span className={patientId ? "" : "text-gray-400"}>
+          <span className={patientId ? "" : "text-slate-400"}>
             Save this address for future orders
             {!patientId && " (select a patient first)"}
           </span>

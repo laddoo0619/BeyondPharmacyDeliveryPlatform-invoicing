@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { primaryButtonFull } from "@/lib/portalStyles";
 
 export default function PickUpButton({
   orderId,
@@ -38,12 +39,12 @@ export default function PickUpButton({
   return (
     <div>
       {error && (
-        <p className="mt-2 text-xs text-red-600 font-medium">{error}</p>
+        <p className="mt-2 text-xs text-rose-600 font-semibold">{error}</p>
       )}
       <button
         onClick={handlePickUp}
         disabled={loading}
-        className="mt-3 block w-full text-center bg-teal-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+        className={`${primaryButtonFull} mt-3 block text-center`}
       >
         {loading ? "Updating..." : "\u2713 Mark as Picked Up"}
       </button>

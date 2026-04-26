@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { card, input, label, primaryButton, secondaryButton, sectionTitle } from "@/lib/portalStyles";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -97,13 +98,13 @@ export default function InvoiceGenerator({
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
-      <h2 className="text-lg font-semibold mb-4">Generate Invoice</h2>
+    <div className={`${card} p-6`}>
+      <h2 className={`${sectionTitle} mb-4`}>Generate Invoice</h2>
       <form onSubmit={handlePreview} className="space-y-3">
-        {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
+        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Driver <span className="text-red-500">*</span>
+          <label className={label}>
+            Driver <span className="text-rose-500">*</span>
           </label>
           <select
             required
@@ -112,7 +113,7 @@ export default function InvoiceGenerator({
               setSelectedDriver(e.target.value);
               setPreview(null);
             }}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className={input}
           >
             <option value="">Select a driver…</option>
             {drivers.map((d) => (
@@ -122,12 +123,12 @@ export default function InvoiceGenerator({
             ))}
             <option value={UNASSIGNED}>Unassigned</option>
           </select>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-slate-500">
             Invoice will include only this driver&rsquo;s completed deliveries.
           </p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Period Start</label>
+          <label className={label}>Period Start</label>
           <input
             type="date"
             required
@@ -136,11 +137,11 @@ export default function InvoiceGenerator({
               setPeriodStart(e.target.value);
               setPreview(null);
             }}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className={input}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Period End</label>
+          <label className={label}>Period End</label>
           <input
             type="date"
             required
@@ -149,13 +150,13 @@ export default function InvoiceGenerator({
               setPeriodEnd(e.target.value);
               setPreview(null);
             }}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className={input}
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gray-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50"
+          className={`${primaryButton} w-full`}
         >
           {loading ? "Loading..." : "Preview"}
         </button>
@@ -165,26 +166,26 @@ export default function InvoiceGenerator({
         href={`/api/${storeSlug}/orders/export`}
         target="_blank"
         rel="noopener noreferrer"
-        className="block w-full text-center mt-3 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+        className={`${secondaryButton} block w-full text-center mt-3`}
       >
         Export Uninvoiced (CSV)
       </a>
 
       {preview && (
-        <div className="mt-4 border-t pt-4">
-          <p className="text-sm font-medium text-gray-700">
-            Driver: <span className="text-gray-900">{preview.driverName}</span>
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <p className="text-sm font-semibold text-slate-600">
+            Driver: <span className="text-[#1e3a8a]">{preview.driverName}</span>
           </p>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             {preview.orders.length} delivered/attempted order
             {preview.orders.length === 1 ? "" : "s"}
           </p>
-          <p className="text-lg font-bold text-gray-900 mt-1">
+          <p className="text-lg font-bold text-[#1e3a8a] mt-1">
             Total: ${preview.total.toFixed(2)}
           </p>
           <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
             {preview.orders.map((o) => (
-              <div key={o.id} className="text-xs text-gray-500">
+              <div key={o.id} className="text-xs text-slate-500">
                 {o.date} — {o.patientName} — {o.zone} — ${o.price.toFixed(2)}
               </div>
             ))}
@@ -192,7 +193,7 @@ export default function InvoiceGenerator({
           <button
             onClick={generateInvoice}
             disabled={loading || preview.orders.length === 0}
-            className="w-full mt-3 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`${primaryButton} w-full mt-3`}
           >
             {loading ? "Generating..." : "Generate Invoice"}
           </button>

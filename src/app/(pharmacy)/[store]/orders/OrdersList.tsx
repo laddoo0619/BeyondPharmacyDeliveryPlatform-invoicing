@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import OrderActions from "./OrderActions";
+import { card, sectionTitle, tableHeader, tableRow } from "@/lib/portalStyles";
 
 interface SerializedOrder {
   id: string;
@@ -66,15 +67,15 @@ export default function OrdersList({
         const isExpanded = expandedDays.has(dateKey);
 
         return (
-          <div key={dateKey} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+          <div key={dateKey} className={`${card} overflow-hidden`}>
             {/* Accordion Header */}
             <button
               onClick={() => toggleDay(dateKey)}
-              className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-6 py-4 hover:bg-sky-50/50 transition-colors"
             >
               <div className="flex items-center space-x-3">
                 <svg
-                  className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
+                  className={`h-5 w-5 text-[#6f8f72] transition-transform duration-200 ${
                     isExpanded ? "rotate-90" : ""
                   }`}
                   fill="none"
@@ -83,11 +84,11 @@ export default function OrdersList({
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-                <span className="text-sm font-semibold text-gray-900">
+                <span className={sectionTitle}>
                   {formatDateHeading(dateKey)}
                 </span>
               </div>
-              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+              <span className="text-xs font-semibold text-[#1e3a8a] bg-emerald-50 px-2.5 py-1 rounded-full ring-1 ring-emerald-100">
                 {orders.length} {orders.length === 1 ? "order" : "orders"}
               </span>
             </button>
@@ -96,27 +97,27 @@ export default function OrdersList({
             {isExpanded && (
               <div className="border-t overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className={tableHeader}>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Driver</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-6 py-3">Patient</th>
+                      <th className="px-6 py-3">Address</th>
+                      <th className="px-6 py-3">Zone</th>
+                      <th className="px-6 py-3">Price</th>
+                      <th className="px-6 py-3">Driver</th>
+                      <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {orders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{order.patientName}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{order.deliveryAddress}, {order.deliveryCity}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{order.deliveryZoneName}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">${order.priceAtCreation.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{order.assignedDriverName || "Unassigned"}</td>
+                      <tr key={order.id} className={tableRow}>
+                        <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">{order.patientName}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{order.deliveryZoneName}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">${order.priceAtCreation.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{order.assignedDriverName || "Unassigned"}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[order.status] || "bg-gray-100"}`}>
+                          <span className={statusColors[order.status] || "bg-slate-100 text-slate-600"}>
                             {order.status.replace("_", " ")}
                           </span>
                         </td>

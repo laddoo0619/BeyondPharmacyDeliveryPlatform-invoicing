@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { cn, primaryButton, secondaryButton } from "@/lib/portalStyles";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -21,7 +22,7 @@ export default function ConfirmModal({
   message,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
-  confirmClassName = "bg-blue-600 hover:bg-blue-700",
+  confirmClassName = primaryButton,
   onConfirm,
   onCancel,
   loading = false,
@@ -43,21 +44,24 @@ export default function ConfirmModal({
         className="absolute inset-0 bg-black/50"
         onClick={loading ? undefined : onCancel}
       />
-      <div className="relative bg-white rounded-xl shadow-lg max-w-sm w-full mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="mt-2 text-sm text-gray-600">{message}</p>
+      <div className="relative bg-white/95 rounded-2xl shadow-[0_24px_70px_rgba(30,58,138,0.2)] border border-slate-200/70 max-w-sm w-full mx-4 p-6">
+        <h3 className="text-lg font-bold text-[#1e3a8a]">{title}</h3>
+        <p className="mt-2 text-sm text-slate-500">{message}</p>
         <div className="mt-6 flex gap-3 justify-end">
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+            className={secondaryButton}
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 ${confirmClassName}`}
+            className={cn(
+              "rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition disabled:opacity-50",
+              confirmClassName
+            )}
           >
             {loading ? "Processing..." : confirmLabel}
           </button>

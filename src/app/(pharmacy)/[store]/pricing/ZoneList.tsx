@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  card,
+  emptyState,
+  input,
+  sectionTitle,
+  statusBadgeClasses,
+  tableHeader,
+  tableRow,
+} from "@/lib/portalStyles";
 
 interface Zone {
   id: string;
@@ -35,36 +44,39 @@ export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[];
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className={`${card} overflow-hidden`}>
       <div className="px-6 py-4 border-b">
-        <h2 className="text-lg font-semibold">Delivery Zones</h2>
+        <h2 className={sectionTitle}>Delivery Zones</h2>
       </div>
       {zones.length === 0 ? (
-        <div className="px-6 py-12 text-center text-gray-500">No delivery zones configured yet.</div>
+        <div className={emptyState}>
+          No delivery zones <span className="italic text-[#1e3a8a]">configured</span> yet.
+        </div>
       ) : (
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zone</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Default Driver</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {zones.map((zone) => (
-              <tr key={zone.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">{zone.name}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className={tableHeader}>
+              <tr>
+                <th className="px-6 py-3">Zone</th>
+                <th className="px-6 py-3">Price</th>
+                <th className="px-6 py-3">Default Driver</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {zones.map((zone) => (
+                <tr key={zone.id} className={tableRow}>
+                <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">{zone.name}</td>
                 <td className="px-6 py-4 text-sm">
                   {editingId === zone.id ? (
                     <div className="flex items-center space-x-2">
-                      <input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-24 px-2 py-1 border rounded text-sm" />
-                      <button onClick={() => updateZone(zone.id, { price: parseFloat(editPrice) })} disabled={loading} className="text-xs text-green-600 font-medium">Save</button>
-                      <button onClick={() => setEditingId(null)} className="text-xs text-gray-500">Cancel</button>
+                      <input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className={`${input} w-24 py-1`} />
+                      <button onClick={() => updateZone(zone.id, { price: parseFloat(editPrice) })} disabled={loading} className="text-xs text-[#6f8f72] font-semibold">Save</button>
+                      <button onClick={() => setEditingId(null)} className="text-xs text-slate-500">Cancel</button>
                     </div>
                   ) : (
-                    <span className="text-gray-900">${zone.price.toFixed(2)}</span>
+                    <span className="font-semibold text-[#1e3a8a]">${zone.price.toFixed(2)}</span>
                   )}
                 </td>
                 <td className="px-6 py-4 text-sm">
@@ -72,7 +84,7 @@ export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[];
                     value={zone.defaultDriverId || ""}
                     onChange={(e) => updateZone(zone.id, { defaultDriverId: e.target.value || null })}
                     disabled={loading}
-                    className="px-2 py-1 border rounded text-sm text-gray-700"
+                    className={`${input} py-1`}
                   >
                     <option value="">None (manual)</option>
                     {drivers.map((d) => (
@@ -81,20 +93,21 @@ export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[];
                   </select>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${zone.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>
+                  <span className={statusBadgeClasses(zone.isActive ? "ACTIVE" : "INACTIVE")}>
                     {zone.isActive ? "Active" : "Inactive"}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm space-x-2">
-                  <button onClick={() => { setEditingId(zone.id); setEditPrice(zone.price.toString()); }} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Edit Price</button>
-                  <button onClick={() => updateZone(zone.id, { isActive: !zone.isActive })} disabled={loading} className="text-gray-600 hover:text-gray-800 text-xs font-medium">
+                  <button onClick={() => { setEditingId(zone.id); setEditPrice(zone.price.toString()); }} className="text-[#6f8f72] hover:text-[#5f7d62] text-xs font-semibold">Edit Price</button>
+                  <button onClick={() => updateZone(zone.id, { isActive: !zone.isActive })} disabled={loading} className="text-slate-500 hover:text-[#1e3a8a] text-xs font-semibold">
                     {zone.isActive ? "Deactivate" : "Activate"}
                   </button>
                 </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

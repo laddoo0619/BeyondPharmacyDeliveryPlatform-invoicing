@@ -4,14 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import PickUpButton from "./PickUpButton";
 import BatchDeliverButton from "./BatchDeliverButton";
-
-const statusColors: Record<string, string> = {
-  ASSIGNED: "bg-blue-100 text-blue-800",
-  PICKED_UP: "bg-teal-100 text-teal-800",
-  IN_TRANSIT: "bg-purple-100 text-purple-800",
-  DELIVERED: "bg-green-100 text-green-800",
-  FAILED: "bg-red-100 text-red-800",
-};
+import { cardInteractive, emptyState, input, primaryButtonFull, statusBadgeClasses } from "@/lib/portalStyles";
 
 interface SerializedDelivery {
   id: string;
@@ -65,28 +58,28 @@ export default function DeliveryList({
     return (
       <div
         key={delivery.id}
-        className={`bg-white rounded-lg p-4 border shadow-sm ${
-          delivery.status === "FAILED" ? "border-red-300" : ""
+        className={`${cardInteractive} p-4 ${
+          delivery.status === "FAILED" ? "border-rose-200" : ""
         }`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-gray-900 truncate">
+            <p className="font-semibold text-[#1e3a8a] truncate">
               {delivery.patientName}
             </p>
-            <p className="text-sm text-gray-500 mt-1 break-words">
+            <p className="text-sm text-slate-500 mt-1 break-words">
               {delivery.deliveryAddress}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               {delivery.deliveryCity}, {delivery.deliveryPostalCode}
             </p>
             {delivery.instructions && (
-              <p className="text-sm text-blue-600 mt-1">
+              <p className="text-sm text-[#1e3a8a] mt-1">
                 Note: {delivery.instructions}
               </p>
             )}
             {delivery.status === "FAILED" && delivery.failedReason && (
-              <p className="text-sm text-red-600 mt-1 font-medium">
+              <p className="text-sm text-rose-600 mt-1 font-semibold">
                 Failed: {delivery.failedReason}
               </p>
             )}
@@ -96,16 +89,12 @@ export default function DeliveryList({
               </p>
             )}
             {delivery.attemptCount > 1 && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Attempt #{delivery.attemptCount}
               </p>
             )}
           </div>
-          <span
-            className={`px-2 py-1 text-xs font-medium rounded-full ${
-              statusColors[delivery.status] || "bg-gray-100"
-            }`}
-          >
+          <span className={statusBadgeClasses(delivery.status)}>
             {delivery.status === "FAILED"
               ? "FAILED"
               : delivery.status.replace("_", " ")}
@@ -115,7 +104,7 @@ export default function DeliveryList({
         {delivery.status === "FAILED" && (
           <Link
             href={`/${storeSlug}/deliver/${delivery.id}`}
-            className="mt-3 block w-full text-center bg-orange-500 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-orange-600"
+            className="mt-3 block w-full text-center bg-orange-500 text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-orange-600"
           >
             Re-attempt Delivery
           </Link>
@@ -129,7 +118,7 @@ export default function DeliveryList({
           delivery.status === "IN_TRANSIT") && (
           <Link
             href={`/${storeSlug}/deliver/${delivery.id}`}
-            className="mt-3 block w-full text-center bg-green-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-green-700"
+            className={`${primaryButtonFull} mt-3 block text-center`}
           >
             {delivery.status === "PICKED_UP"
               ? "Start Delivery"
@@ -138,7 +127,7 @@ export default function DeliveryList({
         )}
 
         {delivery.status === "DELIVERED" && delivery.completedAt && (
-          <p className="mt-2 text-xs text-green-600 font-medium">
+          <p className="mt-2 text-xs text-emerald-600 font-semibold">
             Delivered at{" "}
             {new Date(delivery.completedAt).toLocaleTimeString()}
           </p>
@@ -163,12 +152,12 @@ export default function DeliveryList({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, address..."
-          className="w-full px-4 py-2.5 pr-10 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+          className={`${input} pr-10`}
         />
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg"
           >
             &times;
           </button>
@@ -176,8 +165,8 @@ export default function DeliveryList({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-lg p-8 text-center text-gray-500 border">
-          {search ? "No matching deliveries found." : "No orders scheduled for this date."}
+        <div className={emptyState}>
+          {search ? "No matching deliveries found." : <>No orders <span className="italic text-[#1e3a8a]">scheduled</span> for this date.</>}
         </div>
       ) : (
         <>
@@ -189,13 +178,13 @@ export default function DeliveryList({
           )}
 
           {active.length === 0 && delivered.length > 0 && !search && (
-            <div className="bg-white rounded-lg p-6 text-center text-gray-500 border mb-4">
-              All deliveries completed!
+            <div className={`${emptyState} mb-4`}>
+              All deliveries <span className="italic text-[#1e3a8a]">completed</span>!
             </div>
           )}
 
           {active.length === 0 && delivered.length > 0 && search && (
-            <div className="bg-white rounded-lg p-6 text-center text-gray-500 border mb-4">
+            <div className={`${emptyState} mb-4`}>
               No matching active deliveries.
             </div>
           )}
@@ -205,13 +194,13 @@ export default function DeliveryList({
             <div className={active.length > 0 ? "mt-6" : ""}>
               <button
                 onClick={() => setShowDelivered(!showDelivered)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-sm font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span>
+                  <span className="text-emerald-600">&#10003;</span>
                   Delivered ({delivered.length})
                 </span>
-                <span className="text-green-600">
+                <span className="text-emerald-600">
                   {showDelivered ? "\u25B2" : "\u25BC"}
                 </span>
               </button>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfirmModal from "@/components/ConfirmModal";
+import { primaryButtonFull } from "@/lib/portalStyles";
 
 export default function BatchDeliverButton({
   storeSlug,
@@ -45,10 +46,10 @@ export default function BatchDeliverButton({
   return (
     <div className="mb-4">
       {error && (
-        <p className="mb-2 text-xs text-red-600 font-medium">{error}</p>
+        <p className="mb-2 text-xs text-rose-600 font-semibold">{error}</p>
       )}
       {result !== null && (
-        <p className="mb-2 text-xs text-green-600 font-medium">
+        <p className="mb-2 text-xs text-emerald-600 font-semibold">
           {result} order(s) marked as delivered.
         </p>
       )}
@@ -57,7 +58,7 @@ export default function BatchDeliverButton({
           setResult(null);
           setShowModal(true);
         }}
-        className="w-full bg-indigo-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-indigo-700"
+        className={primaryButtonFull}
       >
         Batch Deliver All ({eligibleCount})
       </button>
@@ -66,7 +67,7 @@ export default function BatchDeliverButton({
         title="Batch Deliver All Orders"
         message={`Mark all ${eligibleCount} eligible order(s) as delivered? This cannot be undone.`}
         confirmLabel="Deliver All"
-        confirmClassName="bg-green-600 hover:bg-green-700"
+        confirmClassName="bg-[#6f8f72] hover:bg-[#5f7d62]"
         onConfirm={handleConfirm}
         onCancel={() => setShowModal(false)}
         loading={loading}

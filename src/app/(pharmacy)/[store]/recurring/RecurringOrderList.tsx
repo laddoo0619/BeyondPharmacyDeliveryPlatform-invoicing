@@ -2,6 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import {
+  card,
+  emptyState,
+  input,
+  primaryButton,
+  secondaryButton,
+  sectionTitle,
+  statusBadgeClasses,
+} from "@/lib/portalStyles";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -156,23 +165,23 @@ export default function RecurringOrderList({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className={`${card} overflow-hidden`}>
       <div className="px-6 py-4 border-b flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Recurring Orders</h2>
+        <h2 className={sectionTitle}>Recurring Orders</h2>
         <div className="flex items-center gap-3">
           {generateMsg && (
-            <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded">{generateMsg}</span>
+            <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full ring-1 ring-emerald-100">{generateMsg}</span>
           )}
           <button
             onClick={generateToday}
             disabled={generating}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border text-blue-700 border-blue-300 hover:bg-blue-50 disabled:opacity-50"
+            className={`${primaryButton} text-xs py-1.5`}
           >
             {generating ? "Generating..." : "Generate Today\u2019s Orders"}
           </button>
         </div>
       </div>
-      <div className="px-6 py-3 border-b bg-gray-50 flex flex-wrap gap-2">
+      <div className="px-6 py-3 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70 flex flex-wrap gap-2">
         <DriverTab
           label="All"
           count={driverCounts[ALL]}
@@ -196,26 +205,26 @@ export default function RecurringOrderList({
         ))}
       </div>
       {visibleOrders.length === 0 ? (
-        <div className="px-6 py-12 text-center text-gray-500">
+        <div className={emptyState}>
           {orders.length === 0
-            ? "No recurring orders configured."
-            : "No recurring orders for this driver."}
+            ? <>No recurring orders <span className="italic text-[#1e3a8a]">configured</span>.</>
+            : <>No recurring orders for this <span className="italic text-[#1e3a8a]">driver</span>.</>}
         </div>
       ) : (
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-slate-100">
           {visibleOrders.map((order) => (
-            <div key={order.id} className="px-6 py-4 flex items-center justify-between">
+            <div key={order.id} className="px-6 py-4 flex flex-col gap-4 hover:bg-sky-50/40 transition-colors sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-medium text-gray-900">{order.patientName}</p>
-                <p className="text-sm text-gray-500">{order.deliveryAddress}, {order.deliveryCity}</p>
-                <p className="text-sm text-gray-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • Every {order.activeDays.map((d) => DAYS[d]).join(", ")}</p>
+                <p className="font-semibold text-[#1e3a8a]">{order.patientName}</p>
+                <p className="text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</p>
+                <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • Every {order.activeDays.map((d) => DAYS[d]).join(", ")}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-gray-400">Driver:</span>
+                  <span className="text-xs text-slate-400">Driver:</span>
                   <select
                     value={order.assignedDriverId || ""}
                     onChange={(e) => reassignDriver(order.id, e.target.value || null)}
                     disabled={loading === order.id}
-                    className="text-xs border rounded px-2 py-1 text-gray-700 disabled:opacity-50"
+                    className={`${input} text-xs py-1`}
                   >
                     <option value="">Zone default</option>
                     {drivers.map((d) => (
@@ -224,38 +233,38 @@ export default function RecurringOrderList({
                   </select>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {order.isOnHold && (
-                  <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">
+                  <span className={statusBadgeClasses("HOLD")}>
                     On Hold {order.holdStart && order.holdEnd
                       ? `${new Date(order.holdStart).toLocaleDateString()} – ${new Date(order.holdEnd).toLocaleDateString()}`
                       : ""}
                   </span>
                 )}
                 {order.isSkippedThisWeek && !order.isOnHold && (
-                  <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full font-medium">Skipped this week</span>
+                  <span className={statusBadgeClasses("SKIPPED")}>Skipped this week</span>
                 )}
                 {!order.isActive && (
-                  <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full font-medium">Inactive</span>
+                  <span className={statusBadgeClasses("INACTIVE")}>Inactive</span>
                 )}
                 {order.isActive && (
                   <button onClick={() => toggleHold(order.id, order.isOnHold)} disabled={loading === order.id}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${order.isOnHold ? "text-green-700 border-green-300 hover:bg-green-50" : "text-purple-700 border-purple-300 hover:bg-purple-50"} disabled:opacity-50`}>
+                    className={`${secondaryButton} text-xs py-1.5`}>
                     {order.isOnHold ? "Remove Hold" : "Vacation Hold"}
                   </button>
                 )}
                 {order.isActive && !order.isOnHold && (
                   <button onClick={() => toggleSkip(order.id, order.isSkippedThisWeek)} disabled={loading === order.id}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${order.isSkippedThisWeek ? "text-green-700 border-green-300 hover:bg-green-50" : "text-orange-700 border-orange-300 hover:bg-orange-50"} disabled:opacity-50`}>
+                    className={`${secondaryButton} text-xs py-1.5`}>
                     {order.isSkippedThisWeek ? "Unskip" : "Skip This Week"}
                   </button>
                 )}
                 <button onClick={() => toggleActive(order.id, order.isActive)} disabled={loading === order.id}
-                  className="text-xs text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50">
+                  className="text-xs text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50">
                   {order.isActive ? "Deactivate" : "Activate"}
                 </button>
                 <button onClick={() => deleteOrder(order.id)} disabled={loading === order.id}
-                  className="text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50">
+                  className="text-xs text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50">
                   Delete
                 </button>
               </div>
@@ -284,11 +293,11 @@ function DriverTab({
       onClick={onClick}
       className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${
         active
-          ? "bg-blue-600 text-white border-blue-600"
-          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+          ? "bg-[#6f8f72] text-white border-[#6f8f72]"
+          : "bg-white text-slate-600 border-slate-200 hover:bg-sky-50"
       }`}
     >
-      {label} <span className={active ? "opacity-80" : "text-gray-500"}>({count})</span>
+      {label} <span className={active ? "opacity-80" : "text-slate-400"}>({count})</span>
     </button>
   );
 }

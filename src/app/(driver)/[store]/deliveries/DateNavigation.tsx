@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useMemo } from "react";
+import { cn, primaryButton, secondaryButton } from "@/lib/portalStyles";
 
 function formatDateParam(date: Date): string {
   const y = date.getFullYear();
@@ -11,7 +12,6 @@ function formatDateParam(date: Date): string {
 }
 
 export default function DateNavigation({
-  storeSlug,
   currentDate,
 }: {
   storeSlug: string;
@@ -67,18 +67,18 @@ export default function DateNavigation({
         <button
           onClick={() => navigate(prevDate)}
           disabled={isPrevDisabled}
-          className="px-3 py-2 text-sm font-medium rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className={secondaryButton}
         >
           &larr; Prev
         </button>
 
         <button
           onClick={() => navigate(null)}
-          className={`px-4 py-2 text-sm font-medium rounded-lg border ${
+          className={cn(
             isToday
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white hover:bg-gray-50"
-          }`}
+              ? primaryButton
+              : secondaryButton
+          )}
         >
           Today
         </button>
@@ -86,14 +86,14 @@ export default function DateNavigation({
         <button
           onClick={() => navigate(nextDate)}
           disabled={isNextDisabled}
-          className="px-3 py-2 text-sm font-medium rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className={secondaryButton}
         >
           Next &rarr;
         </button>
       </div>
 
       {!isToday && (
-        <p className="text-center text-sm text-gray-600 mt-2">{displayDate}</p>
+        <p className="text-center text-sm text-slate-500 mt-2">{displayDate}</p>
       )}
     </div>
   );
