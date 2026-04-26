@@ -4,16 +4,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import OrdersPoller from "./OrdersPoller";
 import OrdersList from "./OrdersList";
-
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  ASSIGNED: "bg-blue-100 text-blue-800",
-  PICKED_UP: "bg-teal-100 text-teal-800",
-  IN_TRANSIT: "bg-purple-100 text-purple-800",
-  DELIVERED: "bg-green-100 text-green-800",
-  FAILED: "bg-red-100 text-red-800",
-  CANCELLED: "bg-gray-100 text-gray-600",
-};
+import {
+  emptyState,
+  input,
+  pageTitle,
+  primaryButton,
+  statusBadgeClasses,
+} from "@/lib/portalStyles";
 
 export default async function OrdersPage({
   params,
@@ -32,7 +29,8 @@ export default async function OrdersPage({
   const limit = parseInt(sp.limit || "100");
 
   // Hide cancelled orders older than 24 hours (they're past the cooldown window)
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const where = {
     storeId: store.id,
     ...(status ? { status } : {}),
@@ -99,10 +97,12 @@ export default async function OrdersPage({
     <div>
       <OrdersPoller />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        <h1 className={pageTitle}>
+          Orders, <span className="italic font-semibold">organized</span>
+        </h1>
         <Link
           href={`/${storeSlug}/orders/new`}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+          className={primaryButton}
         >
           + New Order
         </Link>
@@ -112,7 +112,7 @@ export default async function OrdersPage({
       <form method="GET" className="mb-4">
         {status && <input type="hidden" name="status" value={status} />}
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -120,7 +120,7 @@ export default async function OrdersPage({
             name="search"
             placeholder="Search by patient name..."
             defaultValue={search}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className={`${input} pl-10`}
           />
         </div>
       </form>
@@ -130,7 +130,7 @@ export default async function OrdersPage({
         <Link
           href={`/${storeSlug}/orders${search ? `?search=${encodeURIComponent(search)}` : ""}`}
           className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-            !status ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            !status ? "bg-[#6f8f72]/15 text-[#1e3a8a]" : "bg-white/80 text-slate-500 hover:bg-white hover:text-[#1e3a8a]"
           }`}
         >
           All ({total})
@@ -142,8 +142,8 @@ export default async function OrdersPage({
               href={`/${storeSlug}/orders?status=${s}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
               className={`px-3 py-1.5 rounded-full text-sm font-medium ${
                 status === s
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-[#6f8f72]/15 text-[#1e3a8a]"
+                  : "bg-white/80 text-slate-500 hover:bg-white hover:text-[#1e3a8a]"
               }`}
             >
               {s.replace("_", " ")}
@@ -154,8 +154,8 @@ export default async function OrdersPage({
 
       {/* Grouped Orders */}
       {orders.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border px-6 py-12 text-center text-gray-500">
-          {search ? `No orders found for "${search}".` : "No orders found."}
+        <div className={emptyState}>
+          {search ? `No orders found for "${search}".` : <>No orders <span className="italic text-[#1e3a8a]">found</span>.</>}
         </div>
       ) : (
         <OrdersList
@@ -163,7 +163,9 @@ export default async function OrdersPage({
           sortedDateKeys={sortedDateKeys}
           storeSlug={storeSlug}
           drivers={drivers.map((d) => ({ id: d.id, name: d.name }))}
-          statusColors={statusColors}
+          statusColors={Object.fromEntries(
+            ["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map((s) => [s, statusBadgeClasses(s)])
+          )}
         />
       )}
 
@@ -172,7 +174,7 @@ export default async function OrdersPage({
         <div className="mt-4 text-center">
           <Link
             href={`/${storeSlug}/orders?limit=${limit + 100}${status ? `&status=${status}` : ""}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-            className="inline-block px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
+            className="inline-block px-4 py-2 text-sm font-semibold text-[#1e3a8a] border border-[#6f8f72]/40 rounded-xl hover:bg-emerald-50"
           >
             Load More ({total - limit} remaining)
           </Link>

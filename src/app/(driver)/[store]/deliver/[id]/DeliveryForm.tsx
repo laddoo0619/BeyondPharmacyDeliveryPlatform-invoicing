@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  card,
+  input,
+  label,
+  primaryButtonFull,
+  secondaryButton,
+  dangerButton,
+} from "@/lib/portalStyles";
 
 export default function DeliveryForm({
   orderId,
@@ -74,20 +82,20 @@ export default function DeliveryForm({
     return (
       <div className="space-y-3">
         {error && (
-          <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm">{error}</div>
+          <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>
         )}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-red-800">
+        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
+          <p className="text-sm font-semibold text-rose-800">
             Previous attempt failed
           </p>
-          <p className="text-sm text-red-600 mt-1">
+          <p className="text-sm text-rose-600 mt-1">
             Attempt #{attemptCount} — tap below to re-attempt delivery
           </p>
         </div>
         <button
           onClick={() => updateStatus("IN_TRANSIT").catch(() => {})}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className={primaryButtonFull}
         >
           {loading ? "Starting..." : "Re-attempt Delivery"}
         </button>
@@ -100,12 +108,12 @@ export default function DeliveryForm({
     return (
       <div>
         {error && (
-          <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>
+          <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm mb-3">{error}</div>
         )}
         <button
           onClick={() => updateStatus("PICKED_UP").catch(() => {})}
           disabled={loading}
-          className="w-full bg-teal-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+          className={primaryButtonFull}
         >
           {loading ? "Updating..." : "\u2713 Mark as Picked Up"}
         </button>
@@ -118,12 +126,12 @@ export default function DeliveryForm({
     return (
       <div>
         {error && (
-          <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>
+          <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm mb-3">{error}</div>
         )}
         <button
           onClick={() => updateStatus("IN_TRANSIT").catch(() => {})}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className={primaryButtonFull}
         >
           {loading ? "Updating..." : "Start Delivery (Mark In Transit)"}
         </button>
@@ -135,14 +143,14 @@ export default function DeliveryForm({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm">
+        <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">
           {error}
         </div>
       )}
 
       {attemptCount > 1 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-700 font-medium">
+        <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3">
+          <p className="text-sm text-[#1e3a8a] font-semibold">
             Re-attempt #{attemptCount}
           </p>
         </div>
@@ -150,15 +158,15 @@ export default function DeliveryForm({
 
       {!showFailForm ? (
         <>
-          <div className="bg-white rounded-lg p-4 border">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className={`${card} p-4`}>
+            <label className={label}>
               Delivery Notes (optional)
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className={input}
               placeholder="Left at front door, etc."
             />
           </div>
@@ -166,32 +174,32 @@ export default function DeliveryForm({
           <button
             onClick={markDelivered}
             disabled={loading}
-            className="w-full bg-green-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            className={primaryButtonFull}
           >
             {loading ? "Completing..." : "Mark as Delivered"}
           </button>
 
           <button
             onClick={() => setShowFailForm(true)}
-            className="w-full bg-red-50 text-red-700 border border-red-200 py-3.5 rounded-lg text-sm font-medium hover:bg-red-100"
+            className="w-full bg-rose-50 text-rose-700 border border-rose-200 py-3.5 rounded-xl text-sm font-semibold hover:bg-rose-100"
           >
             Failed Delivery
           </button>
         </>
       ) : (
-        <div className="bg-white rounded-lg p-4 border border-red-200">
-          <h3 className="text-sm font-semibold text-red-800 mb-3">
+        <div className={`${card} p-4 border-rose-200`}>
+          <h3 className="text-sm font-semibold text-rose-800 mb-3">
             Report Failed Delivery
           </h3>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={label}>
                 Reason *
               </label>
               <select
                 value={failReason}
                 onChange={(e) => setFailReason(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm"
+                className={input}
               >
                 <option value="">Select a reason...</option>
                 <option value="No one home">No one home</option>
@@ -207,7 +215,7 @@ export default function DeliveryForm({
                 setFailReason(e.target.value ? `Other: ${e.target.value}` : failReason)
               }
               rows={2}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className={input}
               placeholder="Or type a custom reason..."
             />
 
@@ -215,7 +223,7 @@ export default function DeliveryForm({
               <button
                 onClick={markFailed}
                 disabled={loading}
-                className="flex-1 bg-red-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                className={`${dangerButton} flex-1 py-3.5`}
               >
                 {loading ? "Submitting..." : "Confirm Failed"}
               </button>
@@ -225,7 +233,7 @@ export default function DeliveryForm({
                   setFailReason("");
                   setError("");
                 }}
-                className="flex-1 bg-gray-100 text-gray-700 py-3.5 rounded-lg text-sm font-medium hover:bg-gray-200"
+                className={`${secondaryButton} flex-1 py-3.5`}
               >
                 Cancel
               </button>

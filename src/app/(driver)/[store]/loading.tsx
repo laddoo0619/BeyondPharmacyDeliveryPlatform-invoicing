@@ -2,8 +2,8 @@ export default function DriverLoading() {
   return (
     <div className="flex items-center justify-center py-20">
       <div className="text-center">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-green-600 border-r-transparent" />
-        <p className="mt-3 text-sm text-gray-500">Loading...</p>
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#6f8f72] border-r-transparent" />
+        <p className="mt-3 text-sm text-slate-500">Loading...</p>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { primaryButtonFull } from "@/lib/portalStyles";
+
 export default function EarningsExport({
   storeSlug,
   start,
@@ -14,7 +16,7 @@ export default function EarningsExport({
       href={`/api/${storeSlug}/driver/earnings?start=${start}&end=${end}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="block w-full text-center bg-green-600 text-white py-3.5 rounded-lg text-sm font-medium hover:bg-green-700"
+      className={`${primaryButtonFull} block text-center`}
     >
       Generate Record (CSV)
     </a>

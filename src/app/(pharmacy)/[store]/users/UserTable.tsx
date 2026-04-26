@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  card,
+  input,
+  sectionTitle,
+  statusBadgeClasses,
+  tableHeader,
+  tableRow,
+} from "@/lib/portalStyles";
 
 interface UserRow {
   id: string;
@@ -79,36 +87,37 @@ export default function UserTable({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className={`${card} overflow-hidden`}>
       <div className="px-6 py-4 border-b">
-        <h2 className="text-lg font-semibold">All Users</h2>
+        <h2 className={sectionTitle}>All Users</h2>
       </div>
-      <table className="w-full">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {users.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 text-sm font-medium text-gray-900">{user.name}</td>
-              <td className="px-6 py-4 text-sm text-gray-500">{user.email}</td>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className={tableHeader}>
+            <tr>
+              <th className="px-6 py-3">Name</th>
+              <th className="px-6 py-3">Email</th>
+              <th className="px-6 py-3">Role</th>
+              <th className="px-6 py-3">Store</th>
+              <th className="px-6 py-3">Status</th>
+              <th className="px-6 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {users.map((user) => (
+              <tr key={user.id} className={tableRow}>
+              <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">{user.name}</td>
+              <td className="px-6 py-4 text-sm text-slate-500">{user.email}</td>
               <td className="px-6 py-4">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.role === "PHARMACY_ADMIN" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}`}>
+                <span className={statusBadgeClasses(user.role === "PHARMACY_ADMIN" ? "ADMIN" : "DRIVER")}>
                   {user.role === "PHARMACY_ADMIN" ? "Admin" : "Driver"}
                 </span>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-500">
+              <td className="px-6 py-4 text-sm text-slate-500">
                 {user.store?.name || "All Stores"}
               </td>
               <td className="px-6 py-4">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>
+                <span className={statusBadgeClasses(user.isActive ? "ACTIVE" : "INACTIVE")}>
                   {user.isActive ? "Active" : "Inactive"}
                 </span>
               </td>
@@ -122,7 +131,7 @@ export default function UserTable({
                           setNewPassword("");
                         }}
                         disabled={savingPassword}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+                        className="text-sm text-[#6f8f72] hover:text-[#5f7d62] font-semibold disabled:opacity-50"
                       >
                         Change Password
                       </button>
@@ -130,7 +139,7 @@ export default function UserTable({
                         <button
                           onClick={() => handleDelete(user.id, user.name)}
                           disabled={deletingId === user.id || changingPasswordId === user.id}
-                          className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                          className="text-sm text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50"
                         >
                           {deletingId === user.id ? "Deleting..." : "Delete"}
                         </button>
@@ -144,19 +153,19 @@ export default function UserTable({
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="New password"
                           minLength={6}
-                          className="px-2 py-1 border rounded text-sm w-36"
+                          className={`${input} py-1 w-36`}
                         />
                         <button
                           onClick={() => handleChangePassword(user.id)}
                           disabled={savingPassword}
-                          className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                          className="text-sm bg-[#6f8f72] text-white px-3 py-1 rounded-xl hover:bg-[#5f7d62] disabled:opacity-50"
                         >
                           {savingPassword ? "Saving..." : "Save"}
                         </button>
                         <button
                           onClick={() => { setChangingPasswordId(null); setNewPassword(""); }}
                           disabled={savingPassword}
-                          className="text-sm text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+                          className="text-sm text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50"
                         >
                           Cancel
                         </button>
@@ -165,10 +174,11 @@ export default function UserTable({
                   </div>
                 )}
               </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

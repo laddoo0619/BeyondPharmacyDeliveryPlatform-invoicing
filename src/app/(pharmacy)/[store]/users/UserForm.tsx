@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { card, input, primaryButton, sectionTitle } from "@/lib/portalStyles";
 
 export default function UserForm({ storeSlug }: { storeSlug: string }) {
   const router = useRouter();
@@ -40,20 +41,20 @@ export default function UserForm({ storeSlug }: { storeSlug: string }) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
-      <h2 className="text-lg font-semibold mb-4">Create New User</h2>
+    <div className={`${card} p-6`}>
+      <h2 className={`${sectionTitle} mb-4`}>Create New User</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
-        {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
-        {success && <div className="bg-green-50 text-green-700 px-3 py-2 rounded text-sm">{success}</div>}
-        <input name="name" required placeholder="Full Name" className="w-full px-3 py-2 border rounded-lg text-sm" />
-        <input name="email" type="email" required placeholder="Email" className="w-full px-3 py-2 border rounded-lg text-sm" />
-        <input name="password" type="password" required placeholder="Password" minLength={6} className="w-full px-3 py-2 border rounded-lg text-sm" />
-        <input name="phone" placeholder="Phone (optional)" className="w-full px-3 py-2 border rounded-lg text-sm" />
-        <select name="role" required className="w-full px-3 py-2 border rounded-lg text-sm">
+        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
+        {success && <div className="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-xl text-sm">{success}</div>}
+        <input name="name" required placeholder="Full Name" className={input} />
+        <input name="email" type="email" required placeholder="Email" className={input} />
+        <input name="password" type="password" required placeholder="Password" minLength={6} className={input} />
+        <input name="phone" placeholder="Phone (optional)" className={input} />
+        <select name="role" required className={input}>
           <option value="DRIVER">Driver</option>
           <option value="PHARMACY_ADMIN">Pharmacy Admin</option>
         </select>
-        <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+        <button type="submit" disabled={loading} className={`${primaryButton} w-full`}>
           {loading ? "Creating..." : "Create User"}
         </button>
       </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { input, label } from "@/lib/portalStyles";
 
 interface Driver {
   id: string;
@@ -17,11 +18,11 @@ interface Props {
 function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone }: Props) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Assign Driver</label>
+      <label className={label}>Assign Driver</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className={input}
       >
         <option value="">No driver (assign later)</option>
         {drivers.map((d) => (
@@ -31,7 +32,7 @@ function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone }: Pro
         ))}
       </select>
       {autoFilledFromZone && (
-        <p className="mt-1 text-xs text-blue-600">Auto-filled from zone default</p>
+        <p className="mt-1 text-xs font-medium text-[#6f8f72]">Auto-filled from zone default</p>
       )}
     </div>
   );

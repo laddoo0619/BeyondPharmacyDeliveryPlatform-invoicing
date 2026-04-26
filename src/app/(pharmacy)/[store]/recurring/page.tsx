@@ -3,6 +3,7 @@ import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import RecurringOrderForm from "./RecurringOrderForm";
 import RecurringOrderList from "./RecurringOrderList";
+import { pageTitle } from "@/lib/portalStyles";
 
 export default async function RecurringPage({
   params,
@@ -43,7 +44,9 @@ export default async function RecurringPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Recurring Deliveries</h1>
+      <h1 className={`${pageTitle} mb-6`}>
+        Recurring Deliveries, <span className="italic font-semibold">simplified</span>
+      </h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <RecurringOrderForm

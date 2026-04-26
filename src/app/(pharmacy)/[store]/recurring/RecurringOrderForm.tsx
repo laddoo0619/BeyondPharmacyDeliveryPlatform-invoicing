@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { card, cn, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -154,21 +155,21 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
-      <h2 className="text-lg font-semibold mb-4">New Recurring Order</h2>
+    <div className={`${card} p-6`}>
+      <h2 className={`${sectionTitle} mb-4`}>New Recurring Order</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
-        {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
+        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
 
         {/* Patient search with typeahead */}
         <div ref={dropdownRef} className="relative">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+          <label className={label}>Patient</label>
           {selectedPatient ? (
-            <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-blue-50 border-blue-200">
+            <div className="flex items-center justify-between px-3 py-2 border rounded-xl bg-sky-50/80 border-sky-100">
               <div>
-                <span className="text-sm font-medium text-blue-900">{selectedPatient.name}</span>
-                <span className="text-xs text-blue-600 ml-2">{selectedPatient.address}, {selectedPatient.city}</span>
+                <span className="text-sm font-semibold text-[#1e3a8a]">{selectedPatient.name}</span>
+                <span className="text-xs text-slate-500 ml-2">{selectedPatient.address}, {selectedPatient.city}</span>
               </div>
-              <button type="button" onClick={clearPatient} className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+              <button type="button" onClick={clearPatient} className="text-[#6f8f72] hover:text-[#5f7d62] text-sm font-semibold">
                 Change
               </button>
             </div>
@@ -182,23 +183,23 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
                   setPatientName(e.target.value);
                 }}
                 placeholder="Search patients or type new name..."
-                className="w-full px-3 py-2 border rounded-lg text-sm"
+                className={input}
                 required
               />
               {searchLoading && (
-                <div className="absolute right-3 top-9 text-xs text-gray-400">Searching...</div>
+                <div className="absolute right-3 top-9 text-xs text-slate-400">Searching...</div>
               )}
               {showDropdown && patients.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white/95 border border-slate-200 rounded-2xl shadow-[0_18px_45px_rgba(30,58,138,0.12)] max-h-48 overflow-y-auto">
                   {patients.map((p) => (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => selectPatient(p)}
-                      className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0"
+                      className="w-full text-left px-3 py-2 hover:bg-sky-50/70 border-b border-slate-100 last:border-b-0"
                     >
-                      <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                      <p className="text-xs text-gray-500">{p.address}, {p.city} {p.postalCode}</p>
+                      <p className="text-sm font-semibold text-[#1e3a8a]">{p.name}</p>
+                      <p className="text-xs text-slate-500">{p.address}, {p.city} {p.postalCode}</p>
                     </button>
                   ))}
                 </div>
@@ -217,7 +218,7 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
             value={patientPhone}
             onChange={(e) => setPatientPhone(e.target.value)}
             placeholder="Phone (optional)"
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className={input}
           />
         )}
 
@@ -227,7 +228,7 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
           placeholder="Address"
           value={deliveryAddress}
           onChange={(e) => setDeliveryAddress(e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg text-sm"
+          className={input}
         />
         <div className="grid grid-cols-2 gap-2">
           <input
@@ -236,7 +237,7 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
             placeholder="City"
             value={deliveryCity}
             onChange={(e) => setDeliveryCity(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className={input}
           />
           <input
             name="deliveryPostalCode"
@@ -244,26 +245,26 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
             placeholder="Postal Code"
             value={deliveryPostalCode}
             onChange={(e) => setDeliveryPostalCode(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg text-sm"
+            className={input}
           />
         </div>
-        <select name="deliveryZoneId" required className="w-full px-3 py-2 border rounded-lg text-sm">
+        <select name="deliveryZoneId" required className={input}>
           <option value="">Select zone...</option>
           {zones.map((z) => (
             <option key={z.id} value={z.id}>{z.name} — ${z.price.toFixed(2)}</option>
           ))}
         </select>
-        <select name="assignedDriverId" className="w-full px-3 py-2 border rounded-lg text-sm">
+        <select name="assignedDriverId" className={input}>
           <option value="">Assign Driver (optional — uses zone default)</option>
           {drivers.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
         </select>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Days</label>
+          <label className={label}>Delivery Days</label>
           <div className="flex flex-wrap gap-2">
             {DAYS.map((day, i) => (
-              <label key={i} className={`flex items-center px-3 py-1.5 border rounded-lg text-sm cursor-pointer ${selectedDays.includes(i) ? "bg-blue-100 border-blue-400 text-blue-800" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
+              <label key={i} className={cn("flex items-center px-3 py-1.5 border rounded-full text-sm cursor-pointer transition", selectedDays.includes(i) ? "bg-[#6f8f72]/15 border-[#6f8f72]/40 text-[#1e3a8a] font-semibold" : "bg-white border-slate-200 text-slate-500 hover:bg-sky-50")}>
                 <input
                   type="checkbox"
                   className="sr-only"
@@ -279,8 +280,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
             ))}
           </div>
         </div>
-        <textarea name="instructions" rows={2} placeholder="Instructions (optional)" className="w-full px-3 py-2 border rounded-lg text-sm" />
-        <button type="submit" disabled={loading || selectedDays.length === 0} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+        <textarea name="instructions" rows={2} placeholder="Instructions (optional)" className={input} />
+        <button type="submit" disabled={loading || selectedDays.length === 0} className={primaryButton}>
           {loading ? "Creating..." : "Create Recurring Order"}
         </button>
       </form>

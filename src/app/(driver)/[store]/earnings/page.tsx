@@ -4,6 +4,7 @@ import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import EarningsExport from "./EarningsExport";
+import { card, emptyState, pageTitle } from "@/lib/portalStyles";
 
 export default async function EarningsPage({
   params,
@@ -68,7 +69,9 @@ export default async function EarningsPage({
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-4">My Earnings</h1>
+      <h1 className={`${pageTitle} mb-4`}>
+        My Earnings, <span className="italic font-semibold">tracked</span>
+      </h1>
 
       {/* Range Toggle */}
       <div className="flex space-x-2 mb-4">
@@ -76,8 +79,8 @@ export default async function EarningsPage({
           href={`/${storeSlug}/earnings?range=week`}
           className={`px-4 py-3 rounded-full text-sm font-medium ${
             range === "week"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-[#6f8f72]/15 text-[#1e3a8a]"
+              : "bg-white/80 text-slate-500 hover:bg-white"
           }`}
         >
           This Week
@@ -86,8 +89,8 @@ export default async function EarningsPage({
           href={`/${storeSlug}/earnings?range=month`}
           className={`px-4 py-3 rounded-full text-sm font-medium ${
             range === "month"
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-[#6f8f72]/15 text-[#1e3a8a]"
+              : "bg-white/80 text-slate-500 hover:bg-white"
           }`}
         >
           This Month
@@ -95,17 +98,17 @@ export default async function EarningsPage({
       </div>
 
       {/* Summary Card */}
-      <div className="bg-white rounded-lg p-5 border shadow-sm mb-4">
+      <div className={`${card} p-5 mb-4`}>
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-gray-500">Completed Deliveries</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-sm text-slate-500">Completed Deliveries</p>
+            <p className="text-2xl font-bold text-[#1e3a8a]">
               {totalCount}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-500">Total Earnings</p>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-sm text-slate-500">Total Earnings</p>
+            <p className="text-2xl font-bold text-[#6f8f72]">
               ${totalEarnings.toFixed(2)}
             </p>
           </div>
@@ -121,26 +124,26 @@ export default async function EarningsPage({
 
       {/* Deliveries List */}
       {deliveries.length === 0 ? (
-        <div className="bg-white rounded-lg p-8 text-center text-gray-500 border mt-4">
-          No completed deliveries in this period.
+        <div className={`${emptyState} mt-4`}>
+          No completed deliveries in this <span className="italic text-[#1e3a8a]">period</span>.
         </div>
       ) : (
         <div className="space-y-2 mt-4">
           {deliveries.map((d) => (
             <div
               key={d.id}
-              className="bg-white rounded-lg p-3 border shadow-sm flex justify-between items-center"
+              className={`${card} p-3 flex justify-between items-center`}
             >
               <div>
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-semibold text-[#1e3a8a]">
                   {d.patientName}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500">
                   {d.deliveryZoneName} &middot;{" "}
                   {new Date(d.scheduledDate).toLocaleDateString()}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-green-600">
+              <p className="text-sm font-semibold text-[#6f8f72]">
                 ${d.priceAtCreation.toFixed(2)}
               </p>
             </div>

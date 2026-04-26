@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { input } from "@/lib/portalStyles";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -95,12 +96,12 @@ export default function OrderActions({
           <button
             onClick={deleteOrder}
             disabled={loading}
-            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 font-medium disabled:opacity-50"
+            className="text-xs bg-rose-600 text-white px-2 py-1 rounded-full hover:bg-rose-700 font-semibold disabled:opacity-50"
           >
             {loading ? "Deleting..." : "Permanent Delete"}
           </button>
         ) : (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-slate-500">
             Delete in {remaining}
           </span>
         )}
@@ -117,7 +118,7 @@ export default function OrderActions({
     <div className="flex items-center space-x-2">
       {currentStatus === "PENDING" && (
         <select
-          className="text-xs border rounded px-2 py-1"
+          className={`${input} text-xs py-1`}
           value={currentDriverId || ""}
           disabled={loading}
           onChange={(e) => {
@@ -140,7 +141,7 @@ export default function OrderActions({
       <button
         onClick={deleteOrder}
         disabled={loading}
-        className="text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+        className="text-xs text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50"
       >
         Delete
       </button>

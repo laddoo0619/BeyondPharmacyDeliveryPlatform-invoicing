@@ -7,6 +7,13 @@ import { AddressSelect, type AddressValue } from "@/components/AddressSelect";
 import { DriverSelect } from "@/components/DriverSelect";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import type { Patient } from "@/hooks/usePatientSearch";
+import {
+  card,
+  input,
+  label,
+  primaryButton,
+  secondaryButton,
+} from "@/lib/portalStyles";
 
 interface Zone {
   id: string;
@@ -121,10 +128,10 @@ export default function NewOrderForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-2xl bg-white p-6 rounded-lg shadow-sm border space-y-4"
+      className={`max-w-2xl ${card} p-6 space-y-4`}
     >
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm">
           {error}
         </div>
       )}
@@ -138,12 +145,12 @@ export default function NewOrderForm({
           onFreeTextChange={handleFreeTextName}
         />
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Patient Phone</label>
+          <label className={label}>Patient Phone</label>
           <input
             type="tel"
             value={patientPhone}
             onChange={(e) => setPatientPhone(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={input}
           />
         </div>
       </div>
@@ -159,12 +166,12 @@ export default function NewOrderForm({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Zone *</label>
+          <label className={label}>Delivery Zone *</label>
           <select
             required
             value={selectedZoneId}
             onChange={handleZoneChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={input}
           >
             <option value="">Select zone...</option>
             {zones.map((zone) => (
@@ -174,19 +181,19 @@ export default function NewOrderForm({
             ))}
           </select>
           {selectedZone && (
-            <p className="mt-1 text-sm text-green-600 font-medium">
+            <p className="mt-1 text-sm text-[#6f8f72] font-semibold">
               Delivery price: ${selectedZone.price.toFixed(2)}
             </p>
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Date *</label>
+          <label className={label}>Scheduled Date *</label>
           <input
             type="date"
             required
             value={scheduledDate}
             onChange={(e) => setScheduledDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={input}
           />
         </div>
       </div>
@@ -201,13 +208,13 @@ export default function NewOrderForm({
       />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Instructions</label>
+        <label className={label}>Delivery Instructions</label>
         <textarea
           rows={3}
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Leave at door, ring bell, etc."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className={input}
         />
       </div>
 
@@ -215,14 +222,14 @@ export default function NewOrderForm({
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={primaryButton}
         >
           {loading ? "Creating..." : "Create Order"}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className={secondaryButton}
         >
           Cancel
         </button>

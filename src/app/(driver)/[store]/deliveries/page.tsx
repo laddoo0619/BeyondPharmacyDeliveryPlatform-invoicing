@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import DeliveryPoller from "./DeliveryPoller";
 import DateNavigation from "./DateNavigation";
 import DeliveryList from "./DeliveryList";
+import { pageTitle } from "@/lib/portalStyles";
 
 export default async function DeliveriesPage({
   params,
@@ -81,9 +82,9 @@ export default async function DeliveriesPage({
     <div>
       <DeliveryPoller />
       <DateNavigation storeSlug={store.slug} currentDate={currentDateStr} />
-      <h1 className="text-xl font-bold text-gray-900 mb-4">
+      <h1 className={`${pageTitle} mb-4`}>
         {isToday
-          ? "Today\u2019s Deliveries"
+          ? <>Your Deliveries, <span className="italic font-semibold">sorted</span></>
           : `Deliveries for ${selectedDate.toLocaleDateString("en-US", {
               weekday: "short",
               month: "short",
@@ -92,10 +93,10 @@ export default async function DeliveriesPage({
             })}`}
       </h1>
 
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-slate-500 mb-4">
         {pending.length} pending • {completed.length} completed
         {failed.length > 0 && (
-          <span className="text-red-600"> • {failed.length} need re-attempt</span>
+          <span className="text-rose-600"> • {failed.length} need re-attempt</span>
         )}
       </p>
 

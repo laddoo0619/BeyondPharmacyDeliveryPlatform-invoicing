@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { cn } from "@/lib/portalStyles";
 
 const sections = [
   { path: "dashboard", label: "Dashboard" },
@@ -35,22 +36,22 @@ export default function PharmacyNav({
   const otherStores = stores.filter((s) => s.slug !== storeSlug);
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 py-3">
+    <nav className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-8">
           <div className="flex items-center space-x-3">
-            <Link href={`/${storeSlug}/dashboard`} className="text-xl font-bold text-blue-600">
+            <Link href={`/${storeSlug}/dashboard`} className="text-xl font-bold tracking-tight text-[#1e3a8a]">
               {storeName}
             </Link>
             {/* Store Switcher */}
             {otherStores.length > 0 && (
               <div className="flex items-center space-x-1">
-                <span className="text-gray-300">|</span>
+                <span className="text-slate-300">|</span>
                 {otherStores.map((s) => (
                   <Link
                     key={s.slug}
                     href={`/${s.slug}/dashboard`}
-                    className="text-xs text-gray-400 hover:text-blue-600 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-xs text-slate-400 hover:text-[#1e3a8a] font-medium px-2 py-1 rounded-full hover:bg-sky-50 transition-colors"
                   >
                     Switch to {s.label}
                   </Link>
@@ -63,11 +64,12 @@ export default function PharmacyNav({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-2 rounded-full text-sm font-semibold transition-colors",
                   pathname.startsWith(item.href)
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                }`}
+                    ? "bg-[#6f8f72]/12 text-[#1e3a8a]"
+                    : "text-slate-500 hover:text-[#1e3a8a] hover:bg-white"
+                )}
               >
                 {item.label}
               </Link>
@@ -76,7 +78,7 @@ export default function PharmacyNav({
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="text-sm text-gray-600 hover:text-red-600 font-medium"
+          className="text-sm text-slate-500 hover:text-rose-600 font-semibold"
         >
           Sign Out
         </button>
