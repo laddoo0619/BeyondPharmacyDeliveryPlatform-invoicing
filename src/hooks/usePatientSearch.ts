@@ -9,6 +9,15 @@ export interface Patient {
   address: string;
   city: string;
   postalCode: string;
+  matchedAddressId?: string | null;
+  matchedAddress?: {
+    id: string;
+    label: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    isDefault: boolean;
+  } | null;
 }
 
 export function usePatientSearch(storeSlug: string) {
