@@ -92,7 +92,9 @@ function PatientAutocompleteInner({
             >
               <div className="font-semibold text-[#1e3a8a]">{p.name}</div>
               <div className="text-xs text-slate-500">
-                {p.address}, {p.city} {p.postalCode}
+                {p.matchedAddress
+                  ? `${p.matchedAddress.label} — ${p.matchedAddress.address}, ${p.matchedAddress.city} ${p.matchedAddress.postalCode}`
+                  : `${p.address}, ${p.city} ${p.postalCode}`}
               </div>
             </button>
           ))}

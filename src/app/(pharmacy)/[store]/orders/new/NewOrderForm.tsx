@@ -34,6 +34,24 @@ const EMPTY_ADDRESS: AddressValue = {
   postalCode: "",
 };
 
+function addressFromPatient(patient: Patient): AddressValue {
+  if (patient.matchedAddress) {
+    return {
+      addressId: patient.matchedAddress.id,
+      address: patient.matchedAddress.address,
+      city: patient.matchedAddress.city,
+      postalCode: patient.matchedAddress.postalCode,
+    };
+  }
+
+  return {
+    addressId: null,
+    address: patient.address,
+    city: patient.city,
+    postalCode: patient.postalCode,
+  };
+}
+
 export default function NewOrderForm({
   zones,
   drivers,
@@ -51,6 +69,8 @@ export default function NewOrderForm({
   const [patientPhone, setPatientPhone] = useState("");
   const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
   const [saveAddress, setSaveAddress] = useState(false);
+  const [preferredAddressId, setPreferredAddressId] = useState<string | null>(null);
+  const [editingSavedAddress, setEditingSavedAddress] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState("");
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -78,19 +98,25 @@ export default function NewOrderForm({
   const handleSelectPatient = useCallback((p: Patient) => {
     setSelectedPatient(p);
     setPatientPhone(p.phone ?? "");
-    setAddress(EMPTY_ADDRESS);
+    setAddress(addressFromPatient(p));
     setSaveAddress(false);
+    setPreferredAddressId(p.matchedAddressId ?? null);
+    setEditingSavedAddress(false);
   }, []);
 
   const handleClearPatient = useCallback(() => {
     setSelectedPatient(null);
+    setPatientNameFreeText("");
     setPatientPhone("");
     setAddress(EMPTY_ADDRESS);
     setSaveAddress(false);
+    setPreferredAddressId(null);
+    setEditingSavedAddress(false);
   }, []);
 
   const handleFreeTextName = useCallback((name: string) => {
     setPatientNameFreeText(name);
+    setPreferredAddressId(null);
   }, []);
 
   const handleAddressChange = useCallback((v: AddressValue) => {
@@ -108,6 +134,7 @@ export default function NewOrderForm({
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (editingSavedAddress) return;
     const patientName = selectedPatient?.name ?? patientNameFreeText;
     submit({
       patientId: selectedPatient?.id ?? null,
@@ -156,12 +183,15 @@ export default function NewOrderForm({
       </div>
 
       <AddressSelect
+        key={selectedPatient?.id ?? "new-patient"}
         storeSlug={storeSlug}
         patientId={selectedPatient?.id ?? null}
         value={address}
         onChange={handleAddressChange}
         saveToPatient={saveAddress}
         onSaveToPatientChange={handleSaveAddressChange}
+        preferredAddressId={preferredAddressId}
+        onEditingSavedAddressChange={setEditingSavedAddress}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,7 +251,7 @@ export default function NewOrderForm({
       <div className="flex space-x-3 pt-4">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || editingSavedAddress}
           className={primaryButton}
         >
           {loading ? "Creating..." : "Create Order"}

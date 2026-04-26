@@ -3,6 +3,12 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { getVancouverDeliveryDateInfo } from "@/lib/cron";
+import {
+  cleanOptionalText,
+  cleanText,
+  createOrReuseSavedAddress,
+  createPatientWithDefaultAddress,
+} from "@/lib/patientAddressRecords";
 
 interface DriverCandidate {
   id: string;
@@ -39,6 +45,21 @@ export async function POST(
 
   const body = await req.json();
   const assignedDriverId = normalizeOptionalId(body.assignedDriverId);
+  const requestedPatientId = cleanOptionalText(body.patientId);
+  const requestedAddressId = cleanOptionalText(body.deliveryAddressId);
+  const saveAddressToPatient = body.saveAddressToPatient === true;
+  const patientName = cleanText(body.patientName);
+  const patientPhone = cleanOptionalText(body.patientPhone);
+  let deliveryAddress = cleanText(body.deliveryAddress);
+  let deliveryCity = cleanText(body.deliveryCity);
+  let deliveryPostalCode = cleanText(body.deliveryPostalCode);
+
+  if (!patientName || !deliveryAddress || !deliveryCity || !deliveryPostalCode) {
+    return NextResponse.json(
+      { error: "patientName, deliveryAddress, deliveryCity, and deliveryPostalCode are required" },
+      { status: 400 }
+    );
+  }
 
   // Validate activeDays if provided
   const activeDays = body.activeDays ?? [1];
@@ -84,9 +105,10 @@ export async function POST(
     }
   }
 
-  if (body.patientId) {
+  const patientId = requestedPatientId;
+  if (requestedPatientId) {
     const patient = await prisma.patient.findFirst({
-      where: { id: body.patientId, storeId: store.id },
+      where: { id: requestedPatientId, storeId: store.id },
       select: { id: true },
     });
 
@@ -95,72 +117,114 @@ export async function POST(
     }
   }
 
-  // If no patientId provided but we have patient details, auto-create a Patient record
-  let patientId = body.patientId || null;
-  if (!patientId && body.patientName && body.deliveryAddress) {
-    const patient = await prisma.patient.create({
+  let deliveryAddressId: string | null = null;
+  if (requestedAddressId) {
+    if (!patientId) {
+      return NextResponse.json(
+        { error: "Saved address requires a patient selection" },
+        { status: 400 }
+      );
+    }
+
+    const address = await prisma.address.findFirst({
+      where: { id: requestedAddressId, patientId },
+    });
+
+    if (!address) {
+      return NextResponse.json({ error: "Invalid saved address" }, { status: 400 });
+    }
+
+    deliveryAddressId = address.id;
+    deliveryAddress = address.address;
+    deliveryCity = address.city;
+    deliveryPostalCode = address.postalCode;
+  }
+
+  const recurringOrder = await prisma.$transaction(async (tx) => {
+    let finalPatientId = patientId;
+    let finalAddressId = deliveryAddressId;
+
+    if (saveAddressToPatient && !finalPatientId) {
+      const created = await createPatientWithDefaultAddress(tx, {
+        name: patientName,
+        phone: patientPhone,
+        address: deliveryAddress,
+        city: deliveryCity,
+        postalCode: deliveryPostalCode,
+        storeId: store.id,
+      });
+      finalPatientId = created.patient.id;
+      finalAddressId = created.address.id;
+    } else if (saveAddressToPatient && finalPatientId && !finalAddressId) {
+      const savedAddress = await createOrReuseSavedAddress(
+        tx,
+        finalPatientId,
+        {
+          label: "Saved",
+          address: deliveryAddress,
+          city: deliveryCity,
+          postalCode: deliveryPostalCode,
+        },
+        { label: "Saved" }
+      );
+      finalAddressId = savedAddress.id;
+    }
+
+    const createdRecurringOrder = await tx.recurringOrder.create({
       data: {
-        name: body.patientName,
-        phone: body.patientPhone || null,
-        address: body.deliveryAddress,
-        city: body.deliveryCity,
-        postalCode: body.deliveryPostalCode,
+        patientId: finalPatientId,
+        patientName,
+        patientPhone,
+        deliveryAddress,
+        deliveryCity,
+        deliveryPostalCode,
+        deliveryZoneId: zone.id,
+        instructions: body.instructions || null,
+        assignedDriverId,
+        activeDays: JSON.stringify(activeDays),
+        createdById: session.user.id,
         storeId: store.id,
       },
+      include: { deliveryZone: true },
     });
-    patientId = patient.id;
-  }
 
-  const recurringOrder = await prisma.recurringOrder.create({
-    data: {
-      patientId,
-      patientName: body.patientName,
-      patientPhone: body.patientPhone || null,
-      deliveryAddress: body.deliveryAddress,
-      deliveryCity: body.deliveryCity,
-      deliveryPostalCode: body.deliveryPostalCode,
-      deliveryZoneId: zone.id,
-      instructions: body.instructions || null,
-      assignedDriverId,
-      activeDays: JSON.stringify(activeDays),
-      createdById: session.user.id,
-      storeId: store.id,
-    },
-    include: { deliveryZone: true },
-  });
-
-  // If today is an active day, immediately create today's Order so it appears in the driver portal
-  const deliveryDate = getVancouverDeliveryDateInfo();
-  if (activeDays.includes(deliveryDate.dayOfWeek)) {
-    const defaultDriverId = isValidStoreDriver(zone.defaultDriver, store.id)
-      ? zone.defaultDriver.id
-      : null;
-    const driverId = assignedDriverId || defaultDriverId;
-    const status = driverId ? "ASSIGNED" : "PENDING";
-    try {
-      await prisma.order.create({
-        data: {
-          patientName: body.patientName,
-          patientPhone: body.patientPhone || null,
-          deliveryAddress: body.deliveryAddress,
-          deliveryCity: body.deliveryCity,
-          deliveryPostalCode: body.deliveryPostalCode,
-          deliveryZoneId: zone.id,
-          deliveryZoneName: recurringOrder.deliveryZone.name,
-          priceAtCreation: recurringOrder.deliveryZone.price,
-          instructions: body.instructions || null,
-          status,
-          assignedDriverId: driverId,
-          scheduledDate: deliveryDate.dayStart,
-          recurringOrderId: recurringOrder.id,
-          createdById: session.user.id,
-          storeId: store.id,
-        },
-      });
-    } catch {
-      // Dedup: order may already exist for today (e.g. cron already ran)
+    // If today is an active day, immediately create today's Order so it appears in the driver portal
+    const deliveryDate = getVancouverDeliveryDateInfo();
+    if (activeDays.includes(deliveryDate.dayOfWeek)) {
+      const defaultDriverId = isValidStoreDriver(zone.defaultDriver, store.id)
+        ? zone.defaultDriver.id
+        : null;
+      const driverId = assignedDriverId || defaultDriverId;
+      const status = driverId ? "ASSIGNED" : "PENDING";
+      try {
+        await tx.order.create({
+          data: {
+            patientId: finalPatientId,
+            patientName,
+            patientPhone,
+            deliveryAddress,
+            deliveryCity,
+            deliveryPostalCode,
+            deliveryAddressId: finalAddressId,
+            deliveryZoneId: zone.id,
+            deliveryZoneName: createdRecurringOrder.deliveryZone.name,
+            priceAtCreation: createdRecurringOrder.deliveryZone.price,
+            instructions: body.instructions || null,
+            status,
+            assignedDriverId: driverId,
+            scheduledDate: deliveryDate.dayStart,
+            recurringOrderId: createdRecurringOrder.id,
+            createdById: session.user.id,
+            storeId: store.id,
+          },
+        });
+      } catch {
+        // Dedup: order may already exist for today (e.g. cron already ran)
+      }
     }
-  }
+
+    return createdRecurringOrder;
+  });
 
   return NextResponse.json(recurringOrder, { status: 201 });
 }

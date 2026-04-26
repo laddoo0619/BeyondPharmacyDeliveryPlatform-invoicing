@@ -3,6 +3,12 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
+import {
+  cleanOptionalText,
+  cleanText,
+  createOrReuseSavedAddress,
+  createPatientWithDefaultAddress,
+} from "@/lib/patientAddressRecords";
 import { z } from "zod";
 
 const createOrderSchema = z.object({
@@ -47,6 +53,20 @@ export async function POST(
   }
 
   const data = parsed.data;
+  const patientName = cleanText(data.patientName);
+  const patientPhone = cleanOptionalText(data.patientPhone);
+  const requestedPatientId = cleanOptionalText(data.patientId);
+  const requestedAddressId = cleanOptionalText(data.deliveryAddressId);
+  let deliveryAddress = cleanText(data.deliveryAddress);
+  let deliveryCity = cleanText(data.deliveryCity);
+  let deliveryPostalCode = cleanText(data.deliveryPostalCode);
+
+  if (!patientName || !deliveryAddress || !deliveryCity || !deliveryPostalCode) {
+    return NextResponse.json(
+      { error: "patientName, deliveryAddress, deliveryCity, and deliveryPostalCode are required" },
+      { status: 400 }
+    );
+  }
 
   // Idempotency: if a previous request with this key already produced an order,
   // return it instead of inserting again.
@@ -85,9 +105,9 @@ export async function POST(
 
   // Verify patient belongs to store if provided
   let patientId: string | null = null;
-  if (data.patientId) {
+  if (requestedPatientId) {
     const patient = await prisma.patient.findFirst({
-      where: { id: data.patientId, storeId: store.id },
+      where: { id: requestedPatientId, storeId: store.id },
     });
     if (!patient) {
       return NextResponse.json({ error: "Invalid patient" }, { status: 400 });
@@ -97,10 +117,7 @@ export async function POST(
 
   // Verify the chosen saved address belongs to the chosen patient
   let deliveryAddressId: string | null = null;
-  let deliveryAddress = data.deliveryAddress;
-  let deliveryCity = data.deliveryCity;
-  let deliveryPostalCode = data.deliveryPostalCode;
-  if (data.deliveryAddressId) {
+  if (requestedAddressId) {
     if (!patientId) {
       return NextResponse.json(
         { error: "Saved address requires a patient selection" },
@@ -108,7 +125,7 @@ export async function POST(
       );
     }
     const addr = await prisma.address.findFirst({
-      where: { id: data.deliveryAddressId, patientId },
+      where: { id: requestedAddressId, patientId },
     });
     if (!addr) {
       return NextResponse.json({ error: "Invalid saved address" }, { status: 400 });
@@ -120,47 +137,57 @@ export async function POST(
     deliveryPostalCode = addr.postalCode;
   }
 
-  const orderData = {
-    idempotencyKey: data.idempotencyKey,
-    patientId,
-    patientName: data.patientName,
-    patientPhone: data.patientPhone || null,
-    deliveryAddress,
-    deliveryCity,
-    deliveryPostalCode,
-    deliveryAddressId,
-    deliveryZoneId: data.deliveryZoneId,
-    deliveryZoneName: zone.name,
-    priceAtCreation: zone.price,
-    instructions: data.instructions || null,
-    scheduledDate: new Date(data.scheduledDate),
-    status: assignedDriverId ? "ASSIGNED" : "PENDING",
-    assignedDriverId,
-    createdById: session.user.id,
-    storeId: store.id,
-  };
-
   try {
     const order = await prisma.$transaction(async (tx) => {
+      let finalPatientId = patientId;
       let finalAddressId = deliveryAddressId;
 
-      // Persist the typed address to the patient's address book when requested
-      if (data.saveAddressToPatient && patientId && !deliveryAddressId) {
-        const created = await tx.address.create({
-          data: {
-            patientId,
-            label: "Saved",
+      if (data.saveAddressToPatient && !finalPatientId) {
+        const created = await createPatientWithDefaultAddress(tx, {
+          name: patientName,
+          phone: patientPhone,
+          address: deliveryAddress,
+          city: deliveryCity,
+          postalCode: deliveryPostalCode,
+          storeId: store.id,
+        });
+        finalPatientId = created.patient.id;
+        finalAddressId = created.address.id;
+      } else if (data.saveAddressToPatient && finalPatientId && !finalAddressId) {
+        const savedAddress = await createOrReuseSavedAddress(
+          tx,
+          finalPatientId,
+          {
             address: deliveryAddress,
             city: deliveryCity,
             postalCode: deliveryPostalCode,
-            isDefault: false,
+            label: "Saved",
           },
-        });
-        finalAddressId = created.id;
+          { label: "Saved" }
+        );
+        finalAddressId = savedAddress.id;
       }
 
       return tx.order.create({
-        data: { ...orderData, deliveryAddressId: finalAddressId },
+        data: {
+          idempotencyKey: data.idempotencyKey,
+          patientId: finalPatientId,
+          patientName,
+          patientPhone,
+          deliveryAddress,
+          deliveryCity,
+          deliveryPostalCode,
+          deliveryAddressId: finalAddressId,
+          deliveryZoneId: data.deliveryZoneId,
+          deliveryZoneName: zone.name,
+          priceAtCreation: zone.price,
+          instructions: data.instructions || null,
+          scheduledDate: new Date(data.scheduledDate),
+          status: assignedDriverId ? "ASSIGNED" : "PENDING",
+          assignedDriverId,
+          createdById: session.user.id,
+          storeId: store.id,
+        },
       });
     });
 

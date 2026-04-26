@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { z } from "zod";
+import { createOrReuseSavedAddress } from "@/lib/patientAddressRecords";
 
 const createAddressSchema = z.object({
   address: z.string().min(1),
@@ -76,22 +77,30 @@ export async function POST(
   const data = parsed.data;
 
   const address = await prisma.$transaction(async (tx) => {
-    if (data.isDefault) {
-      await tx.address.updateMany({
-        where: { patientId, isDefault: true },
-        data: { isDefault: false },
-      });
-    }
-    return tx.address.create({
-      data: {
-        patientId,
-        label: data.label || "Primary",
+    const savedAddress = await createOrReuseSavedAddress(
+      tx,
+      patientId,
+      {
+        label: data.label || (data.isDefault ? "Primary" : "Saved"),
         address: data.address,
         city: data.city,
         postalCode: data.postalCode,
-        isDefault: data.isDefault,
       },
-    });
+      { label: data.label || (data.isDefault ? "Primary" : "Saved"), isDefault: data.isDefault }
+    );
+
+    if (savedAddress.isDefault) {
+      await tx.patient.update({
+        where: { id: patientId },
+        data: {
+          address: savedAddress.address,
+          city: savedAddress.city,
+          postalCode: savedAddress.postalCode,
+        },
+      });
+    }
+
+    return savedAddress;
   });
 
   return NextResponse.json(address, { status: 201 });
