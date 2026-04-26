@@ -2,6 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
+import { getVancouverDeliveryDateInfo } from "@/lib/cron";
+
+interface DriverCandidate {
+  id: string;
+  role: string;
+  isActive: boolean;
+  storeId: string | null;
+}
+
+function normalizeOptionalId(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isValidStoreDriver(
+  driver: DriverCandidate | null | undefined,
+  storeId: string
+): driver is DriverCandidate {
+  return !!driver && driver.role === "DRIVER" && driver.isActive && driver.storeId === storeId;
+}
 
 export async function POST(
   req: NextRequest,
@@ -19,6 +38,7 @@ export async function POST(
   }
 
   const body = await req.json();
+  const assignedDriverId = normalizeOptionalId(body.assignedDriverId);
 
   // Validate activeDays if provided
   const activeDays = body.activeDays ?? [1];
@@ -33,6 +53,46 @@ export async function POST(
       { error: "activeDays must be a non-empty array of day numbers (0-6)" },
       { status: 400 }
     );
+  }
+
+  const zone = await prisma.deliveryZone.findFirst({
+    where: { id: body.deliveryZoneId, storeId: store.id, isActive: true },
+    include: {
+      defaultDriver: {
+        select: { id: true, role: true, isActive: true, storeId: true },
+      },
+    },
+  });
+
+  if (!zone) {
+    return NextResponse.json({ error: "Invalid delivery zone" }, { status: 400 });
+  }
+
+  if (assignedDriverId) {
+    const driver = await prisma.user.findFirst({
+      where: {
+        id: assignedDriverId,
+        role: "DRIVER",
+        isActive: true,
+        storeId: store.id,
+      },
+      select: { id: true },
+    });
+
+    if (!driver) {
+      return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
+    }
+  }
+
+  if (body.patientId) {
+    const patient = await prisma.patient.findFirst({
+      where: { id: body.patientId, storeId: store.id },
+      select: { id: true },
+    });
+
+    if (!patient) {
+      return NextResponse.json({ error: "Invalid patient" }, { status: 400 });
+    }
   }
 
   // If no patientId provided but we have patient details, auto-create a Patient record
@@ -59,9 +119,9 @@ export async function POST(
       deliveryAddress: body.deliveryAddress,
       deliveryCity: body.deliveryCity,
       deliveryPostalCode: body.deliveryPostalCode,
-      deliveryZoneId: body.deliveryZoneId,
+      deliveryZoneId: zone.id,
       instructions: body.instructions || null,
-      assignedDriverId: body.assignedDriverId || null,
+      assignedDriverId,
       activeDays: JSON.stringify(activeDays),
       createdById: session.user.id,
       storeId: store.id,
@@ -70,9 +130,12 @@ export async function POST(
   });
 
   // If today is an active day, immediately create today's Order so it appears in the driver portal
-  const todayDow = new Date().getDay();
-  if (activeDays.includes(todayDow)) {
-    const driverId = body.assignedDriverId || recurringOrder.deliveryZone.defaultDriverId;
+  const deliveryDate = getVancouverDeliveryDateInfo();
+  if (activeDays.includes(deliveryDate.dayOfWeek)) {
+    const defaultDriverId = isValidStoreDriver(zone.defaultDriver, store.id)
+      ? zone.defaultDriver.id
+      : null;
+    const driverId = assignedDriverId || defaultDriverId;
     const status = driverId ? "ASSIGNED" : "PENDING";
     try {
       await prisma.order.create({
@@ -82,13 +145,13 @@ export async function POST(
           deliveryAddress: body.deliveryAddress,
           deliveryCity: body.deliveryCity,
           deliveryPostalCode: body.deliveryPostalCode,
-          deliveryZoneId: body.deliveryZoneId,
+          deliveryZoneId: zone.id,
           deliveryZoneName: recurringOrder.deliveryZone.name,
           priceAtCreation: recurringOrder.deliveryZone.price,
           instructions: body.instructions || null,
           status,
           assignedDriverId: driverId,
-          scheduledDate: new Date(),
+          scheduledDate: deliveryDate.dayStart,
           recurringOrderId: recurringOrder.id,
           createdById: session.user.id,
           storeId: store.id,

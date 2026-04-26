@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 
+function normalizeOptionalId(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ store: string; id: string }> }
@@ -84,7 +88,24 @@ export async function PATCH(
 
   // Driver assignment (null to unassign, string to assign)
   if ("assignedDriverId" in body) {
-    updateData.assignedDriverId = body.assignedDriverId || null;
+    const assignedDriverId = normalizeOptionalId(body.assignedDriverId);
+    if (assignedDriverId) {
+      const driver = await prisma.user.findFirst({
+        where: {
+          id: assignedDriverId,
+          role: "DRIVER",
+          isActive: true,
+          storeId: store.id,
+        },
+        select: { id: true },
+      });
+
+      if (!driver) {
+        return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
+      }
+    }
+
+    updateData.assignedDriverId = assignedDriverId;
   }
 
   if (Object.keys(updateData).length === 0) {

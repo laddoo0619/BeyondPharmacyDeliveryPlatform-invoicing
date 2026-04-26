@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
-import { generateRecurringOrders } from "@/lib/cron";
+import { formatGenerationMessage, generateRecurringOrders } from "@/lib/cron";
 
 export async function POST(
   req: NextRequest,
@@ -18,7 +18,10 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const created = await generateRecurringOrders();
+  const result = await generateRecurringOrders();
 
-  return NextResponse.json({ created });
+  return NextResponse.json({
+    ...result,
+    message: formatGenerationMessage(result),
+  });
 }
