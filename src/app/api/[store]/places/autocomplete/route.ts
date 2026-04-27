@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import {
   createAutocompleteRequest,
   getGoogleMapsApiKey,
+  getGooglePlacesFailure,
   parseGoogleSuggestions,
 } from "@/lib/googlePlaces";
 import { resolveStore } from "@/lib/store";
@@ -41,7 +42,12 @@ export async function GET(
 
   const apiKey = getGoogleMapsApiKey();
   if (!apiKey) {
-    return NextResponse.json({ suggestions: [], unavailable: true });
+    return NextResponse.json({
+      suggestions: [],
+      unavailable: true,
+      reason: "missing_key",
+      message: "Google Places API key is not available in this deployment.",
+    });
   }
 
   const googleRes = await fetch(AUTOCOMPLETE_URL, {
@@ -56,7 +62,15 @@ export async function GET(
   });
 
   if (!googleRes.ok) {
-    return NextResponse.json({ suggestions: [], unavailable: true });
+    const failure = await getGooglePlacesFailure(
+      googleRes,
+      "Google address suggestions are unavailable."
+    );
+    return NextResponse.json({
+      suggestions: [],
+      unavailable: true,
+      ...failure,
+    });
   }
 
   const body = await googleRes.json();

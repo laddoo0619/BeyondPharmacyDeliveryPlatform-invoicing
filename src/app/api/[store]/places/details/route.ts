@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getGoogleMapsApiKey, parseGoogleAddressDetails } from "@/lib/googlePlaces";
+import {
+  getGoogleMapsApiKey,
+  getGooglePlacesFailure,
+  parseGoogleAddressDetails,
+} from "@/lib/googlePlaces";
 import { resolveStore } from "@/lib/store";
 
 const DETAILS_FIELD_MASK = "formattedAddress,addressComponents";
@@ -35,7 +39,11 @@ export async function GET(
   const apiKey = getGoogleMapsApiKey();
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Google Places is not configured" },
+      {
+        error: "Google Places is not configured",
+        reason: "missing_key",
+        message: "Google Places API key is not available in this deployment.",
+      },
       { status: 503 }
     );
   }
@@ -53,7 +61,11 @@ export async function GET(
   });
 
   if (!googleRes.ok) {
-    return NextResponse.json({ error: "Address details unavailable" }, { status: 502 });
+    const failure = await getGooglePlacesFailure(
+      googleRes,
+      "Address details unavailable"
+    );
+    return NextResponse.json({ error: failure.message, ...failure }, { status: 502 });
   }
 
   const body = await googleRes.json();

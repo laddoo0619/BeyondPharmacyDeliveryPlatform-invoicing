@@ -23,6 +23,52 @@ export function getGoogleMapsApiKey() {
   return process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
 }
 
+export async function getGooglePlacesFailure(
+  response: Response,
+  fallback: string
+) {
+  const body = await response.text().catch(() => "");
+  let message = fallback;
+
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { message?: string; status?: string };
+    };
+    message = parsed.error?.message || parsed.error?.status || fallback;
+  } catch {
+    if (body.trim()) message = body.trim();
+  }
+
+  console.warn("[Google Places]", response.status, message);
+
+  if (response.status === 403) {
+    return {
+      reason: "key_rejected",
+      message:
+        "Google rejected the Places API key. Check that Places API is enabled and the key restrictions allow this server-side request.",
+    };
+  }
+
+  if (response.status === 429) {
+    return {
+      reason: "rate_limited",
+      message: "Google Places quota or rate limit was reached.",
+    };
+  }
+
+  if (response.status === 400) {
+    return {
+      reason: "bad_request",
+      message: "Google rejected the address lookup request.",
+    };
+  }
+
+  return {
+    reason: "google_error",
+    message: fallback,
+  };
+}
+
 export function createAutocompleteRequest(input: string, sessionToken: string) {
   return {
     input,
