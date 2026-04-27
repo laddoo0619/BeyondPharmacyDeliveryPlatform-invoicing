@@ -1,10 +1,13 @@
 const VANCOUVER_BIAS = {
-  circle: {
-    center: {
-      latitude: 49.2827,
-      longitude: -123.1207,
+  rectangle: {
+    low: {
+      latitude: 49.0,
+      longitude: -123.35,
     },
-    radius: 85000,
+    high: {
+      latitude: 49.45,
+      longitude: -122.25,
+    },
   },
 };
 
