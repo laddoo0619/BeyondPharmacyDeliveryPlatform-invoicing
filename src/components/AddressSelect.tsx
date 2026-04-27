@@ -31,6 +31,13 @@ interface GoogleDetails {
   formattedAddress: string;
 }
 
+interface GoogleUnavailableResponse {
+  suggestions?: GoogleSuggestion[];
+  unavailable?: boolean;
+  message?: string;
+  reason?: string;
+}
+
 interface Props {
   storeSlug: string;
   patientId: string | null;
@@ -204,7 +211,8 @@ function AddressSelectInner({
       const res = await fetch(`/api/${storeSlug}/places/details?${params.toString()}`);
 
       if (!res.ok) {
-        setGoogleError("Address details unavailable");
+        const body = (await res.json().catch(() => ({}))) as GoogleUnavailableResponse;
+        setGoogleError(body.message || "Address details unavailable");
         return;
       }
 
@@ -322,17 +330,15 @@ function AddressSelectInner({
 
         if (!res.ok) {
           setGoogleSuggestions([]);
-          setGoogleError("Address suggestions unavailable");
+          const body = (await res.json().catch(() => ({}))) as GoogleUnavailableResponse;
+          setGoogleError(body.message || "Address suggestions unavailable");
           return;
         }
 
-        const body = (await res.json()) as {
-          suggestions?: GoogleSuggestion[];
-          unavailable?: boolean;
-        };
+        const body = (await res.json()) as GoogleUnavailableResponse;
 
         setGoogleSuggestions(body.suggestions ?? []);
-        setGoogleError(body.unavailable ? "Address suggestions unavailable" : "");
+        setGoogleError(body.unavailable ? body.message || "Address suggestions unavailable" : "");
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setGoogleSuggestions([]);
