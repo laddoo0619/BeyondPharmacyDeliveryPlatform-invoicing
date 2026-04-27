@@ -18,61 +18,71 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ store: string }> }
 ) {
-  const { store: storeSlug } = await params;
-  const store = await resolveStore(storeSlug);
-  if (!store) {
-    return NextResponse.json({ error: "Store not found" }, { status: 404 });
-  }
+  try {
+    const { store: storeSlug } = await params;
+    const store = await resolveStore(storeSlug);
+    if (!store) {
+      return NextResponse.json({ error: "Store not found" }, { status: 404 });
+    }
 
-  const session = await auth();
-  if (!session?.user || session.user.role !== "PHARMACY_ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    const session = await auth();
+    if (!session?.user || session.user.role !== "PHARMACY_ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const input = req.nextUrl.searchParams.get("input")?.trim() || "";
-  const sessionToken = req.nextUrl.searchParams.get("sessionToken")?.trim() || "";
+    const input = req.nextUrl.searchParams.get("input")?.trim() || "";
+    const sessionToken = req.nextUrl.searchParams.get("sessionToken")?.trim() || "";
 
-  if (input.length < 3) {
-    return NextResponse.json({ suggestions: [] });
-  }
+    if (input.length < 3) {
+      return NextResponse.json({ suggestions: [] });
+    }
 
-  if (!sessionToken) {
-    return NextResponse.json({ error: "sessionToken is required" }, { status: 400 });
-  }
+    if (!sessionToken) {
+      return NextResponse.json({ error: "sessionToken is required" }, { status: 400 });
+    }
 
-  const apiKey = getGoogleMapsApiKey();
-  if (!apiKey) {
+    const apiKey = getGoogleMapsApiKey();
+    if (!apiKey) {
+      return NextResponse.json({
+        suggestions: [],
+        unavailable: true,
+        reason: "missing_key",
+        message: "Google Places API key is not available in this deployment.",
+      });
+    }
+
+    const googleRes = await fetch(AUTOCOMPLETE_URL, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": AUTOCOMPLETE_FIELD_MASK,
+      },
+      body: JSON.stringify(createAutocompleteRequest(input, sessionToken)),
+    });
+
+    if (!googleRes.ok) {
+      const failure = await getGooglePlacesFailure(
+        googleRes,
+        "Google address suggestions are unavailable."
+      );
+      return NextResponse.json({
+        suggestions: [],
+        unavailable: true,
+        ...failure,
+      });
+    }
+
+    const body = await googleRes.json();
+    return NextResponse.json({ suggestions: parseGoogleSuggestions(body) });
+  } catch (err) {
+    console.error("[Google Places autocomplete]", err);
     return NextResponse.json({
       suggestions: [],
       unavailable: true,
-      reason: "missing_key",
-      message: "Google Places API key is not available in this deployment.",
-    });
+      reason: "server_error",
+      message: "Address lookup failed. Please try manual entry or check setup.",
+    }, { status: 500 });
   }
-
-  const googleRes = await fetch(AUTOCOMPLETE_URL, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": AUTOCOMPLETE_FIELD_MASK,
-    },
-    body: JSON.stringify(createAutocompleteRequest(input, sessionToken)),
-  });
-
-  if (!googleRes.ok) {
-    const failure = await getGooglePlacesFailure(
-      googleRes,
-      "Google address suggestions are unavailable."
-    );
-    return NextResponse.json({
-      suggestions: [],
-      unavailable: true,
-      ...failure,
-    });
-  }
-
-  const body = await googleRes.json();
-  return NextResponse.json({ suggestions: parseGoogleSuggestions(body) });
 }

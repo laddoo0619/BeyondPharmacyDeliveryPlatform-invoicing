@@ -342,7 +342,7 @@ function AddressSelectInner({
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setGoogleSuggestions([]);
-        setGoogleError("Address suggestions unavailable");
+        setGoogleError("Address lookup failed. Please try manual entry or check setup.");
       } finally {
         if (!controller.signal.aborted) {
           setGoogleLoading(false);
