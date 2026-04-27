@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { usePatientAddresses, type SavedAddress } from "@/hooks/usePatientAddresses";
 import {
   cn,
@@ -17,6 +17,18 @@ export interface AddressValue {
   address: string;
   city: string;
   postalCode: string;
+}
+
+interface GoogleSuggestion {
+  placeId: string;
+  description: string;
+}
+
+interface GoogleDetails {
+  address: string;
+  city: string;
+  postalCode: string;
+  formattedAddress: string;
 }
 
 interface Props {
@@ -47,6 +59,14 @@ function toAddressValue(address: SavedAddress): AddressValue {
   };
 }
 
+function savedAddressText(address: SavedAddress) {
+  return `${address.address} ${address.city} ${address.postalCode}`.toLowerCase();
+}
+
+function getSessionToken() {
+  return crypto.randomUUID();
+}
+
 function AddressSelectInner({
   storeSlug,
   patientId,
@@ -62,6 +82,12 @@ function AddressSelectInner({
   const [draft, setDraft] = useState<AddressValue>(EMPTY_ADDRESS);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [googleSuggestions, setGoogleSuggestions] = useState<GoogleSuggestion[]>([]);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+  const [detailsLoadingId, setDetailsLoadingId] = useState<string | null>(null);
+  const [addressTouchedForGoogle, setAddressTouchedForGoogle] = useState(false);
+  const sessionTokenRef = useRef<string | null>(null);
 
   const defaultAddressId = useMemo(
     () => addresses.find((a) => a.isDefault)?.id ?? null,
@@ -102,11 +128,21 @@ function AddressSelectInner({
     onChange,
   ]);
 
+  const resetGoogleSuggestions = () => {
+    sessionTokenRef.current = null;
+    setGoogleSuggestions([]);
+    setGoogleLoading(false);
+    setGoogleError("");
+    setDetailsLoadingId(null);
+    setAddressTouchedForGoogle(false);
+  };
+
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setEditingAddressId(null);
     setDraft(EMPTY_ADDRESS);
     setSaveError("");
+    resetGoogleSuggestions();
     onEditingSavedAddressChange?.(false);
     if (id === NEW_ADDRESS) {
       onChange(EMPTY_ADDRESS);
@@ -123,6 +159,7 @@ function AddressSelectInner({
     setDraft(value);
     setEditingAddressId(value.addressId);
     setSaveError("");
+    resetGoogleSuggestions();
     onEditingSavedAddressChange?.(true);
   };
 
@@ -130,16 +167,70 @@ function AddressSelectInner({
     setEditingAddressId(null);
     setDraft(EMPTY_ADDRESS);
     setSaveError("");
+    resetGoogleSuggestions();
     onEditingSavedAddressChange?.(false);
   };
 
   const updateAddressField = (field: keyof Omit<AddressValue, "addressId">, text: string) => {
+    if (field === "address") {
+      setAddressTouchedForGoogle(true);
+    }
+
     if (editingAddressId) {
       setDraft((current) => ({ ...current, [field]: text }));
       return;
     }
 
     onChange({ ...value, [field]: text });
+  };
+
+  const selectSavedAddress = (address: SavedAddress) => {
+    resetGoogleSuggestions();
+    onSaveToPatientChange(false);
+    onChange(toAddressValue(address));
+  };
+
+  const selectGoogleSuggestion = async (suggestion: GoogleSuggestion) => {
+    const sessionToken = sessionTokenRef.current ?? getSessionToken();
+    sessionTokenRef.current = sessionToken;
+    setDetailsLoadingId(suggestion.placeId);
+    setGoogleError("");
+
+    try {
+      const params = new URLSearchParams({
+        placeId: suggestion.placeId,
+        sessionToken,
+      });
+      const res = await fetch(`/api/${storeSlug}/places/details?${params.toString()}`);
+
+      if (!res.ok) {
+        setGoogleError("Address details unavailable");
+        return;
+      }
+
+      const details = (await res.json()) as GoogleDetails;
+      const nextAddress: AddressValue = {
+        addressId: editingAddressId,
+        address:
+          details.address ||
+          details.formattedAddress.split(",")[0]?.trim() ||
+          suggestion.description,
+        city: details.city || displayValue.city,
+        postalCode: details.postalCode || displayValue.postalCode,
+      };
+
+      if (editingAddressId) {
+        setDraft(nextAddress);
+      } else {
+        onChange({ ...nextAddress, addressId: null });
+      }
+
+      resetGoogleSuggestions();
+    } catch {
+      setGoogleError("Address details unavailable");
+    } finally {
+      setDetailsLoadingId(null);
+    }
   };
 
   const saveEdit = async () => {
@@ -183,6 +274,81 @@ function AddressSelectInner({
   const isEditing = !value.addressId || !!editingAddressId;
   const showPicker = !!patientId && addresses.length > 0;
   const displayValue = editingAddressId ? draft : value;
+  const addressQuery = displayValue.address.trim();
+  const normalizedAddressQuery = addressQuery.toLowerCase();
+
+  const matchingSavedAddresses = useMemo(() => {
+    if (!patientId || value.addressId || editingAddressId || normalizedAddressQuery.length < 3) {
+      return [];
+    }
+
+    return addresses
+      .filter((address) => savedAddressText(address).includes(normalizedAddressQuery))
+      .slice(0, 5);
+  }, [addresses, editingAddressId, normalizedAddressQuery, patientId, value.addressId]);
+
+  const googleLookupAllowed =
+    isEditing &&
+    addressTouchedForGoogle &&
+    normalizedAddressQuery.length >= 3 &&
+    (!!editingAddressId || (!value.addressId && matchingSavedAddresses.length === 0));
+
+  useEffect(() => {
+    if (!googleLookupAllowed) {
+      setGoogleSuggestions([]);
+      setGoogleLoading(false);
+      setGoogleError("");
+      return;
+    }
+
+    if (!sessionTokenRef.current) {
+      sessionTokenRef.current = getSessionToken();
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      setGoogleLoading(true);
+      setGoogleError("");
+
+      try {
+        const params = new URLSearchParams({
+          input: addressQuery,
+          sessionToken: sessionTokenRef.current ?? getSessionToken(),
+        });
+        const res = await fetch(
+          `/api/${storeSlug}/places/autocomplete?${params.toString()}`,
+          { signal: controller.signal }
+        );
+
+        if (!res.ok) {
+          setGoogleSuggestions([]);
+          setGoogleError("Address suggestions unavailable");
+          return;
+        }
+
+        const body = (await res.json()) as {
+          suggestions?: GoogleSuggestion[];
+          unavailable?: boolean;
+        };
+
+        setGoogleSuggestions(body.suggestions ?? []);
+        setGoogleError(body.unavailable ? "Address suggestions unavailable" : "");
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setGoogleSuggestions([]);
+        setGoogleError("Address suggestions unavailable");
+      } finally {
+        if (!controller.signal.aborted) {
+          setGoogleLoading(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [addressQuery, googleLookupAllowed, storeSlug]);
 
   return (
     <div className="space-y-3">
@@ -218,6 +384,64 @@ function AddressSelectInner({
           className={cn(input, !isEditing && inputReadOnly)}
         />
       </div>
+
+      {isEditing && matchingSavedAddresses.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white/95 shadow-[0_18px_45px_rgba(30,58,138,0.08)] overflow-hidden">
+          <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-sky-50/70">
+            Saved matches
+          </div>
+          {matchingSavedAddresses.map((address) => (
+            <button
+              key={address.id}
+              type="button"
+              onClick={() => selectSavedAddress(address)}
+              className="block w-full border-t border-slate-100 px-3 py-2 text-left hover:bg-sky-50/70"
+            >
+              <span className="block text-sm font-semibold text-[#1e3a8a]">
+                {address.label}
+              </span>
+              <span className="block text-xs text-slate-500">
+                {address.address}, {address.city} {address.postalCode}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isEditing && (googleSuggestions.length > 0 || googleLoading || googleError) && (
+        <div className="rounded-2xl border border-slate-200 bg-white/95 shadow-[0_18px_45px_rgba(30,58,138,0.08)] overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-emerald-50/70">
+            <span>Google suggestions</span>
+            <span className="normal-case tracking-normal text-slate-400">
+              Powered by Google
+            </span>
+          </div>
+          {googleLoading && (
+            <div className="border-t border-slate-100 px-3 py-2 text-sm text-slate-500">
+              Searching addresses...
+            </div>
+          )}
+          {googleSuggestions.map((suggestion) => (
+            <button
+              key={suggestion.placeId}
+              type="button"
+              onClick={() => selectGoogleSuggestion(suggestion)}
+              disabled={detailsLoadingId === suggestion.placeId}
+              className="block w-full border-t border-slate-100 px-3 py-2 text-left text-sm text-[#1e3a8a] hover:bg-emerald-50/70 disabled:cursor-wait disabled:opacity-60"
+            >
+              {detailsLoadingId === suggestion.placeId
+                ? "Loading address..."
+                : suggestion.description}
+            </button>
+          ))}
+          {googleError && !googleLoading && (
+            <div className="border-t border-slate-100 px-3 py-2 text-sm text-slate-500">
+              {googleError}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={label}>City *</label>
