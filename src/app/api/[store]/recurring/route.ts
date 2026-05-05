@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
-import { getVancouverDeliveryDateInfo } from "@/lib/cron";
+import { getVancouverDeliveryDateInfo, isRecurringScheduleDue } from "@/lib/cron";
 import {
   cleanOptionalText,
   cleanText,
@@ -19,6 +19,19 @@ interface DriverCandidate {
 
 function normalizeOptionalId(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeIntervalWeeks(value: unknown) {
+  if (value === undefined || value === null || value === "") return 1;
+  const interval = Number(value);
+  return interval === 1 || interval === 2 ? interval : null;
+}
+
+function normalizeAnchorDate(value: unknown, fallback: Date) {
+  if (typeof value !== "string" || !value.trim()) return fallback;
+
+  const date = new Date(`${value.trim()}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function isValidStoreDriver(
@@ -45,6 +58,7 @@ export async function POST(
 
   const body = await req.json();
   const assignedDriverId = normalizeOptionalId(body.assignedDriverId);
+  const recurrenceIntervalWeeks = normalizeIntervalWeeks(body.recurrenceIntervalWeeks);
   const requestedPatientId = cleanOptionalText(body.patientId);
   const requestedAddressId = cleanOptionalText(body.deliveryAddressId);
   const saveAddressToPatient = body.saveAddressToPatient === true;
@@ -72,6 +86,25 @@ export async function POST(
   ) {
     return NextResponse.json(
       { error: "activeDays must be a non-empty array of day numbers (0-6)" },
+      { status: 400 }
+    );
+  }
+
+  if (!recurrenceIntervalWeeks) {
+    return NextResponse.json(
+      { error: "recurrenceIntervalWeeks must be 1 or 2" },
+      { status: 400 }
+    );
+  }
+
+  const deliveryDate = getVancouverDeliveryDateInfo();
+  const recurrenceAnchorDate = normalizeAnchorDate(
+    body.recurrenceAnchorDate,
+    deliveryDate.dayStart
+  );
+  if (!recurrenceAnchorDate) {
+    return NextResponse.json(
+      { error: "recurrenceAnchorDate must be a valid date" },
       { status: 400 }
     );
   }
@@ -182,6 +215,8 @@ export async function POST(
         instructions: body.instructions || null,
         assignedDriverId,
         activeDays: JSON.stringify(activeDays),
+        recurrenceIntervalWeeks,
+        recurrenceAnchorDate,
         createdById: session.user.id,
         storeId: store.id,
       },
@@ -189,8 +224,13 @@ export async function POST(
     });
 
     // If today is an active day, immediately create today's Order so it appears in the driver portal
-    const deliveryDate = getVancouverDeliveryDateInfo();
-    if (activeDays.includes(deliveryDate.dayOfWeek)) {
+    if (
+      activeDays.includes(deliveryDate.dayOfWeek) &&
+      isRecurringScheduleDue(
+        { recurrenceIntervalWeeks, recurrenceAnchorDate },
+        deliveryDate
+      )
+    ) {
       const defaultDriverId = isValidStoreDriver(zone.defaultDriver, store.id)
         ? zone.defaultDriver.id
         : null;

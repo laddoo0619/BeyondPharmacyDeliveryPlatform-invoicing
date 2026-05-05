@@ -7,6 +7,13 @@ function normalizeOptionalId(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function normalizeAnchorDate(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const date = new Date(`${value.trim()}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ store: string; id: string }> }
@@ -52,6 +59,28 @@ export async function PATCH(
       );
     }
     updateData.activeDays = JSON.stringify(body.activeDays);
+  }
+
+  if ("recurrenceIntervalWeeks" in body) {
+    const recurrenceIntervalWeeks = Number(body.recurrenceIntervalWeeks);
+    if (recurrenceIntervalWeeks !== 1 && recurrenceIntervalWeeks !== 2) {
+      return NextResponse.json(
+        { error: "recurrenceIntervalWeeks must be 1 or 2" },
+        { status: 400 }
+      );
+    }
+    updateData.recurrenceIntervalWeeks = recurrenceIntervalWeeks;
+  }
+
+  if ("recurrenceAnchorDate" in body) {
+    const recurrenceAnchorDate = normalizeAnchorDate(body.recurrenceAnchorDate);
+    if (!recurrenceAnchorDate) {
+      return NextResponse.json(
+        { error: "recurrenceAnchorDate must be a valid date" },
+        { status: 400 }
+      );
+    }
+    updateData.recurrenceAnchorDate = recurrenceAnchorDate;
   }
 
   // Vacation hold

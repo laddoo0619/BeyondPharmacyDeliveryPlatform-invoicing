@@ -67,6 +67,8 @@ export default async function RecurringPage({
               zoneName: o.deliveryZone.name,
               zonePrice: o.deliveryZone.price,
               activeDays: JSON.parse(o.activeDays) as number[],
+              recurrenceIntervalWeeks: o.recurrenceIntervalWeeks,
+              recurrenceAnchorDate: o.recurrenceAnchorDate.toISOString(),
               isActive: o.isActive,
               isOnHold: o.isOnHold,
               holdStart: o.holdStart?.toISOString() ?? null,

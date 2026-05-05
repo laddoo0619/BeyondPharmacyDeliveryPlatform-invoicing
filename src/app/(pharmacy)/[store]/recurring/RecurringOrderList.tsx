@@ -30,6 +30,8 @@ interface RecurringOrderItem {
   zoneName: string;
   zonePrice: number;
   activeDays: number[];
+  recurrenceIntervalWeeks: number;
+  recurrenceAnchorDate: string;
   isActive: boolean;
   isOnHold: boolean;
   holdStart: string | null;
@@ -164,6 +166,14 @@ export default function RecurringOrderList({
     router.refresh();
   };
 
+  const scheduleText = (order: RecurringOrderItem) => {
+    const days = order.activeDays.map((d) => DAYS[d]).join(", ");
+    if (order.recurrenceIntervalWeeks === 2) {
+      return `Every other ${days}`;
+    }
+    return `Weekly on ${days}`;
+  };
+
   return (
     <div className={`${card} overflow-hidden`}>
       <div className="px-6 py-4 border-b flex items-center justify-between">
@@ -217,7 +227,7 @@ export default function RecurringOrderList({
               <div>
                 <p className="font-semibold text-[#1e3a8a]">{order.patientName}</p>
                 <p className="text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</p>
-                <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • Every {order.activeDays.map((d) => DAYS[d]).join(", ")}</p>
+                <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • {scheduleText(order)}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs text-slate-400">Driver:</span>
                   <select
