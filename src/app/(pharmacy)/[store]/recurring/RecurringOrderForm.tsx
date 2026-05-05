@@ -27,6 +27,10 @@ const EMPTY_ADDRESS: AddressValue = {
   postalCode: "",
 };
 
+function todayInputValue() {
+  return new Date().toISOString().split("T")[0];
+}
+
 function addressFromPatient(patient: Patient): AddressValue {
   if (patient.matchedAddress) {
     return {
@@ -50,6 +54,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const [recurrenceIntervalWeeks, setRecurrenceIntervalWeeks] = useState(1);
+  const [recurrenceAnchorDate, setRecurrenceAnchorDate] = useState(todayInputValue);
 
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientNameFreeText, setPatientNameFreeText] = useState("");
@@ -119,6 +125,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
         assignedDriverId: formData.get("assignedDriverId") || null,
         instructions: formData.get("instructions"),
         activeDays: selectedDays,
+        recurrenceIntervalWeeks,
+        recurrenceAnchorDate,
       }),
     });
 
@@ -128,6 +136,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
     } else {
       (e.target as HTMLFormElement).reset();
       setSelectedDays([1]);
+      setRecurrenceIntervalWeeks(1);
+      setRecurrenceAnchorDate(todayInputValue());
       clearPatient();
       setPatientNameFreeText("");
       setAddress(EMPTY_ADDRESS);
@@ -187,6 +197,30 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
         </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={label}>Frequency</label>
+            <select
+              value={recurrenceIntervalWeeks}
+              onChange={(e) => setRecurrenceIntervalWeeks(Number(e.target.value))}
+              className={input}
+            >
+              <option value={1}>Weekly</option>
+              <option value={2}>Biweekly (every 2 weeks)</option>
+            </select>
+          </div>
+          {recurrenceIntervalWeeks === 2 && (
+            <div>
+              <label className={label}>Start Week</label>
+              <input
+                type="date"
+                value={recurrenceAnchorDate}
+                onChange={(e) => setRecurrenceAnchorDate(e.target.value)}
+                className={input}
+              />
+            </div>
+          )}
+        </div>
         <div>
           <label className={label}>Delivery Days</label>
           <div className="flex flex-wrap gap-2">

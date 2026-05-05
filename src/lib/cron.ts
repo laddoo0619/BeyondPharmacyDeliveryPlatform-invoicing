@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { prisma } from "./db";
 
 const DELIVERY_TIME_ZONE = "America/Vancouver";
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 let initialized = false;
 
@@ -45,6 +46,11 @@ interface DriverCandidate {
   role: string;
   isActive: boolean;
   storeId: string | null;
+}
+
+interface RecurrenceSchedule {
+  recurrenceIntervalWeeks: number;
+  recurrenceAnchorDate: Date;
 }
 
 export interface RecurringGenerationResult {
@@ -137,6 +143,29 @@ function validDriverId(driver: DriverCandidate | null | undefined, storeId: stri
   return driver.id;
 }
 
+function utcWeekStart(date: Date) {
+  const start = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+  return start;
+}
+
+export function isRecurringScheduleDue(
+  recurring: RecurrenceSchedule,
+  deliveryDate: Pick<DeliveryDateInfo, "weekStart">
+) {
+  const interval = recurring.recurrenceIntervalWeeks;
+  if (interval <= 1) return true;
+
+  const anchorWeekStart = utcWeekStart(recurring.recurrenceAnchorDate);
+  const weeksSinceAnchor = Math.floor(
+    (deliveryDate.weekStart.getTime() - anchorWeekStart.getTime()) / MS_PER_WEEK
+  );
+
+  return weeksSinceAnchor >= 0 && weeksSinceAnchor % interval === 0;
+}
+
 export async function generateRecurringOrders(now = new Date()): Promise<RecurringGenerationResult> {
   const deliveryDate = getVancouverDeliveryDateInfo(now);
 
@@ -199,6 +228,7 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       continue;
     }
     if (!activeDays.includes(deliveryDate.dayOfWeek)) continue;
+    if (!isRecurringScheduleDue(recurring, deliveryDate)) continue;
 
     due++;
 

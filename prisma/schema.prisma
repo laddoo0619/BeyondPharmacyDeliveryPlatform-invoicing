@@ -103,30 +103,32 @@ model DeliveryZone {
 }
 
 model RecurringOrder {
-  id                 String       @id @default(cuid())
-  patientId          String?
-  patient            Patient?     @relation(fields: [patientId], references: [id])
-  patientName        String
-  patientPhone       String?
-  deliveryAddress    String
-  deliveryCity       String
-  deliveryPostalCode String
-  deliveryZoneId     String
-  deliveryZone       DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
-  instructions       String?
-  assignedDriverId   String?
-  assignedDriver     User?        @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
-  activeDays         String       @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
-  isOnHold           Boolean      @default(false)
-  holdStart          DateTime?
-  holdEnd            DateTime?
-  isActive           Boolean      @default(true)
-  storeId            String
-  store              Store        @relation(fields: [storeId], references: [id])
-  createdById        String
-  createdBy          User         @relation(fields: [createdById], references: [id])
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id                      String       @id @default(cuid())
+  patientId               String?
+  patient                 Patient?     @relation(fields: [patientId], references: [id])
+  patientName             String
+  patientPhone            String?
+  deliveryAddress         String
+  deliveryCity            String
+  deliveryPostalCode      String
+  deliveryZoneId          String
+  deliveryZone            DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
+  instructions            String?
+  assignedDriverId        String?
+  assignedDriver          User?        @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
+  activeDays              String       @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
+  recurrenceIntervalWeeks Int          @default(1)
+  recurrenceAnchorDate    DateTime     @default(now())
+  isOnHold                Boolean      @default(false)
+  holdStart               DateTime?
+  holdEnd                 DateTime?
+  isActive                Boolean      @default(true)
+  storeId                 String
+  store                   Store        @relation(fields: [storeId], references: [id])
+  createdById             String
+  createdBy               User         @relation(fields: [createdById], references: [id])
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   orders Order[]
   skips  RecurringOrderSkip[]
