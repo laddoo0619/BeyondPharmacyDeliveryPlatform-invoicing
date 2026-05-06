@@ -9,6 +9,13 @@ import {
   createOrReuseSavedAddress,
   createPatientWithDefaultAddress,
 } from "@/lib/patientAddressRecords";
+import {
+  buildSpokeOrderPayload,
+  sendOrderToSpoke,
+  shouldRouteToSpoke,
+  SpokeDispatchError,
+  type SpokeOrderInput,
+} from "@/lib/spoke";
 import { z } from "zod";
 
 const createOrderSchema = z.object({
@@ -25,7 +32,63 @@ const createOrderSchema = z.object({
   instructions: z.string().optional().default(""),
   scheduledDate: z.string().min(1),
   assignedDriverId: z.string().optional(),
+  isExternalProvider: z.boolean().optional().default(false),
+  delivery_company: z.string().optional().default(""),
 });
+
+interface ExternalAuditInput {
+  status: string;
+  requestPayload: Record<string, unknown>;
+  responsePayload?: unknown;
+  errorMessage?: string | null;
+  externalReference?: string | null;
+  selectedProviderUserId: string | null;
+  patientId: string | null;
+  patientName: string;
+  patientPhone: string | null;
+  deliveryAddress: string;
+  deliveryCity: string;
+  deliveryPostalCode: string;
+  deliveryAddressId: string | null;
+  deliveryZoneId: string;
+  deliveryZoneName: string;
+  priceAtCreation: number;
+  instructions: string | null;
+  scheduledDate: Date;
+  storeId: string;
+  createdById: string;
+}
+
+function asPrismaJson(value: unknown) {
+  if (value === undefined || value === null) return Prisma.JsonNull;
+  return value as Prisma.InputJsonValue;
+}
+
+function buildExternalDispatchAuditData(input: ExternalAuditInput) {
+  return {
+    provider: "SPOKE",
+    status: input.status,
+    externalReference: input.externalReference ?? null,
+    selectedProviderUserId: input.selectedProviderUserId,
+    patientId: input.patientId,
+    patientName: input.patientName,
+    patientPhone: input.patientPhone,
+    deliveryAddress: input.deliveryAddress,
+    deliveryCity: input.deliveryCity,
+    deliveryPostalCode: input.deliveryPostalCode,
+    deliveryAddressId: input.deliveryAddressId,
+    deliveryZoneId: input.deliveryZoneId,
+    deliveryZoneName: input.deliveryZoneName,
+    priceAtCreation: input.priceAtCreation,
+    instructions: input.instructions,
+    scheduledDate: input.scheduledDate,
+    requestPayload: asPrismaJson(input.requestPayload),
+    responsePayload: asPrismaJson(input.responsePayload),
+    errorMessage: input.errorMessage ?? null,
+    storeId: input.storeId,
+    createdById: input.createdById,
+  };
+}
 
 export async function POST(
   req: NextRequest,
@@ -83,6 +146,30 @@ export async function POST(
     return NextResponse.json(existing, { status: 200 });
   }
 
+  const existingExternalDispatch = await prisma.externalDispatch.findUnique({
+    where: { idempotencyKey: data.idempotencyKey },
+  });
+  if (existingExternalDispatch) {
+    if (existingExternalDispatch.storeId !== store.id) {
+      return NextResponse.json(
+        { error: "Idempotency key conflict" },
+        { status: 409 }
+      );
+    }
+    if (existingExternalDispatch.status === "ACCEPTED") {
+      return NextResponse.json(
+        {
+          external: true,
+          provider: existingExternalDispatch.provider,
+          externalReference: existingExternalDispatch.externalReference,
+          dispatchId: existingExternalDispatch.id,
+          status: existingExternalDispatch.status,
+        },
+        { status: 200 }
+      );
+    }
+  }
+
   // Verify zone belongs to store and snapshot its price
   const zone = await prisma.deliveryZone.findUnique({
     where: { id: data.deliveryZoneId, storeId: store.id },
@@ -93,14 +180,28 @@ export async function POST(
   }
 
   let assignedDriverId: string | null = null;
+  let assignedDriver: { id: string; name: string; email: string } | null = null;
   if (data.assignedDriverId) {
     const driver = await prisma.user.findUnique({
       where: { id: data.assignedDriverId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        storeId: true,
+      },
     });
     if (!driver || driver.role !== "DRIVER" || !driver.isActive || driver.storeId !== store.id) {
       return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
     }
     assignedDriverId = driver.id;
+    assignedDriver = {
+      id: driver.id,
+      name: driver.name,
+      email: driver.email,
+    };
   }
 
   // Verify patient belongs to store if provided
@@ -137,36 +238,165 @@ export async function POST(
     deliveryPostalCode = addr.postalCode;
   }
 
-  try {
-    const order = await prisma.$transaction(async (tx) => {
-      let finalPatientId = patientId;
-      let finalAddressId = deliveryAddressId;
+  const instructions = data.instructions || null;
+  const scheduledDate = new Date(data.scheduledDate);
+  const routeToSpoke = shouldRouteToSpoke({
+    assignedDriverId,
+    isExternalProvider: data.isExternalProvider === true,
+    deliveryCompany: cleanOptionalText(data.delivery_company),
+  });
 
-      if (data.saveAddressToPatient && !finalPatientId) {
-        const created = await createPatientWithDefaultAddress(tx, {
-          name: patientName,
-          phone: patientPhone,
+  if (existingExternalDispatch && !routeToSpoke) {
+    return NextResponse.json(
+      { error: "Idempotency key conflict" },
+      { status: 409 }
+    );
+  }
+
+  const savePatientAddress = async (tx: Prisma.TransactionClient) => {
+    let finalPatientId = patientId;
+    let finalAddressId = deliveryAddressId;
+
+    if (data.saveAddressToPatient && !finalPatientId) {
+      const created = await createPatientWithDefaultAddress(tx, {
+        name: patientName,
+        phone: patientPhone,
+        address: deliveryAddress,
+        city: deliveryCity,
+        postalCode: deliveryPostalCode,
+        storeId: store.id,
+      });
+      finalPatientId = created.patient.id;
+      finalAddressId = created.address.id;
+    } else if (data.saveAddressToPatient && finalPatientId && !finalAddressId) {
+      const savedAddress = await createOrReuseSavedAddress(
+        tx,
+        finalPatientId,
+        {
           address: deliveryAddress,
           city: deliveryCity,
           postalCode: deliveryPostalCode,
-          storeId: store.id,
+          label: "Saved",
+        },
+        { label: "Saved" }
+      );
+      finalAddressId = savedAddress.id;
+    }
+
+    return { finalPatientId, finalAddressId };
+  };
+
+  if (routeToSpoke) {
+    const spokeInput: SpokeOrderInput = {
+      idempotencyKey: data.idempotencyKey,
+      store: {
+        id: store.id,
+        slug: store.slug,
+        name: store.name,
+      },
+      providerUser: assignedDriver,
+      patientName,
+      patientPhone,
+      deliveryAddress,
+      deliveryCity,
+      deliveryPostalCode,
+      deliveryZoneName: zone.name,
+      instructions,
+      scheduledDate,
+    };
+    const requestPayload = buildSpokeOrderPayload(spokeInput);
+    const baseAudit = {
+      requestPayload,
+      selectedProviderUserId: assignedDriverId,
+      patientId,
+      patientName,
+      patientPhone,
+      deliveryAddress,
+      deliveryCity,
+      deliveryPostalCode,
+      deliveryAddressId,
+      deliveryZoneId: zone.id,
+      deliveryZoneName: zone.name,
+      priceAtCreation: zone.price,
+      instructions,
+      scheduledDate,
+      storeId: store.id,
+      createdById: session.user.id,
+    };
+
+    await prisma.externalDispatch.upsert({
+      where: { idempotencyKey: data.idempotencyKey },
+      update: buildExternalDispatchAuditData({
+        ...baseAudit,
+        status: "PENDING",
+        errorMessage: null,
+      }),
+      create: {
+        idempotencyKey: data.idempotencyKey,
+        ...buildExternalDispatchAuditData({
+          ...baseAudit,
+          status: "PENDING",
+          errorMessage: null,
+        }),
+      },
+    });
+
+    try {
+      const spokeResult = await sendOrderToSpoke(spokeInput);
+
+      const dispatch = await prisma.$transaction(async (tx) => {
+        const { finalPatientId, finalAddressId } = await savePatientAddress(tx);
+
+        return tx.externalDispatch.update({
+          where: { idempotencyKey: data.idempotencyKey },
+          data: buildExternalDispatchAuditData({
+            ...baseAudit,
+            status: "ACCEPTED",
+            responsePayload: spokeResult.responsePayload,
+            externalReference: spokeResult.externalReference,
+            patientId: finalPatientId,
+            deliveryAddressId: finalAddressId,
+            errorMessage: null,
+          }),
         });
-        finalPatientId = created.patient.id;
-        finalAddressId = created.address.id;
-      } else if (data.saveAddressToPatient && finalPatientId && !finalAddressId) {
-        const savedAddress = await createOrReuseSavedAddress(
-          tx,
-          finalPatientId,
-          {
-            address: deliveryAddress,
-            city: deliveryCity,
-            postalCode: deliveryPostalCode,
-            label: "Saved",
-          },
-          { label: "Saved" }
-        );
-        finalAddressId = savedAddress.id;
-      }
+      });
+
+      return NextResponse.json(
+        {
+          external: true,
+          provider: dispatch.provider,
+          externalReference: dispatch.externalReference,
+          dispatchId: dispatch.id,
+          status: dispatch.status,
+        },
+        { status: existingExternalDispatch ? 200 : 201 }
+      );
+    } catch (err) {
+      const spokeError =
+        err instanceof SpokeDispatchError
+          ? err
+          : new SpokeDispatchError("Failed to contact Spoke.", 502);
+
+      await prisma.externalDispatch.update({
+        where: { idempotencyKey: data.idempotencyKey },
+        data: buildExternalDispatchAuditData({
+          ...baseAudit,
+          status: "FAILED",
+          responsePayload: spokeError.responsePayload,
+          errorMessage: spokeError.message,
+        }),
+      });
+
+      return NextResponse.json(
+        { error: spokeError.message, external: true, provider: "SPOKE" },
+        { status: spokeError.statusCode }
+      );
+    }
+  }
+
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      const { finalPatientId, finalAddressId } = await savePatientAddress(tx);
 
       return tx.order.create({
         data: {
@@ -181,8 +411,8 @@ export async function POST(
           deliveryZoneId: data.deliveryZoneId,
           deliveryZoneName: zone.name,
           priceAtCreation: zone.price,
-          instructions: data.instructions || null,
-          scheduledDate: new Date(data.scheduledDate),
+          instructions,
+          scheduledDate,
           status: assignedDriverId ? "ASSIGNED" : "PENDING",
           assignedDriverId,
           createdById: session.user.id,

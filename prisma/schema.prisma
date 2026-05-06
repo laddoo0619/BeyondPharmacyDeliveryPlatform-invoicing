@@ -15,13 +15,14 @@ model Store {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  users           User[]
-  deliveryZones   DeliveryZone[]
-  orders          Order[]
-  recurringOrders RecurringOrder[]
-  patients        Patient[]
-  invoices        Invoice[]
-  notifications   Notification[]
+  users              User[]
+  deliveryZones      DeliveryZone[]
+  orders             Order[]
+  recurringOrders    RecurringOrder[]
+  patients           Patient[]
+  invoices           Invoice[]
+  notifications      Notification[]
+  externalDispatches ExternalDispatch[]
 }
 
 model User {
@@ -45,6 +46,7 @@ model User {
   recurringSkips          RecurringOrderSkip[]
   generatedInvoices       Invoice[]
   driverInvoices          Invoice[]            @relation("InvoiceDriver")
+  externalDispatches      ExternalDispatch[]   @relation("ExternalDispatchProviderUser")
 }
 
 model Patient {
@@ -235,4 +237,37 @@ model Notification {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model ExternalDispatch {
+  id                     String   @id @default(cuid())
+  idempotencyKey         String   @unique
+  provider               String
+  status                 String
+  externalReference      String?
+  selectedProviderUserId String?
+  selectedProviderUser   User?    @relation("ExternalDispatchProviderUser", fields: [selectedProviderUserId], references: [id])
+  patientId              String?
+  patientName            String
+  patientPhone           String?
+  deliveryAddress        String
+  deliveryCity           String
+  deliveryPostalCode     String
+  deliveryAddressId      String?
+  deliveryZoneId         String
+  deliveryZoneName       String
+  priceAtCreation        Float
+  instructions           String?
+  scheduledDate          DateTime
+  requestPayload         Json
+  responsePayload        Json?
+  errorMessage           String?
+  storeId                String
+  store                  Store    @relation(fields: [storeId], references: [id])
+  createdById            String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@index([selectedProviderUserId, storeId, scheduledDate])
 }
