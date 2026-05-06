@@ -3,6 +3,8 @@ import Link from "next/link";
 import NotificationPanel from "@/components/NotificationPanel";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
+import { recurringPeopleMatch } from "@/lib/recurringDuplicateGuard";
+import type { Prisma } from "@prisma/client";
 import {
   card,
   emptyState,
@@ -13,6 +15,49 @@ import {
   tableHeader,
   tableRow,
 } from "@/lib/portalStyles";
+
+type DashboardOrder = Prisma.OrderGetPayload<{
+  include: { assignedDriver: true; deliveryZone: true };
+}>;
+
+function shouldReplaceDuplicateOrder(
+  existing: DashboardOrder,
+  candidate: DashboardOrder
+) {
+  if (existing.status === "CANCELLED" && candidate.status !== "CANCELLED") {
+    return true;
+  }
+  if (existing.status !== "CANCELLED" && candidate.status === "CANCELLED") {
+    return false;
+  }
+  return candidate.createdAt < existing.createdAt;
+}
+
+function dedupeRecurringDashboardOrders(orders: DashboardOrder[]) {
+  const displayOrders: DashboardOrder[] = [];
+
+  for (const order of orders) {
+    if (!order.recurringOrderId) {
+      displayOrders.push(order);
+      continue;
+    }
+
+    const duplicateIndex = displayOrders.findIndex(
+      (candidate) =>
+        !!candidate.recurringOrderId && recurringPeopleMatch(candidate, order)
+    );
+
+    if (duplicateIndex === -1) {
+      displayOrders.push(order);
+    } else if (shouldReplaceDuplicateOrder(displayOrders[duplicateIndex], order)) {
+      displayOrders[duplicateIndex] = order;
+    }
+  }
+
+  return displayOrders.sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+  );
+}
 
 export default async function DashboardPage({
   params,
@@ -28,29 +73,21 @@ export default async function DashboardPage({
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [todayOrders, stats] = await Promise.all([
-    prisma.order.findMany({
-      where: {
-        storeId: store.id,
-        scheduledDate: { gte: today, lt: tomorrow },
-      },
-      include: { assignedDriver: true, deliveryZone: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.order.groupBy({
-      by: ["status"],
-      where: {
-        storeId: store.id,
-        scheduledDate: { gte: today, lt: tomorrow },
-      },
-      _count: true,
-    }),
-  ]);
+  const rawTodayOrders = await prisma.order.findMany({
+    where: {
+      storeId: store.id,
+      scheduledDate: { gte: today, lt: tomorrow },
+    },
+    include: { assignedDriver: true, deliveryZone: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const todayOrders = dedupeRecurringDashboardOrders(rawTodayOrders);
 
   const totalToday = todayOrders.length;
-  const statusCounts = Object.fromEntries(
-    stats.map((s) => [s.status, s._count])
-  );
+  const statusCounts = todayOrders.reduce<Record<string, number>>((counts, order) => {
+    counts[order.status] = (counts[order.status] ?? 0) + 1;
+    return counts;
+  }, {});
 
   return (
     <div>

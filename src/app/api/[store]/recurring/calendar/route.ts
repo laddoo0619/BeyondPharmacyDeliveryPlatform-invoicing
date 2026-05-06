@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hasRecurringSkipForDate, isRecurringScheduleDue } from "@/lib/cron";
+import {
+  recurringPeopleMatch,
+  type RecurringPersonInput,
+} from "@/lib/recurringDuplicateGuard";
 import { resolveStore } from "@/lib/store";
 
 const MAX_RANGE_DAYS = 93;
@@ -121,10 +125,11 @@ export async function GET(
         select: { id: true, scheduledDate: true, status: true },
       },
     },
-    orderBy: { patientName: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
 
   const instances = [];
+  const seenInstances: Array<{ date: string; person: RecurringPersonInput }> = [];
 
   for (const recurring of recurringOrders) {
     const activeDays = parseActiveDays(recurring.activeDays);
@@ -143,11 +148,29 @@ export async function GET(
       const order = recurring.orders.find((candidate) =>
         sameUtcDay(candidate.scheduledDate, day)
       );
+      const instanceDate = dateKey(day);
+      const person = {
+        patientId: recurring.patientId,
+        patientName: recurring.patientName,
+        patientPhone: recurring.patientPhone,
+        deliveryAddress: recurring.deliveryAddress,
+        deliveryCity: recurring.deliveryCity,
+        deliveryPostalCode: recurring.deliveryPostalCode,
+      };
+
+      if (
+        seenInstances.some(
+          (seen) => seen.date === instanceDate && recurringPeopleMatch(seen.person, person)
+        )
+      ) {
+        continue;
+      }
+      seenInstances.push({ date: instanceDate, person });
 
       instances.push({
-        id: `${recurring.id}:${dateKey(day)}`,
+        id: `${recurring.id}:${instanceDate}`,
         recurringOrderId: recurring.id,
-        date: dateKey(day),
+        date: instanceDate,
         patientName: recurring.patientName,
         deliveryAddress: recurring.deliveryAddress,
         deliveryCity: recurring.deliveryCity,
