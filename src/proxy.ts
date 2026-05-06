@@ -12,7 +12,14 @@ export const proxy = auth((req) => {
   const storeSlug = req.auth?.user?.storeSlug;
 
   // Public routes
-  if (pathname === "/login" || pathname.startsWith("/api/auth") || pathname === "/api/health") {
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/api/auth") ||
+    pathname === "/api/health" ||
+    pathname === "/api/cron" ||
+    pathname.startsWith("/api/cron/") ||
+    pathname === "/api/spoke/webhook"
+  ) {
     if (isLoggedIn && pathname === "/login") {
       // Redirect to root which will show store selector or redirect driver
       return NextResponse.redirect(new URL("/", req.url));

@@ -22,6 +22,7 @@ model Store {
   patients           Patient[]
   invoices           Invoice[]
   notifications      Notification[]
+  externalPlans      ExternalPlan[]
   externalDispatches ExternalDispatch[]
 }
 
@@ -46,6 +47,7 @@ model User {
   recurringSkips          RecurringOrderSkip[]
   generatedInvoices       Invoice[]
   driverInvoices          Invoice[]            @relation("InvoiceDriver")
+  externalPlans           ExternalPlan[]       @relation("ExternalPlanProviderUser")
   externalDispatches      ExternalDispatch[]   @relation("ExternalDispatchProviderUser")
 }
 
@@ -239,14 +241,47 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
-model ExternalDispatch {
+model ExternalPlan {
   id                     String   @id @default(cuid())
-  idempotencyKey         String   @unique
+  planKey                String   @unique
+  provider               String
+  status                 String
+  title                  String
+  scheduledDate          DateTime
+  spokePlanId            String?
+  spokeDriverId          String
+  selectedProviderUserId String?
+  selectedProviderUser   User?    @relation("ExternalPlanProviderUser", fields: [selectedProviderUserId], references: [id])
+  lastOperationId        String?
+  lastRequestPayload     Json?
+  lastResponsePayload    Json?
+  errorMessage           String?
+  storeId                String
+  store                  Store    @relation(fields: [storeId], references: [id])
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  dispatches ExternalDispatch[]
+
+  @@index([storeId, provider, scheduledDate])
+  @@index([selectedProviderUserId, storeId, scheduledDate])
+}
+
+model ExternalDispatch {
+  id                     String        @id @default(cuid())
+  idempotencyKey         String        @unique
   provider               String
   status                 String
   externalReference      String?
+  workflowStep           String?
+  externalPlanId         String?
+  externalPlan           ExternalPlan? @relation(fields: [externalPlanId], references: [id])
+  spokePlanId            String?
+  spokeStopId            String?       @unique
+  spokeDriverId          String?
+  spokeOperationId       String?
   selectedProviderUserId String?
-  selectedProviderUser   User?    @relation("ExternalDispatchProviderUser", fields: [selectedProviderUserId], references: [id])
+  selectedProviderUser   User?         @relation("ExternalDispatchProviderUser", fields: [selectedProviderUserId], references: [id])
   patientId              String?
   patientName            String
   patientPhone           String?
@@ -261,13 +296,19 @@ model ExternalDispatch {
   scheduledDate          DateTime
   requestPayload         Json
   responsePayload        Json?
+  webhookPayload         Json?
+  lastWebhookEventType   String?
+  trackingLink           String?
+  deliveredAt            DateTime?
+  failedAt               DateTime?
   errorMessage           String?
   storeId                String
-  store                  Store    @relation(fields: [storeId], references: [id])
+  store                  Store         @relation(fields: [storeId], references: [id])
   createdById            String
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   @@index([storeId, status])
+  @@index([externalPlanId])
   @@index([selectedProviderUserId, storeId, scheduledDate])
 }
