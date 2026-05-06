@@ -7,7 +7,8 @@
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "npx tsx prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.ts",
+    "recurring:dedupe": "npx tsx scripts/recurring-dedupe.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
