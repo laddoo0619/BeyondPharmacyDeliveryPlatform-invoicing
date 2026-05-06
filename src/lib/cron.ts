@@ -1,5 +1,9 @@
 import cron from "node-cron";
 import { prisma } from "./db";
+import {
+  recurringPeopleMatch,
+  type RecurringPersonInput,
+} from "./recurringDuplicateGuard";
 
 const DELIVERY_TIME_ZONE = "America/Vancouver";
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -207,6 +211,7 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       isActive: true,
       isOnHold: false,
     },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: {
       assignedDriver: {
         select: { id: true, role: true, isActive: true, storeId: true },
@@ -241,6 +246,7 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
   let due = 0;
   let existing = 0;
   let skipped = 0;
+  const seenDueRecurringPeople: Array<RecurringPersonInput & { storeId: string }> = [];
 
   for (const recurring of recurringOrders) {
     // Parse activeDays and check if today is a delivery day
@@ -254,6 +260,27 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
     if (!isRecurringScheduleDue(recurring, deliveryDate)) continue;
 
     due++;
+
+    const recurringPerson = {
+      storeId: recurring.storeId,
+      patientId: recurring.patientId,
+      patientName: recurring.patientName,
+      patientPhone: recurring.patientPhone,
+      deliveryAddress: recurring.deliveryAddress,
+      deliveryCity: recurring.deliveryCity,
+      deliveryPostalCode: recurring.deliveryPostalCode,
+    };
+    if (
+      seenDueRecurringPeople.some((person) =>
+        person.storeId === recurring.storeId &&
+        recurringPeopleMatch(person, recurringPerson)
+      )
+    ) {
+      console.log(`[CRON] Skipping duplicate recurring profile for ${recurring.patientName}`);
+      skipped++;
+      continue;
+    }
+    seenDueRecurringPeople.push(recurringPerson);
 
     // Skip held instances. Older week-level skips are still honored.
     if (hasRecurringSkipForDate(recurring.skips, deliveryDate)) {

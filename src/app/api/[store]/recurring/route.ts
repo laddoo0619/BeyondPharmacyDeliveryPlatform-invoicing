@@ -9,6 +9,11 @@ import {
   createOrReuseSavedAddress,
   createPatientWithDefaultAddress,
 } from "@/lib/patientAddressRecords";
+import {
+  findRecurringDuplicate,
+  formatRecurringDuplicateMessage,
+  parseRecurringActiveDays,
+} from "@/lib/recurringDuplicateGuard";
 
 interface DriverCandidate {
   id: string;
@@ -75,15 +80,8 @@ export async function POST(
     );
   }
 
-  // Validate activeDays if provided
-  const activeDays = body.activeDays ?? [1];
-  if (
-    !Array.isArray(activeDays) ||
-    activeDays.length === 0 ||
-    activeDays.some(
-      (d: unknown) => typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6
-    )
-  ) {
+  const activeDays = parseRecurringActiveDays(body.activeDays ?? [1]);
+  if (!activeDays) {
     return NextResponse.json(
       { error: "activeDays must be a non-empty array of day numbers (0-6)" },
       { status: 400 }
@@ -171,6 +169,24 @@ export async function POST(
     deliveryAddress = address.address;
     deliveryCity = address.city;
     deliveryPostalCode = address.postalCode;
+  }
+
+  const duplicate = await findRecurringDuplicate(prisma, {
+    storeId: store.id,
+    patientId,
+    patientName,
+    patientPhone,
+    deliveryAddress,
+    deliveryCity,
+    deliveryPostalCode,
+    activeDays,
+  });
+
+  if (duplicate) {
+    return NextResponse.json(
+      { error: formatRecurringDuplicateMessage({ patientName }, duplicate) },
+      { status: 409 }
+    );
   }
 
   const recurringOrder = await prisma.$transaction(async (tx) => {

@@ -66,7 +66,7 @@ export default function RecurringOrderList({
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
   const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     () => new Set()
   );
 
@@ -199,7 +199,7 @@ export default function RecurringOrderList({
   };
 
   const toggleGroup = (group: string) => {
-    setCollapsedGroups((current) => {
+    setExpandedGroups((current) => {
       const next = new Set(current);
       if (next.has(group)) {
         next.delete(group);
@@ -213,7 +213,7 @@ export default function RecurringOrderList({
   return (
     <div className={`${card} overflow-hidden`}>
       <div className="px-6 py-4 border-b flex items-center justify-between">
-        <h2 className={sectionTitle}>Recurring Orders</h2>
+        <h2 className={sectionTitle}>Recurring Profiles</h2>
         <div className="flex items-center gap-3">
           {generateMsg && (
             <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full ring-1 ring-emerald-100">{generateMsg}</span>
@@ -259,7 +259,7 @@ export default function RecurringOrderList({
       ) : (
         <div className="divide-y divide-slate-100">
           {groupedOrders.map(([group, groupOrders]) => {
-            const isCollapsed = collapsedGroups.has(group);
+            const isExpanded = expandedGroups.has(group);
             const groupId = `recurring-group-${group
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, "-")}`;
@@ -269,14 +269,14 @@ export default function RecurringOrderList({
                 <button
                   type="button"
                   aria-controls={groupId}
-                  aria-expanded={!isCollapsed}
+                  aria-expanded={isExpanded}
                   onClick={() => toggleGroup(group)}
                   className="flex w-full items-center justify-between bg-gradient-to-r from-sky-50/70 to-emerald-50/50 px-6 py-3 text-left transition hover:from-sky-50 hover:to-emerald-50"
                 >
                   <span className="flex items-center gap-2">
                     <span
                       className={`text-sm text-[#6f8f72] transition-transform ${
-                        isCollapsed ? "" : "rotate-90"
+                        isExpanded ? "rotate-90" : ""
                       }`}
                     >
                       ›
@@ -290,7 +290,7 @@ export default function RecurringOrderList({
                   </span>
                 </button>
 
-                {!isCollapsed && (
+                {isExpanded && (
                   <div id={groupId} className="divide-y divide-slate-100">
                     {groupOrders.map((order) => (
                       <div key={order.id} className="px-6 py-4 flex flex-col gap-4 hover:bg-sky-50/40 transition-colors sm:flex-row sm:items-center sm:justify-between">

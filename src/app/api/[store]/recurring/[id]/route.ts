@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
+import {
+  findRecurringDuplicate,
+  formatRecurringDuplicateMessage,
+  parseRecurringActiveDays,
+} from "@/lib/recurringDuplicateGuard";
 
 function normalizeOptionalId(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -44,21 +49,18 @@ export async function PATCH(
     updateData.isActive = body.isActive;
   }
 
+  let nextActiveDays = parseRecurringActiveDays(existing.activeDays);
+
   // Custom delivery days
-  if (body.activeDays) {
-    if (
-      !Array.isArray(body.activeDays) ||
-      body.activeDays.length === 0 ||
-      body.activeDays.some(
-        (d: unknown) => typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6
-      )
-    ) {
+  if ("activeDays" in body) {
+    nextActiveDays = parseRecurringActiveDays(body.activeDays);
+    if (!nextActiveDays) {
       return NextResponse.json(
         { error: "activeDays must be a non-empty array of day numbers (0-6)" },
         { status: 400 }
       );
     }
-    updateData.activeDays = JSON.stringify(body.activeDays);
+    updateData.activeDays = JSON.stringify(nextActiveDays);
   }
 
   if ("recurrenceIntervalWeeks" in body) {
@@ -142,6 +144,47 @@ export async function PATCH(
       { error: "No valid fields to update" },
       { status: 400 }
     );
+  }
+
+  const nextIsActive =
+    typeof body.isActive === "boolean" ? body.isActive : existing.isActive;
+  const shouldCheckDuplicate =
+    nextIsActive && (body.isActive === true || "activeDays" in body);
+
+  if (shouldCheckDuplicate) {
+    if (!nextActiveDays) {
+      return NextResponse.json(
+        { error: "Existing activeDays are invalid" },
+        { status: 400 }
+      );
+    }
+
+    const duplicate = await findRecurringDuplicate(
+      prisma,
+      {
+        storeId: store.id,
+        patientId: existing.patientId,
+        patientName: existing.patientName,
+        patientPhone: existing.patientPhone,
+        deliveryAddress: existing.deliveryAddress,
+        deliveryCity: existing.deliveryCity,
+        deliveryPostalCode: existing.deliveryPostalCode,
+        activeDays: nextActiveDays,
+      },
+      { excludeId: id }
+    );
+
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error: formatRecurringDuplicateMessage(
+            { patientName: existing.patientName },
+            duplicate
+          ),
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const updated = await prisma.recurringOrder.update({
