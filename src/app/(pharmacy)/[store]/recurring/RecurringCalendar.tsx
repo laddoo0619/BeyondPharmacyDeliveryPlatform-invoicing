@@ -86,6 +86,8 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyInstance, setBusyInstance] = useState<string | null>(null);
+  const [selectedInstance, setSelectedInstance] =
+    useState<CalendarInstance | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
   const { start, end } = useMemo(
@@ -168,6 +170,42 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
       const body = await res.json().catch(() => ({}));
       setError(body.error || "Failed to update calendar hold");
     } else {
+      setSelectedInstance({
+        ...instance,
+        isHeld: !instance.isHeld,
+        holdType: instance.isHeld ? null : "INSTANCE",
+        skipDate: instance.isHeld ? null : instance.date,
+      });
+      setLoading(true);
+      setRefreshToken((value) => value + 1);
+      router.refresh();
+    }
+
+    setBusyInstance(null);
+  };
+
+  const deleteRecurringProfile = async (instance: CalendarInstance) => {
+    if (
+      !confirm(
+        "Delete this recurring profile? Existing delivery records will be preserved."
+      )
+    ) {
+      return;
+    }
+
+    setBusyInstance(instance.id);
+    setError("");
+
+    const res = await fetch(
+      `/api/${storeSlug}/recurring/${instance.recurringOrderId}`,
+      { method: "DELETE" }
+    );
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || "Failed to delete recurring profile");
+    } else {
+      setSelectedInstance(null);
       setLoading(true);
       setRefreshToken((value) => value + 1);
       router.refresh();
@@ -251,44 +289,24 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
                   Loading...
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   {dayInstances.map((instance) => {
                     const isBusy = busyInstance === instance.id;
-                    const isTemplateHold = instance.holdType === "TEMPLATE";
 
                     return (
                       <button
                         key={instance.id}
                         type="button"
-                        disabled={isBusy || isTemplateHold}
-                        onClick={() => toggleInstanceHold(instance)}
+                        disabled={isBusy}
+                        onClick={() => setSelectedInstance(instance)}
                         className={cn(
-                          "w-full rounded-xl border px-2 py-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-70",
+                          "block w-full truncate rounded-full px-2.5 py-1 text-left text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-70",
                           instance.isHeld
-                            ? "border-violet-200 bg-violet-50 text-violet-800"
-                            : "border-emerald-100 bg-white text-slate-600 hover:border-[#6f8f72]/40 hover:bg-emerald-50/70"
+                            ? "bg-violet-50 text-violet-800 ring-1 ring-inset ring-violet-200"
+                            : "bg-white text-[#1e3a8a] ring-1 ring-inset ring-slate-200 hover:bg-emerald-50 hover:ring-[#6f8f72]/40"
                         )}
                       >
-                        <span className="block truncate font-semibold text-[#1e3a8a]">
-                          {instance.patientName}
-                        </span>
-                        <span className="block truncate text-slate-500">
-                          {instance.deliveryCity} • {instance.zoneName}
-                        </span>
-                        <span className="mt-1 inline-flex rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ring-slate-200">
-                          {isBusy
-                            ? "Updating"
-                            : isTemplateHold
-                              ? "Vacation hold"
-                              : instance.isHeld
-                                ? "Resume"
-                                : "Hold"}
-                        </span>
-                        {instance.generatedOrderStatus && (
-                          <span className="ml-1 mt-1 inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-100">
-                            {instance.generatedOrderStatus.replace("_", " ")}
-                          </span>
-                        )}
+                        {isBusy ? "Updating..." : instance.patientName}
                       </button>
                     );
                   })}
@@ -298,6 +316,110 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
           );
         })}
       </div>
+
+      {selectedInstance && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/35 px-4 py-6 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="recurring-quick-view-title"
+          onClick={() => setSelectedInstance(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/20"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3
+                  id="recurring-quick-view-title"
+                  className="text-lg font-bold text-[#1e3a8a]"
+                >
+                  {selectedInstance.patientName}
+                </h3>
+                <p className="text-sm text-slate-500">
+                  {formatDayLabel(new Date(`${selectedInstance.date}T00:00:00.000Z`))}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedInstance(null)}
+                className="rounded-full px-2 py-1 text-sm font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3 rounded-2xl bg-slate-50/80 p-4">
+              <QuickViewRow
+                label="Address"
+                value={`${selectedInstance.deliveryAddress}, ${selectedInstance.deliveryCity}`}
+              />
+              <QuickViewRow label="Zone" value={selectedInstance.zoneName} />
+              <QuickViewRow
+                label="Driver"
+                value={selectedInstance.assignedDriverName ?? "Unassigned"}
+              />
+              <QuickViewRow
+                label="Status"
+                value={
+                  selectedInstance.holdType === "TEMPLATE"
+                    ? "Vacation hold"
+                    : selectedInstance.isHeld
+                      ? "Hold active"
+                      : "Active"
+                }
+              />
+              {selectedInstance.generatedOrderStatus && (
+                <QuickViewRow
+                  label="Generated order"
+                  value={selectedInstance.generatedOrderStatus.replace("_", " ")}
+                />
+              )}
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              {selectedInstance.holdType === "TEMPLATE" ? (
+                <span className="rounded-full bg-violet-50 px-3 py-2 text-center text-xs font-semibold text-violet-800 ring-1 ring-violet-100">
+                  Vacation hold
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => toggleInstanceHold(selectedInstance)}
+                  disabled={busyInstance === selectedInstance.id}
+                  className={`${secondaryButton} justify-center text-xs`}
+                >
+                  {busyInstance === selectedInstance.id
+                    ? "Updating..."
+                    : selectedInstance.isHeld
+                      ? "Resume"
+                      : "Hold"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => deleteRecurringProfile(selectedInstance)}
+                disabled={busyInstance === selectedInstance.id}
+                className="rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {busyInstance === selectedInstance.id ? "Working..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function QuickViewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className="text-sm font-medium text-slate-700">{value}</p>
+    </div>
   );
 }
