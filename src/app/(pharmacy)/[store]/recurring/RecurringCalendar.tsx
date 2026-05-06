@@ -31,14 +31,6 @@ interface CalendarResponse {
   instances: CalendarInstance[];
 }
 
-function monthStart(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-}
-
-function addMonths(date: Date, months: number) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
-}
-
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
@@ -49,31 +41,47 @@ function dateKey(date: Date) {
   return date.toISOString().split("T")[0];
 }
 
-function getCalendarRange(month: Date) {
-  const start = monthStart(month);
+function weekStart(date: Date) {
+  const start = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
   start.setUTCDate(start.getUTCDate() - start.getUTCDay());
-  const end = addDays(start, 42);
+  return start;
+}
+
+function getCalendarRange(week: Date) {
+  const start = weekStart(week);
+  const end = addDays(start, 7);
   return { start, end };
 }
 
-function formatMonth(date: Date) {
-  return date.toLocaleDateString("en-US", {
-    month: "long",
+function formatWeekRange(start: Date, end: Date) {
+  const rangeEnd = addDays(end, -1);
+  const startLabel = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  const endLabel = rangeEnd.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
+  });
+  return `${startLabel} - ${endLabel}`;
+}
+
+function formatDayLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
     timeZone: "UTC",
   });
 }
 
-function isSameMonth(day: Date, month: Date) {
-  return (
-    day.getUTCFullYear() === month.getUTCFullYear() &&
-    day.getUTCMonth() === month.getUTCMonth()
-  );
-}
-
 export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) {
   const router = useRouter();
-  const [visibleMonth, setVisibleMonth] = useState(() => monthStart(new Date()));
+  const [visibleWeek, setVisibleWeek] = useState(() => weekStart(new Date()));
   const [instances, setInstances] = useState<CalendarInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -81,12 +89,12 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
   const [refreshToken, setRefreshToken] = useState(0);
 
   const { start, end } = useMemo(
-    () => getCalendarRange(visibleMonth),
-    [visibleMonth]
+    () => getCalendarRange(visibleWeek),
+    [visibleWeek]
   );
 
   const days = useMemo(
-    () => Array.from({ length: 42 }, (_, index) => addDays(start, index)),
+    () => Array.from({ length: 7 }, (_, index) => addDays(start, index)),
     [start]
   );
 
@@ -131,10 +139,10 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
     return () => controller.abort();
   }, [end, refreshToken, start, storeSlug]);
 
-  const showMonth = (month: Date) => {
+  const showWeek = (week: Date) => {
     setLoading(true);
     setError("");
-    setVisibleMonth(month);
+    setVisibleWeek(weekStart(week));
   };
 
   const toggleInstanceHold = async (instance: CalendarInstance) => {
@@ -173,29 +181,29 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
       <div className="flex flex-col gap-3 border-b px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className={sectionTitle}>Recurring Calendar</h2>
-          <p className="text-sm text-slate-500">{formatMonth(visibleMonth)}</p>
+          <p className="text-sm text-slate-500">{formatWeekRange(start, end)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => showMonth(addMonths(visibleMonth, -1))}
+            onClick={() => showWeek(addDays(visibleWeek, -7))}
             className={`${secondaryButton} px-3 py-1.5 text-xs`}
           >
-            Previous
+            Previous Week
           </button>
           <button
             type="button"
-            onClick={() => showMonth(monthStart(new Date()))}
+            onClick={() => showWeek(new Date())}
             className={`${primaryButton} px-3 py-1.5 text-xs`}
           >
-            Today
+            This Week
           </button>
           <button
             type="button"
-            onClick={() => showMonth(addMonths(visibleMonth, 1))}
+            onClick={() => showWeek(addDays(visibleWeek, 7))}
             className={`${secondaryButton} px-3 py-1.5 text-xs`}
           >
-            Next
+            Next Week
           </button>
         </div>
       </div>
@@ -225,14 +233,11 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
           return (
             <div
               key={key}
-              className={cn(
-                "min-h-36 border-b border-slate-100 p-2 sm:border-r",
-                !isSameMonth(day, visibleMonth) && "bg-slate-50/70 text-slate-400"
-              )}
+              className="min-h-48 border-b border-slate-100 p-2 sm:border-r"
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-[#1e3a8a]">
-                  {day.getUTCDate()}
+                  {formatDayLabel(day)}
                 </span>
                 {dayInstances.length > 0 && (
                   <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
