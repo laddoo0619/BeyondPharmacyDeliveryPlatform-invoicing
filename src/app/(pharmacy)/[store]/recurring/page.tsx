@@ -5,6 +5,7 @@ import RecurringCalendar from "./RecurringCalendar";
 import RecurringOrderForm from "./RecurringOrderForm";
 import RecurringOrderList from "./RecurringOrderList";
 import { pageTitle } from "@/lib/portalStyles";
+import { buildRecurringDuplicateCleanupPlan } from "@/lib/recurringDuplicateGuard";
 
 export default async function RecurringPage({
   params,
@@ -17,7 +18,7 @@ export default async function RecurringPage({
 
   const [recurringOrders, zones, drivers] = await Promise.all([
     prisma.recurringOrder.findMany({
-      where: { storeId: store.id },
+      where: { storeId: store.id, isActive: true },
       include: {
         deliveryZone: true,
         assignedDriver: { select: { id: true, name: true } },
@@ -42,6 +43,15 @@ export default async function RecurringPage({
       orderBy: { name: "asc" },
     }),
   ]);
+  const duplicateCleanupPlan = buildRecurringDuplicateCleanupPlan(recurringOrders);
+  const hiddenRecurringIds = new Set(
+    duplicateCleanupPlan
+      .filter((change) => change.remainingDays.length === 0)
+      .map((change) => change.order.id)
+  );
+  const displayDaysByRecurringId = new Map(
+    duplicateCleanupPlan.map((change) => [change.order.id, change.remainingDays])
+  );
 
   return (
     <div>
@@ -61,24 +71,28 @@ export default async function RecurringPage({
           <RecurringOrderList
             storeSlug={storeSlug}
             drivers={drivers}
-            orders={recurringOrders.map((o) => ({
-              id: o.id,
-              patientName: o.patientName,
-              deliveryAddress: o.deliveryAddress,
-              deliveryCity: o.deliveryCity,
-              zoneName: o.deliveryZone.name,
-              zonePrice: o.deliveryZone.price,
-              activeDays: JSON.parse(o.activeDays) as number[],
-              recurrenceIntervalWeeks: o.recurrenceIntervalWeeks,
-              recurrenceAnchorDate: o.recurrenceAnchorDate.toISOString(),
-              isActive: o.isActive,
-              isOnHold: o.isOnHold,
-              holdStart: o.holdStart?.toISOString() ?? null,
-              holdEnd: o.holdEnd?.toISOString() ?? null,
-              isSkippedThisWeek: o.skips.length > 0,
-              assignedDriverId: o.assignedDriverId,
-              assignedDriverName: o.assignedDriver?.name ?? null,
-            }))}
+            orders={recurringOrders
+              .filter((o) => !hiddenRecurringIds.has(o.id))
+              .map((o) => ({
+                id: o.id,
+                patientName: o.patientName,
+                deliveryAddress: o.deliveryAddress,
+                deliveryCity: o.deliveryCity,
+                zoneName: o.deliveryZone.name,
+                zonePrice: o.deliveryZone.price,
+                activeDays:
+                  displayDaysByRecurringId.get(o.id) ??
+                  (JSON.parse(o.activeDays) as number[]),
+                recurrenceIntervalWeeks: o.recurrenceIntervalWeeks,
+                recurrenceAnchorDate: o.recurrenceAnchorDate.toISOString(),
+                isActive: o.isActive,
+                isOnHold: o.isOnHold,
+                holdStart: o.holdStart?.toISOString() ?? null,
+                holdEnd: o.holdEnd?.toISOString() ?? null,
+                isSkippedThisWeek: o.skips.length > 0,
+                assignedDriverId: o.assignedDriverId,
+                assignedDriverName: o.assignedDriver?.name ?? null,
+              }))}
           />
         </div>
       </div>
