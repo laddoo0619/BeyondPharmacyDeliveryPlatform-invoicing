@@ -3,8 +3,24 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 
+function currentWeekStart() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - now.getDay());
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function parseDateInput(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const date = new Date(`${value.trim()}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ store: string; id: string }> }
 ) {
   const { store: storeSlug, id } = await params;
@@ -24,17 +40,16 @@ export async function POST(
     return NextResponse.json({ error: "Recurring order not found" }, { status: 404 });
   }
 
-  // Get start of current week (Sunday)
-  const now = new Date();
-  const day = now.getDay();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - day);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const body = await req.json().catch(() => ({}));
+  const requestedSkipDate = parseDateInput(body.skipDate);
+  if (body.skipDate && !requestedSkipDate) {
+    return NextResponse.json({ error: "skipDate must be a valid date" }, { status: 400 });
+  }
 
   await prisma.recurringOrderSkip.deleteMany({
     where: {
       recurringOrderId: id,
-      skipDate: startOfWeek,
+      skipDate: requestedSkipDate ?? currentWeekStart(),
     },
   });
 

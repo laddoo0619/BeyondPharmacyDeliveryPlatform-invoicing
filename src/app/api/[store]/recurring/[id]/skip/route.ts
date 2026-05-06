@@ -3,8 +3,38 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 
+const TERMINAL_ORDER_STATUSES = ["DELIVERED", "FAILED", "CANCELLED"];
+
+function currentWeekStart() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - now.getDay());
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function parseDateInput(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const date = new Date(`${value.trim()}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function nextDay(date: Date) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+function nextWeek(date: Date) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + 7);
+  return next;
+}
+
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ store: string; id: string }> }
 ) {
   const { store: storeSlug, id } = await params;
@@ -24,19 +54,48 @@ export async function POST(
     return NextResponse.json({ error: "Recurring order not found" }, { status: 404 });
   }
 
-  // Get start of current week (Sunday)
-  const now = new Date();
-  const day = now.getDay();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - day);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const body = await req.json().catch(() => ({}));
+  const requestedSkipDate = parseDateInput(body.skipDate);
+  if (body.skipDate && !requestedSkipDate) {
+    return NextResponse.json({ error: "skipDate must be a valid date" }, { status: 400 });
+  }
 
-  const skip = await prisma.recurringOrderSkip.create({
-    data: {
+  const skipDate = requestedSkipDate ?? currentWeekStart();
+  const reason =
+    typeof body.reason === "string" && body.reason.trim()
+      ? body.reason.trim()
+      : requestedSkipDate
+        ? "Held from recurring calendar"
+        : "Patient picked up in-store";
+
+  const skip = await prisma.recurringOrderSkip.upsert({
+    where: {
+      recurringOrderId_skipDate: {
+        recurringOrderId: id,
+        skipDate,
+      },
+    },
+    update: { reason },
+    create: {
       recurringOrderId: id,
-      skipDate: startOfWeek,
-      reason: "Patient picked up in-store",
+      skipDate,
+      reason,
       createdById: session.user.id,
+    },
+  });
+
+  await prisma.order.updateMany({
+    where: {
+      recurringOrderId: id,
+      storeId: store.id,
+      status: { notIn: TERMINAL_ORDER_STATUSES },
+      scheduledDate: requestedSkipDate
+        ? { gte: skipDate, lt: nextDay(skipDate) }
+        : { gte: skipDate, lt: nextWeek(skipDate) },
+    },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
     },
   });
 

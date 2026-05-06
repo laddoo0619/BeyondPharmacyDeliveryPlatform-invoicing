@@ -41,6 +41,17 @@ interface RecurringOrderItem {
   assignedDriverName: string | null;
 }
 
+function lastNameGroup(patientName: string) {
+  const trimmed = patientName.trim();
+  if (!trimmed) return "Unknown";
+
+  const group = trimmed.includes(",")
+    ? trimmed.split(",")[0]?.trim()
+    : trimmed.split(/\s+/)[0]?.trim();
+
+  return group || "Unknown";
+}
+
 export default function RecurringOrderList({
   orders,
   drivers,
@@ -55,6 +66,9 @@ export default function RecurringOrderList({
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
   const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const driverCounts = useMemo(() => {
     const counts: Record<string, number> = { [ALL]: orders.length, [UNASSIGNED]: 0 };
@@ -73,6 +87,16 @@ export default function RecurringOrderList({
     }
     return orders.filter((o) => o.assignedDriverId === activeDriverFilter);
   }, [orders, activeDriverFilter]);
+
+  const groupedOrders = useMemo(() => {
+    const groups = new Map<string, RecurringOrderItem[]>();
+    for (const order of visibleOrders) {
+      const key = lastNameGroup(order.patientName);
+      groups.set(key, [...(groups.get(key) ?? []), order]);
+    }
+
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [visibleOrders]);
 
   const generateToday = async () => {
     setGenerating(true);
@@ -174,6 +198,18 @@ export default function RecurringOrderList({
     return `Weekly on ${days}`;
   };
 
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(group)) {
+        next.delete(group);
+      } else {
+        next.add(group);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className={`${card} overflow-hidden`}>
       <div className="px-6 py-4 border-b flex items-center justify-between">
@@ -222,64 +258,103 @@ export default function RecurringOrderList({
         </div>
       ) : (
         <div className="divide-y divide-slate-100">
-          {visibleOrders.map((order) => (
-            <div key={order.id} className="px-6 py-4 flex flex-col gap-4 hover:bg-sky-50/40 transition-colors sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold text-[#1e3a8a]">{order.patientName}</p>
-                <p className="text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</p>
-                <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • {scheduleText(order)}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-slate-400">Driver:</span>
-                  <select
-                    value={order.assignedDriverId || ""}
-                    onChange={(e) => reassignDriver(order.id, e.target.value || null)}
-                    disabled={loading === order.id}
-                    className={`${input} text-xs py-1`}
-                  >
-                    <option value="">Zone default</option>
-                    {drivers.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {order.isOnHold && (
-                  <span className={statusBadgeClasses("HOLD")}>
-                    On Hold {order.holdStart && order.holdEnd
-                      ? `${new Date(order.holdStart).toLocaleDateString()} – ${new Date(order.holdEnd).toLocaleDateString()}`
-                      : ""}
+          {groupedOrders.map(([group, groupOrders]) => {
+            const isCollapsed = collapsedGroups.has(group);
+            const groupId = `recurring-group-${group
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")}`;
+
+            return (
+              <section key={group}>
+                <button
+                  type="button"
+                  aria-controls={groupId}
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleGroup(group)}
+                  className="flex w-full items-center justify-between bg-gradient-to-r from-sky-50/70 to-emerald-50/50 px-6 py-3 text-left transition hover:from-sky-50 hover:to-emerald-50"
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`text-sm text-[#6f8f72] transition-transform ${
+                        isCollapsed ? "" : "rotate-90"
+                      }`}
+                    >
+                      ›
+                    </span>
+                    <span className="text-sm font-bold text-[#1e3a8a]">
+                      {group}
+                    </span>
                   </span>
-                )}
-                {order.isSkippedThisWeek && !order.isOnHold && (
-                  <span className={statusBadgeClasses("SKIPPED")}>Skipped this week</span>
-                )}
-                {!order.isActive && (
-                  <span className={statusBadgeClasses("INACTIVE")}>Inactive</span>
-                )}
-                {order.isActive && (
-                  <button onClick={() => toggleHold(order.id, order.isOnHold)} disabled={loading === order.id}
-                    className={`${secondaryButton} text-xs py-1.5`}>
-                    {order.isOnHold ? "Remove Hold" : "Vacation Hold"}
-                  </button>
-                )}
-                {order.isActive && !order.isOnHold && (
-                  <button onClick={() => toggleSkip(order.id, order.isSkippedThisWeek)} disabled={loading === order.id}
-                    className={`${secondaryButton} text-xs py-1.5`}>
-                    {order.isSkippedThisWeek ? "Unskip" : "Skip This Week"}
-                  </button>
-                )}
-                <button onClick={() => toggleActive(order.id, order.isActive)} disabled={loading === order.id}
-                  className="text-xs text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50">
-                  {order.isActive ? "Deactivate" : "Activate"}
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                    {groupOrders.length}
+                  </span>
                 </button>
-                <button onClick={() => deleteOrder(order.id)} disabled={loading === order.id}
-                  className="text-xs text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50">
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+
+                {!isCollapsed && (
+                  <div id={groupId} className="divide-y divide-slate-100">
+                    {groupOrders.map((order) => (
+                      <div key={order.id} className="px-6 py-4 flex flex-col gap-4 hover:bg-sky-50/40 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-[#1e3a8a]">{order.patientName}</p>
+                          <p className="text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</p>
+                          <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • {scheduleText(order)}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-slate-400">Driver:</span>
+                            <select
+                              value={order.assignedDriverId || ""}
+                              onChange={(e) => reassignDriver(order.id, e.target.value || null)}
+                              disabled={loading === order.id}
+                              className={`${input} text-xs py-1`}
+                            >
+                              <option value="">Zone default</option>
+                              {drivers.map((d) => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {order.isOnHold && (
+                            <span className={statusBadgeClasses("HOLD")}>
+                              On Hold {order.holdStart && order.holdEnd
+                                ? `${new Date(order.holdStart).toLocaleDateString()} – ${new Date(order.holdEnd).toLocaleDateString()}`
+                                : ""}
+                            </span>
+                          )}
+                          {order.isSkippedThisWeek && !order.isOnHold && (
+                            <span className={statusBadgeClasses("SKIPPED")}>Skipped this week</span>
+                          )}
+                          {!order.isActive && (
+                            <span className={statusBadgeClasses("INACTIVE")}>Inactive</span>
+                          )}
+                          {order.isActive && (
+                            <button onClick={() => toggleHold(order.id, order.isOnHold)} disabled={loading === order.id}
+                              className={`${secondaryButton} text-xs py-1.5`}>
+                              {order.isOnHold ? "Remove Hold" : "Vacation Hold"}
+                            </button>
+                          )}
+                          {order.isActive && !order.isOnHold && (
+                            <button onClick={() => toggleSkip(order.id, order.isSkippedThisWeek)} disabled={loading === order.id}
+                              className={`${secondaryButton} text-xs py-1.5`}>
+                              {order.isSkippedThisWeek ? "Unskip" : "Skip This Week"}
+                            </button>
+                          )}
+                          <button onClick={() => toggleActive(order.id, order.isActive)} disabled={loading === order.id}
+                            className="text-xs text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50">
+                            {order.isActive ? "Deactivate" : "Activate"}
+                          </button>
+                          <button onClick={() => deleteOrder(order.id)} disabled={loading === order.id}
+                            className="text-xs text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
