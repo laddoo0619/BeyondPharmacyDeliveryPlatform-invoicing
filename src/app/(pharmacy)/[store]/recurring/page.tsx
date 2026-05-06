@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
+import RecurringCalendar from "./RecurringCalendar";
 import RecurringOrderForm from "./RecurringOrderForm";
 import RecurringOrderList from "./RecurringOrderList";
 import { pageTitle } from "@/lib/portalStyles";
@@ -55,7 +56,8 @@ export default async function RecurringPage({
             drivers={drivers}
           />
         </div>
-        <div className="lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2">
+          <RecurringCalendar storeSlug={storeSlug} />
           <RecurringOrderList
             storeSlug={storeSlug}
             drivers={drivers}

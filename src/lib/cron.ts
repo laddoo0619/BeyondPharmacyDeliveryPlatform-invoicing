@@ -53,6 +53,10 @@ interface RecurrenceSchedule {
   recurrenceAnchorDate: Date;
 }
 
+interface RecurringSkipCandidate {
+  skipDate: Date;
+}
+
 export interface RecurringGenerationResult {
   dateKey: string;
   total: number;
@@ -151,6 +155,14 @@ function utcWeekStart(date: Date) {
   return start;
 }
 
+function sameUtcDay(a: Date, b: Date) {
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
 export function isRecurringScheduleDue(
   recurring: RecurrenceSchedule,
   deliveryDate: Pick<DeliveryDateInfo, "weekStart">
@@ -164,6 +176,17 @@ export function isRecurringScheduleDue(
   );
 
   return weeksSinceAnchor >= 0 && weeksSinceAnchor % interval === 0;
+}
+
+export function hasRecurringSkipForDate(
+  skips: RecurringSkipCandidate[],
+  deliveryDate: Pick<DeliveryDateInfo, "dayStart" | "weekStart">
+) {
+  return skips.some(
+    (skip) =>
+      sameUtcDay(skip.skipDate, deliveryDate.dayStart) ||
+      sameUtcDay(skip.skipDate, deliveryDate.weekStart)
+  );
 }
 
 export async function generateRecurringOrders(now = new Date()): Promise<RecurringGenerationResult> {
@@ -232,8 +255,8 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
 
     due++;
 
-    // Skip if there's a skip record for this week
-    if (recurring.skips.length > 0) {
+    // Skip held instances. Older week-level skips are still honored.
+    if (hasRecurringSkipForDate(recurring.skips, deliveryDate)) {
       console.log(`[CRON] Skipping recurring order for ${recurring.patientName} (skip record exists)`);
       skipped++;
       continue;
