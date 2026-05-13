@@ -63,7 +63,7 @@ export interface SpokePlanResult extends SpokeRequestResult {
   planId: string;
 }
 
-export interface SpokeImportResult extends SpokeRequestResult {
+export interface SpokeStopResult extends SpokeRequestResult {
   stopId: string;
   pending: boolean;
 }
@@ -347,7 +347,7 @@ export async function createSpokePlan(
   return { ...result, planId };
 }
 
-export async function importSpokeStop(
+export async function createSpokeStop(
   config: SpokeConfig,
   input: {
     planId: string;
@@ -355,22 +355,21 @@ export async function importSpokeStop(
     live: boolean;
     idempotencyKey: string;
   }
-): Promise<SpokeImportResult> {
-  const workflowStep = input.live ? "LIVE_IMPORT_STOP" : "IMPORT_STOP";
-  const result = await spokeRequest<Record<string, unknown>>(config, `/${input.planId}/stops:${input.live ? "liveImport" : "import"}`, {
+): Promise<SpokeStopResult> {
+  const workflowStep = input.live ? "LIVE_CREATE_STOP" : "CREATE_STOP";
+  const result = await spokeRequest<Record<string, unknown>>(config, `/${input.planId}/stops${input.live ? ":liveCreate" : ""}`, {
     method: "POST",
-    body: [input.stopPayload],
+    body: input.stopPayload,
     workflowStep,
     idempotencyKey: `${input.idempotencyKey}:stop`,
   });
   const response = objectPayload(result.responsePayload);
-  const success = Array.isArray(response?.success) ? response.success : [];
-  const failed = Array.isArray(response?.failed) ? response.failed : [];
-  const stopId = typeof success[0] === "string" ? success[0] : null;
+  const stop = objectPayload(input.live ? response?.stop : response);
+  const stopId = typeof stop?.id === "string" ? stop.id : null;
 
-  if (!stopId || failed.length > 0) {
+  if (!stopId) {
     throw new SpokeDispatchError(
-      "Spoke could not import the delivery stop.",
+      "Spoke could not create the delivery stop.",
       502,
       result.responsePayload,
       workflowStep

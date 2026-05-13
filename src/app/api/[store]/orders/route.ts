@@ -16,7 +16,7 @@ import {
   createSpokePlan,
   distributeSpokePlan,
   getSpokeConfig,
-  importSpokeStop,
+  createSpokeStop,
   optimizeSpokePlan,
   parseScheduledDateKey,
   shouldRouteToSpoke,
@@ -134,6 +134,10 @@ function isTerminalExternalDispatch(dispatch: ExternalDispatch) {
     "DELIVERED",
     "DELIVERY_FAILED",
   ].includes(dispatch.status);
+}
+
+function isLiveSpokePlan(plan: Pick<ExternalPlan, "status">) {
+  return plan.status === "OPTIMIZED" || plan.status === "DISTRIBUTED";
 }
 
 async function ensureSpokePlanRecord(input: {
@@ -471,25 +475,25 @@ export async function POST(
         );
       }
 
-      const livePlan = externalPlan.status === "DISTRIBUTED";
+      const livePlan = isLiveSpokePlan(externalPlan);
       let spokeStopId = dispatch.spokeStopId;
       if (!spokeStopId) {
-        const importResult = await importSpokeStop(spokeConfig, {
+        const stopResult = await createSpokeStop(spokeConfig, {
           planId: spokePlanId,
           stopPayload,
           live: livePlan,
           idempotencyKey: data.idempotencyKey,
         });
-        spokeStopId = importResult.stopId;
+        spokeStopId = stopResult.stopId;
         dispatch = await prisma.externalDispatch.update({
           where: { id: dispatch.id },
           data: {
-            status: "STOP_IMPORTED",
-            workflowStep: livePlan ? "LIVE_IMPORT_STOP" : "IMPORT_STOP",
+            status: "STOP_CREATED",
+            workflowStep: livePlan ? "LIVE_CREATE_STOP" : "CREATE_STOP",
             spokePlanId,
             spokeStopId,
             externalReference: spokeStopId,
-            responsePayload: asPrismaJson(importResult.responsePayload),
+            responsePayload: asPrismaJson(stopResult.responsePayload),
             errorMessage: null,
           },
         });
@@ -500,7 +504,7 @@ export async function POST(
         live: livePlan,
         idempotencyKey: data.idempotencyKey,
       });
-      await prisma.externalPlan.update({
+      externalPlan = await prisma.externalPlan.update({
         where: { id: externalPlan.id },
         data: {
           status: "OPTIMIZING",
@@ -525,7 +529,7 @@ export async function POST(
         operationId: operationResult.operationId,
         stopId: spokeStopId,
       });
-      await prisma.externalPlan.update({
+      externalPlan = await prisma.externalPlan.update({
         where: { id: externalPlan.id },
         data: {
           status: "OPTIMIZED",
@@ -595,7 +599,7 @@ export async function POST(
         await prisma.externalPlan.update({
           where: { id: externalPlan.id },
           data: {
-            status: externalPlan.status === "DISTRIBUTED" ? "DISTRIBUTED" : "FAILED",
+            status: isLiveSpokePlan(externalPlan) ? externalPlan.status : "FAILED",
             lastResponsePayload: asPrismaJson(spokeError.responsePayload),
             errorMessage: spokeError.message,
           },
