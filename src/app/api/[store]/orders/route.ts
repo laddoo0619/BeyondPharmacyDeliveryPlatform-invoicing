@@ -40,6 +40,8 @@ const createOrderSchema = z.object({
 
 const DUPLICATE_ORDER_MESSAGE =
   "An active order already exists for this patient, address, and date.";
+const SPOKE_AUDIT_UNAVAILABLE_MESSAGE =
+  "Spoke dispatch audit is unavailable. Please confirm the Spoke database migration has run.";
 
 function normalizeDuplicateText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -96,6 +98,24 @@ function orderMatchesDuplicate(
     normalizePostalCode(order.deliveryPostalCode) ===
       normalizePostalCode(input.deliveryPostalCode)
   );
+}
+
+function toSpokeOrderError(err: unknown) {
+  if (err instanceof SpokeDispatchError) return err;
+
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    (err.code === "P2021" || err.code === "P2022")
+  ) {
+    return new SpokeDispatchError(
+      SPOKE_AUDIT_UNAVAILABLE_MESSAGE,
+      500,
+      null,
+      "SETUP"
+    );
+  }
+
+  return new SpokeDispatchError("Failed to dispatch order to Spoke.", 502);
 }
 
 export async function POST(
@@ -263,18 +283,6 @@ export async function POST(
     return NextResponse.json({ error: DUPLICATE_ORDER_MESSAGE }, { status: 409 });
   }
 
-  const existingExternalDispatch = await prisma.externalDispatch.findUnique({
-    where: { idempotencyKey: data.idempotencyKey },
-  });
-  if (existingExternalDispatch) {
-    if (existingExternalDispatch.storeId !== store.id || !routeToSpoke) {
-      return NextResponse.json(
-        { error: "Idempotency key conflict" },
-        { status: 409 }
-      );
-    }
-  }
-
   const savePatientAddress = async (tx: Prisma.TransactionClient) => {
     let finalPatientId = patientId;
     let finalAddressId = deliveryAddressId;
@@ -310,6 +318,16 @@ export async function POST(
 
   if (routeToSpoke) {
     try {
+      const existingExternalDispatch = await prisma.externalDispatch.findUnique({
+        where: { idempotencyKey: data.idempotencyKey },
+      });
+      if (existingExternalDispatch && existingExternalDispatch.storeId !== store.id) {
+        return NextResponse.json(
+          { error: "Idempotency key conflict" },
+          { status: 409 }
+        );
+      }
+
       const result = await dispatchOrderToSpoke({
         idempotencyKey: data.idempotencyKey,
         patientId,
@@ -343,10 +361,7 @@ export async function POST(
         { status: result.alreadyDispatched || existingExternalDispatch ? 200 : 201 }
       );
     } catch (err) {
-      const spokeError =
-        err instanceof SpokeDispatchError
-          ? err
-          : new SpokeDispatchError("Failed to contact Spoke.", 502);
+      const spokeError = toSpokeOrderError(err);
 
       return NextResponse.json(
         { error: spokeError.message, external: true, provider: "SPOKE" },
