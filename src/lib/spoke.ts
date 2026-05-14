@@ -75,7 +75,7 @@ export interface SpokeOperationResult extends SpokeRequestResult {
 export interface SpokeConfig {
   apiBaseUrl: string;
   apiKey: string;
-  spokeDriverId: string;
+  circuitClientId: string | null;
   timeoutMs: number;
   optimizationMaxWaitMs: number;
 }
@@ -141,16 +141,14 @@ export function buildSpokePlanTitle(input: {
 export function buildSpokePlanPayload(input: {
   title: string;
   starts: SpokeDateParts;
-  spokeDriverId: string;
 }) {
   return {
     title: input.title,
     starts: input.starts,
-    drivers: [input.spokeDriverId],
   };
 }
 
-export function buildSpokeStopPayload(input: SpokeOrderInput, spokeDriverId: string) {
+export function buildSpokeStopPayload(input: SpokeOrderInput, circuitClientId: string | null) {
   const notes = [
     input.instructions,
     `Zone: ${input.deliveryZoneName}`,
@@ -160,7 +158,7 @@ export function buildSpokeStopPayload(input: SpokeOrderInput, spokeDriverId: str
     .filter(Boolean)
     .join("\n");
 
-  return {
+  const payload: Record<string, unknown> = {
     address: {
       addressName: input.patientName,
       addressLineOne: input.deliveryAddress,
@@ -179,11 +177,16 @@ export function buildSpokeStopPayload(input: SpokeOrderInput, spokeDriverId: str
       sellerOrderId: input.idempotencyKey,
       sellerName: input.store.name,
     },
-    allowedDrivers: [spokeDriverId],
     activity: "delivery",
     packageCount: 1,
     notes,
   };
+
+  if (circuitClientId) {
+    payload.circuitClientId = circuitClientId;
+  }
+
+  return payload;
 }
 
 function parsePositiveEnvInt(name: string, fallback: number) {
@@ -194,20 +197,11 @@ function parsePositiveEnvInt(name: string, fallback: number) {
 export function getSpokeConfig(): SpokeConfig {
   const apiBaseUrl = (process.env.SPOKE_API_BASE_URL ?? DEFAULT_API_BASE_URL).trim().replace(/\/$/, "");
   const apiKey = process.env.SPOKE_API_KEY?.trim();
-  const spokeDriverId = process.env.SPOKE_DRIVER_ID?.trim();
+  const circuitClientId = process.env.SPOKE_CIRCUIT_CLIENT_ID?.trim() || null;
 
-  if (!apiKey || !spokeDriverId) {
+  if (!apiKey) {
     throw new SpokeDispatchError(
-      "Spoke integration is not configured. Please set SPOKE_API_KEY and SPOKE_DRIVER_ID.",
-      500,
-      null,
-      "SETUP"
-    );
-  }
-
-  if (!/^drivers\/[A-Za-z0-9_-]{1,50}$/.test(spokeDriverId)) {
-    throw new SpokeDispatchError(
-      "SPOKE_DRIVER_ID must use Spoke's drivers/<id> format.",
+      "Spoke integration is not configured. Please set SPOKE_API_KEY.",
       500,
       null,
       "SETUP"
@@ -217,7 +211,7 @@ export function getSpokeConfig(): SpokeConfig {
   return {
     apiBaseUrl,
     apiKey,
-    spokeDriverId,
+    circuitClientId,
     timeoutMs: parsePositiveEnvInt("SPOKE_TIMEOUT_MS", DEFAULT_TIMEOUT_MS),
     optimizationMaxWaitMs: parsePositiveEnvInt(
       "SPOKE_OPTIMIZATION_MAX_WAIT_MS",
@@ -325,7 +319,6 @@ export async function createSpokePlan(
   const requestPayload = buildSpokePlanPayload({
     title: input.title,
     starts: input.starts,
-    spokeDriverId: config.spokeDriverId,
   });
   const result = await spokeRequest(config, "/plans", {
     method: "POST",
