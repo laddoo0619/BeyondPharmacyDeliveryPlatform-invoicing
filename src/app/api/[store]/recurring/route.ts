@@ -3,6 +3,12 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { getVancouverDeliveryDateInfo, isRecurringScheduleDue } from "@/lib/cron";
+import { SpokeDispatchError } from "@/lib/spoke";
+import {
+  buildRecurringSpokeIdempotencyKey,
+  dispatchOrderToSpoke,
+  isSelectedSpokeProvider,
+} from "@/lib/spokeDispatch";
 import {
   cleanOptionalText,
   cleanText,
@@ -120,6 +126,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid delivery zone" }, { status: 400 });
   }
 
+  let assignedDriver: { id: string; name: string; email: string } | null = null;
   if (assignedDriverId) {
     const driver = await prisma.user.findFirst({
       where: {
@@ -128,12 +135,13 @@ export async function POST(
         isActive: true,
         storeId: store.id,
       },
-      select: { id: true },
+      select: { id: true, name: true, email: true },
     });
 
     if (!driver) {
       return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
     }
+    assignedDriver = driver;
   }
 
   const patientId = requestedPatientId;
@@ -189,7 +197,15 @@ export async function POST(
     );
   }
 
-  const recurringOrder = await prisma.$transaction(async (tx) => {
+  const dueToday =
+    activeDays.includes(deliveryDate.dayOfWeek) &&
+    isRecurringScheduleDue(
+      { recurrenceIntervalWeeks, recurrenceAnchorDate },
+      deliveryDate
+    );
+  const routeTodayToSpoke = isSelectedSpokeProvider(assignedDriverId);
+
+  const { recurringOrder, finalPatientId, finalAddressId } = await prisma.$transaction(async (tx) => {
     let finalPatientId = patientId;
     let finalAddressId = deliveryAddressId;
 
@@ -239,14 +255,9 @@ export async function POST(
       include: { deliveryZone: true },
     });
 
-    // If today is an active day, immediately create today's Order so it appears in the driver portal
-    if (
-      activeDays.includes(deliveryDate.dayOfWeek) &&
-      isRecurringScheduleDue(
-        { recurrenceIntervalWeeks, recurrenceAnchorDate },
-        deliveryDate
-      )
-    ) {
+    // If today is an active day, immediately create today's internal Order unless
+    // the recurring profile explicitly selected the Spoke/Anchor provider.
+    if (dueToday && !routeTodayToSpoke) {
       const defaultDriverId = isValidStoreDriver(zone.defaultDriver, store.id)
         ? zone.defaultDriver.id
         : null;
@@ -279,8 +290,54 @@ export async function POST(
       }
     }
 
-    return createdRecurringOrder;
+    return { recurringOrder: createdRecurringOrder, finalPatientId, finalAddressId };
   });
+
+  if (dueToday && routeTodayToSpoke) {
+    try {
+      await dispatchOrderToSpoke({
+        idempotencyKey: buildRecurringSpokeIdempotencyKey(
+          recurringOrder.id,
+          deliveryDate.dateKey
+        ),
+        patientId: finalPatientId,
+        store: {
+          id: store.id,
+          slug: store.slug,
+          name: store.name,
+        },
+        selectedProviderUser: assignedDriver,
+        patientName,
+        patientPhone,
+        deliveryAddress,
+        deliveryCity,
+        deliveryPostalCode,
+        deliveryAddressId: finalAddressId,
+        deliveryZoneId: zone.id,
+        deliveryZoneName: recurringOrder.deliveryZone.name,
+        priceAtCreation: recurringOrder.deliveryZone.price,
+        instructions: body.instructions || null,
+        scheduledDate: deliveryDate.dayStart,
+        scheduledDateKey: deliveryDate.dateKey,
+        createdById: session.user.id,
+      });
+    } catch (err) {
+      const spokeError =
+        err instanceof SpokeDispatchError
+          ? err
+          : new SpokeDispatchError("Failed to contact Spoke.", 502);
+
+      return NextResponse.json(
+        {
+          error: spokeError.message,
+          external: true,
+          provider: "SPOKE",
+          recurringOrder,
+        },
+        { status: spokeError.statusCode }
+      );
+    }
+  }
 
   return NextResponse.json(recurringOrder, { status: 201 });
 }

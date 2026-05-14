@@ -4,6 +4,11 @@ import {
   recurringPeopleMatch,
   type RecurringPersonInput,
 } from "./recurringDuplicateGuard";
+import {
+  buildRecurringSpokeIdempotencyKey,
+  dispatchOrderToSpoke,
+  isSelectedSpokeProvider,
+} from "./spokeDispatch";
 
 const DELIVERY_TIME_ZONE = "America/Vancouver";
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -50,6 +55,8 @@ interface DriverCandidate {
   role: string;
   isActive: boolean;
   storeId: string | null;
+  name?: string;
+  email?: string;
 }
 
 interface RecurrenceSchedule {
@@ -214,7 +221,14 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: {
       assignedDriver: {
-        select: { id: true, role: true, isActive: true, storeId: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          storeId: true,
+        },
       },
       deliveryZone: {
         include: {
@@ -296,9 +310,64 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       continue;
     }
 
-    // Priority: recurring order's assigned driver > zone's default driver > PENDING
+    const selectedDriverId = validDriverId(
+      recurring.assignedDriver,
+      recurring.storeId
+    );
+
+    if (isSelectedSpokeProvider(selectedDriverId)) {
+      try {
+        const result = await dispatchOrderToSpoke({
+          idempotencyKey: buildRecurringSpokeIdempotencyKey(
+            recurring.id,
+            deliveryDate.dateKey
+          ),
+          patientId: recurring.patientId,
+          store: {
+            id: recurring.store.id,
+            slug: recurring.store.slug,
+            name: recurring.store.name,
+          },
+          selectedProviderUser: recurring.assignedDriver
+            ? {
+                id: recurring.assignedDriver.id,
+                name: recurring.assignedDriver.name ?? "Anchor",
+                email: recurring.assignedDriver.email ?? "",
+              }
+            : null,
+          patientName: recurring.patientName,
+          patientPhone: recurring.patientPhone,
+          deliveryAddress: recurring.deliveryAddress,
+          deliveryCity: recurring.deliveryCity,
+          deliveryPostalCode: recurring.deliveryPostalCode,
+          deliveryAddressId: null,
+          deliveryZoneId: recurring.deliveryZoneId,
+          deliveryZoneName: recurring.deliveryZone.name,
+          priceAtCreation: recurring.deliveryZone.price,
+          instructions: recurring.instructions,
+          scheduledDate: deliveryDate.dayStart,
+          scheduledDateKey: deliveryDate.dateKey,
+          createdById: recurring.createdById,
+        });
+
+        existingSet.add(recurring.id);
+        if (result.alreadyDispatched) {
+          existing++;
+          console.log(`[CRON] Spoke dispatch already exists for ${recurring.patientName} today`);
+        } else {
+          created++;
+          console.log(`[CRON] Sent recurring order for ${recurring.patientName} (${recurring.store.name}) to Spoke`);
+        }
+      } catch (err) {
+        console.warn(`[CRON] Failed to send recurring order for ${recurring.patientName} to Spoke:`, err);
+        skipped++;
+      }
+      continue;
+    }
+
+    // Priority: recurring order's selected non-Spoke driver > zone's default driver > PENDING
     const driverId =
-      validDriverId(recurring.assignedDriver, recurring.storeId) ??
+      selectedDriverId ??
       validDriverId(recurring.deliveryZone.defaultDriver, recurring.storeId);
     const status = driverId ? "ASSIGNED" : "PENDING";
 
