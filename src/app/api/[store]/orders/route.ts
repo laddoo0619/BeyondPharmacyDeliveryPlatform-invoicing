@@ -46,6 +46,66 @@ const createOrderSchema = z.object({
   delivery_company: z.string().optional().default(""),
 });
 
+const DUPLICATE_ORDER_MESSAGE =
+  "An active order already exists for this patient, address, and date.";
+
+function normalizeDuplicateText(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizePostalCode(value: string) {
+  return normalizeDuplicateText(value).replace(/\s/g, "");
+}
+
+function getScheduledDateRange(value: string) {
+  const scheduledDate = new Date(value);
+  if (Number.isNaN(scheduledDate.getTime())) return null;
+
+  const dayStart = new Date(
+    Date.UTC(
+      scheduledDate.getUTCFullYear(),
+      scheduledDate.getUTCMonth(),
+      scheduledDate.getUTCDate()
+    )
+  );
+  const nextDayStart = new Date(dayStart);
+  nextDayStart.setUTCDate(nextDayStart.getUTCDate() + 1);
+
+  return { scheduledDate, dayStart, nextDayStart };
+}
+
+function orderMatchesDuplicate(
+  order: {
+    patientId: string | null;
+    patientName: string;
+    deliveryAddress: string;
+    deliveryCity: string;
+    deliveryPostalCode: string;
+  },
+  input: {
+    patientId: string | null;
+    patientName: string;
+    deliveryAddress: string;
+    deliveryCity: string;
+    deliveryPostalCode: string;
+  }
+) {
+  const samePatient = input.patientId
+    ? order.patientId === input.patientId
+    : normalizeDuplicateText(order.patientName) ===
+      normalizeDuplicateText(input.patientName);
+
+  return (
+    samePatient &&
+    normalizeDuplicateText(order.deliveryAddress) ===
+      normalizeDuplicateText(input.deliveryAddress) &&
+    normalizeDuplicateText(order.deliveryCity) ===
+      normalizeDuplicateText(input.deliveryCity) &&
+    normalizePostalCode(order.deliveryPostalCode) ===
+      normalizePostalCode(input.deliveryPostalCode)
+  );
+}
+
 interface ExternalAuditInput {
   status: string;
   workflowStep?: string | null;
@@ -212,6 +272,7 @@ export async function POST(
   let deliveryAddress = cleanText(data.deliveryAddress);
   let deliveryCity = cleanText(data.deliveryCity);
   let deliveryPostalCode = cleanText(data.deliveryPostalCode);
+  const scheduledDateRange = getScheduledDateRange(data.scheduledDate);
 
   if (!patientName || !deliveryAddress || !deliveryCity || !deliveryPostalCode) {
     return NextResponse.json(
@@ -220,6 +281,12 @@ export async function POST(
     );
   }
 
+  if (!scheduledDateRange) {
+    return NextResponse.json({ error: "Invalid scheduled date" }, { status: 400 });
+  }
+
+  // Idempotency: if a previous request with this key already produced an order,
+  // return it instead of inserting again.
   const existing = await prisma.order.findUnique({
     where: { idempotencyKey: data.idempotencyKey },
   });
@@ -297,13 +364,45 @@ export async function POST(
   }
 
   const instructions = data.instructions || null;
-  const scheduledDate = new Date(data.scheduledDate);
+  const scheduledDate = scheduledDateRange.scheduledDate;
   const scheduledDateKey = parseScheduledDateKey(data.scheduledDate, scheduledDate);
   const routeToSpoke = shouldRouteToSpoke({
     assignedDriverId,
     isExternalProvider: data.isExternalProvider === true,
     deliveryCompany: cleanOptionalText(data.delivery_company),
   });
+
+  const sameDayOrders = await prisma.order.findMany({
+    where: {
+      storeId: store.id,
+      status: { not: "CANCELLED" },
+      scheduledDate: {
+        gte: scheduledDateRange.dayStart,
+        lt: scheduledDateRange.nextDayStart,
+      },
+    },
+    select: {
+      patientId: true,
+      patientName: true,
+      deliveryAddress: true,
+      deliveryCity: true,
+      deliveryPostalCode: true,
+    },
+  });
+
+  const duplicate = sameDayOrders.find((order) =>
+    orderMatchesDuplicate(order, {
+      patientId,
+      patientName,
+      deliveryAddress,
+      deliveryCity,
+      deliveryPostalCode,
+    })
+  );
+
+  if (duplicate) {
+    return NextResponse.json({ error: DUPLICATE_ORDER_MESSAGE }, { status: 409 });
+  }
 
   const existingExternalDispatch = await prisma.externalDispatch.findUnique({
     where: { idempotencyKey: data.idempotencyKey },
