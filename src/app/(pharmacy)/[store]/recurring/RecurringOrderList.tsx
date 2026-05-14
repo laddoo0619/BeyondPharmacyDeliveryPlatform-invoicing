@@ -212,12 +212,18 @@ export default function RecurringOrderList({
 
   return (
     <div className={`${card} overflow-hidden`}>
-      <div className="px-6 py-4 border-b flex items-center justify-between">
+      <div className="px-6 py-4 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className={sectionTitle}>Recurring Profiles</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {generateMsg && (
             <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full ring-1 ring-emerald-100">{generateMsg}</span>
           )}
+          <a
+            href={`/api/${storeSlug}/recurring/export`}
+            className={`${secondaryButton} text-xs py-1.5`}
+          >
+            Export Today&apos;s CSV
+          </a>
           <button
             onClick={generateToday}
             disabled={generating}
