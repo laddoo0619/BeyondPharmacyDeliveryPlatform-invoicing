@@ -1,20 +1,13 @@
-import { Prisma, type ExternalDispatch, type ExternalPlan } from "@prisma/client";
+import { Prisma, type ExternalDispatch } from "@prisma/client";
 import { prisma } from "./db";
 import {
-  buildSpokePlanKey,
-  buildSpokePlanTitle,
   buildSpokeStopPayload,
-  createSpokePlan,
-  createSpokeStop,
+  createSpokeUnassignedStop,
   getSpokeConfig,
   getSpokeProviderUserIds,
   SpokeDispatchError,
-  spokeDatePartsFromKey,
-  spokePlanDateFromKey,
   type SpokeOrderInput,
 } from "./spoke";
-
-const COURIER_HANDOFF_DRIVER_MARKER = "courier-handoff";
 
 interface SpokeProviderUser {
   id: string;
@@ -156,11 +149,8 @@ function isTerminalExternalDispatch(dispatch: ExternalDispatch) {
     "SUBMITTED",
     "DELIVERED",
     "DELIVERY_FAILED",
+    "CANCELLED",
   ].includes(dispatch.status);
-}
-
-function isLiveSpokePlan(plan: Pick<ExternalPlan, "status">) {
-  return plan.status === "OPTIMIZED" || plan.status === "DISTRIBUTED";
 }
 
 function toSpokeDispatchError(err: unknown) {
@@ -181,48 +171,9 @@ function toSpokeDispatchError(err: unknown) {
   return new SpokeDispatchError("Failed to contact Spoke.", 502);
 }
 
-async function ensureSpokePlanRecord(input: {
-  storeId: string;
-  storeName: string;
-  selectedProviderUserId: string | null;
-  providerName: string | null;
-  scheduledDateKey: string;
-}) {
-  const planKey = buildSpokePlanKey({
-    storeId: input.storeId,
-    providerUserId: input.selectedProviderUserId,
-    scheduledDateKey: input.scheduledDateKey,
-  });
-  const title = buildSpokePlanTitle({
-    storeName: input.storeName,
-    providerName: input.providerName,
-    scheduledDateKey: input.scheduledDateKey,
-  });
-
-  return prisma.externalPlan.upsert({
-    where: { planKey },
-    update: {
-      title,
-      spokeDriverId: COURIER_HANDOFF_DRIVER_MARKER,
-      selectedProviderUserId: input.selectedProviderUserId,
-    },
-    create: {
-      planKey,
-      provider: "SPOKE",
-      status: "PENDING",
-      title,
-      scheduledDate: spokePlanDateFromKey(input.scheduledDateKey),
-      spokeDriverId: COURIER_HANDOFF_DRIVER_MARKER,
-      selectedProviderUserId: input.selectedProviderUserId,
-      storeId: input.storeId,
-    },
-  });
-}
-
 export async function dispatchOrderToSpoke(
   input: SpokeDispatchInput
 ): Promise<SpokeDispatchResult> {
-  let externalPlan: ExternalPlan | null = null;
   let dispatch: ExternalDispatch | null = null;
 
   try {
@@ -262,14 +213,6 @@ export async function dispatchOrderToSpoke(
     };
     const stopPayload = buildSpokeStopPayload(spokeInput, spokeConfig.circuitClientId);
 
-    externalPlan = await ensureSpokePlanRecord({
-      storeId: input.store.id,
-      storeName: input.store.name,
-      selectedProviderUserId: input.selectedProviderUser?.id ?? null,
-      providerName: input.selectedProviderUser?.name ?? "Anchor",
-      scheduledDateKey: input.scheduledDateKey,
-    });
-
     const baseAudit = {
       requestPayload: stopPayload,
       selectedProviderUserId: input.selectedProviderUser?.id ?? null,
@@ -287,8 +230,8 @@ export async function dispatchOrderToSpoke(
       scheduledDate: input.scheduledDate,
       storeId: input.store.id,
       createdById: input.createdById,
-      externalPlanId: externalPlan.id,
-      spokePlanId: externalPlan.spokePlanId,
+      externalPlanId: null,
+      spokePlanId: null,
       spokeDriverId: null,
     };
 
@@ -315,51 +258,10 @@ export async function dispatchOrderToSpoke(
       },
     });
 
-    if (!externalPlan.spokePlanId) {
-      const planResult = await createSpokePlan(spokeConfig, {
-        title: externalPlan.title,
-        starts: spokeDatePartsFromKey(input.scheduledDateKey),
-        idempotencyKey: input.idempotencyKey,
-      });
-      externalPlan = await prisma.externalPlan.update({
-        where: { id: externalPlan.id },
-        data: {
-          status: "CREATED",
-          spokePlanId: planResult.planId,
-          lastRequestPayload: asPrismaJson(planResult.requestPayload),
-          lastResponsePayload: asPrismaJson(planResult.responsePayload),
-          errorMessage: null,
-        },
-      });
-      dispatch = await prisma.externalDispatch.update({
-        where: { id: dispatch.id },
-        data: {
-          status: "PLAN_CREATED",
-          workflowStep: "CREATE_PLAN",
-          spokePlanId: planResult.planId,
-          responsePayload: asPrismaJson(planResult.responsePayload),
-          errorMessage: null,
-        },
-      });
-    }
-
-    const spokePlanId = externalPlan.spokePlanId;
-    if (!spokePlanId) {
-      throw new SpokeDispatchError(
-        "Spoke plan could not be created.",
-        502,
-        null,
-        "CREATE_PLAN"
-      );
-    }
-
-    const livePlan = isLiveSpokePlan(externalPlan);
     let spokeStopId = dispatch.spokeStopId;
     if (!spokeStopId) {
-      const stopResult = await createSpokeStop(spokeConfig, {
-        planId: spokePlanId,
+      const stopResult = await createSpokeUnassignedStop(spokeConfig, {
         stopPayload,
-        live: livePlan,
         idempotencyKey: input.idempotencyKey,
       });
       spokeStopId = stopResult.stopId;
@@ -367,8 +269,8 @@ export async function dispatchOrderToSpoke(
         where: { id: dispatch.id },
         data: {
           status: "STOP_CREATED",
-          workflowStep: livePlan ? "LIVE_CREATE_STOP" : "CREATE_STOP",
-          spokePlanId,
+          workflowStep: "CREATE_UNASSIGNED_STOP",
+          spokePlanId: null,
           spokeStopId,
           externalReference: spokeStopId,
           responsePayload: asPrismaJson(stopResult.responsePayload),
@@ -385,21 +287,13 @@ export async function dispatchOrderToSpoke(
             deliveryAddressId: input.deliveryAddressId,
           };
 
-      await tx.externalPlan.update({
-        where: { id: externalPlan!.id },
-        data: {
-          status: "SUBMITTED",
-          errorMessage: null,
-        },
-      });
-
       return tx.externalDispatch.update({
         where: { id: dispatch!.id },
         data: {
           status: "SUBMITTED",
-          workflowStep: livePlan ? "LIVE_CREATE_STOP" : "CREATE_STOP",
+          workflowStep: "CREATE_UNASSIGNED_STOP",
           externalReference: spokeStopId,
-          spokePlanId,
+          spokePlanId: null,
           spokeStopId,
           spokeDriverId: null,
           patientId: finalSnapshot.patientId,
@@ -426,20 +320,6 @@ export async function dispatchOrderToSpoke(
         });
       } catch (auditError) {
         console.warn("[SPOKE] Failed to update dispatch failure audit:", auditError);
-      }
-    }
-    if (externalPlan) {
-      try {
-        await prisma.externalPlan.update({
-          where: { id: externalPlan.id },
-          data: {
-            status: isLiveSpokePlan(externalPlan) ? externalPlan.status : "FAILED",
-            lastResponsePayload: asPrismaJson(spokeError.responsePayload),
-            errorMessage: spokeError.message,
-          },
-        });
-      } catch (auditError) {
-        console.warn("[SPOKE] Failed to update plan failure audit:", auditError);
       }
     }
 

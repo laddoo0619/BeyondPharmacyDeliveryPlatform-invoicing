@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ExternalDispatchActions from "@/components/ExternalDispatchActions";
 import OrderActions from "./OrderActions";
 import {
   card,
@@ -25,6 +26,8 @@ interface SerializedOrder {
   createdAt: string;
   isExternal: boolean;
   externalProvider: string | null;
+  externalDispatchId: string | null;
+  canCancelExternal: boolean;
 }
 
 interface OrdersListProps {
@@ -139,9 +142,12 @@ export default function OrdersList({
                         </td>
                         <td className="px-6 py-4">
                           {order.isExternal ? (
-                            <span className="text-xs font-semibold text-slate-500">
-                              External handoff
-                            </span>
+                            <ExternalDispatchActions
+                              dispatchId={order.externalDispatchId}
+                              currentStatus={order.status}
+                              canCancel={order.canCancelExternal}
+                              storeSlug={storeSlug}
+                            />
                           ) : (
                             <OrderActions
                               orderId={order.id}

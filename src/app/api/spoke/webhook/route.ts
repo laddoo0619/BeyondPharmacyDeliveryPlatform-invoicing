@@ -23,6 +23,21 @@ function readTrackingLink(data: Record<string, unknown>) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function readSellerOrderId(data: Record<string, unknown>) {
+  const directOrderInfo = objectPayload(data.orderInfo);
+  const directSellerOrderId = directOrderInfo?.sellerOrderId;
+  if (typeof directSellerOrderId === "string" && directSellerOrderId.trim()) {
+    return directSellerOrderId.trim();
+  }
+
+  const stop = objectPayload(data.stop);
+  const stopOrderInfo = objectPayload(stop?.orderInfo);
+  const stopSellerOrderId = stopOrderInfo?.sellerOrderId;
+  return typeof stopSellerOrderId === "string" && stopSellerOrderId.trim()
+    ? stopSellerOrderId.trim()
+    : null;
+}
+
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.SPOKE_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
@@ -68,20 +83,34 @@ export async function POST(req: NextRequest) {
     ...("deliveredAt" in mapped ? { deliveredAt: mapped.deliveredAt } : {}),
     ...("failedAt" in mapped ? { failedAt: mapped.failedAt } : {}),
   };
-  const updated = await prisma.externalDispatch.updateMany({
+  const updateData = {
+    status: mapped.status,
+    lastWebhookEventType: eventType,
+    webhookPayload: asPrismaJson(eventPayload),
+    trackingLink: readTrackingLink(data),
+    spokeStopId: stopId,
+    externalReference: stopId,
+    ...attemptTimestamps,
+    errorMessage: null,
+  };
+  let updated = await prisma.externalDispatch.updateMany({
     where: {
       provider: "SPOKE",
       spokeStopId: stopId,
     },
-    data: {
-      status: mapped.status,
-      lastWebhookEventType: eventType,
-      webhookPayload: asPrismaJson(eventPayload),
-      trackingLink: readTrackingLink(data),
-      ...attemptTimestamps,
-      errorMessage: null,
-    },
+    data: updateData,
   });
+
+  const sellerOrderId = readSellerOrderId(data);
+  if (updated.count === 0 && sellerOrderId) {
+    updated = await prisma.externalDispatch.updateMany({
+      where: {
+        provider: "SPOKE",
+        idempotencyKey: sellerOrderId,
+      },
+      data: updateData,
+    });
+  }
 
   return NextResponse.json({ ok: true, matched: updated.count });
 }
