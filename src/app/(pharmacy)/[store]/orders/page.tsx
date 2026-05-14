@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import OrdersPoller from "./OrdersPoller";
 import OrdersList from "./OrdersList";
+import type { Prisma } from "@prisma/client";
 import {
   emptyState,
   input,
@@ -11,6 +12,35 @@ import {
   primaryButton,
   statusBadgeClasses,
 } from "@/lib/portalStyles";
+
+const ORDER_STATUS_FILTERS = [
+  "PENDING",
+  "ASSIGNED",
+  "SUBMITTED",
+  "PICKED_UP",
+  "IN_TRANSIT",
+  "DELIVERED",
+  "FAILED",
+  "DELIVERY_FAILED",
+  "CANCELLED",
+];
+
+type SerializedOrder = {
+  id: string;
+  patientName: string;
+  deliveryAddress: string;
+  deliveryCity: string;
+  scheduledDate: string;
+  deliveryZoneName: string;
+  priceAtCreation: number;
+  status: string;
+  assignedDriverId: string | null;
+  assignedDriverName: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  isExternal: boolean;
+  externalProvider: string | null;
+};
 
 export default async function OrdersPage({
   params,
@@ -31,7 +61,7 @@ export default async function OrdersPage({
   // Hide cancelled orders older than 24 hours (they're past the cooldown window)
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const where = {
+  const where: Prisma.OrderWhereInput = {
     storeId: store.id,
     ...(status ? { status } : {}),
     ...(search ? { patientName: { contains: search, mode: "insensitive" as const } } : {}),
@@ -41,8 +71,22 @@ export default async function OrdersPage({
       cancelledAt: { lt: twentyFourHoursAgo },
     },
   };
+  const externalStatusWhere: Prisma.ExternalDispatchWhereInput =
+    status === "FAILED"
+      ? { status: { in: ["DELIVERY_FAILED", "DISPATCH_FAILED"] } }
+      : status
+        ? { status }
+        : { status: { not: "DISPATCH_FAILED" } };
+  const externalWhere: Prisma.ExternalDispatchWhereInput = {
+    storeId: store.id,
+    provider: "SPOKE",
+    ...externalStatusWhere,
+    ...(search
+      ? { patientName: { contains: search, mode: "insensitive" as const } }
+      : {}),
+  };
 
-  const [orders, total, drivers] = await Promise.all([
+  const [orders, orderTotal, externalDispatches, externalTotal, drivers] = await Promise.all([
     prisma.order.findMany({
       where,
       include: { assignedDriver: true, deliveryZone: true },
@@ -50,35 +94,19 @@ export default async function OrdersPage({
       take: limit,
     }),
     prisma.order.count({ where }),
+    prisma.externalDispatch.findMany({
+      where: externalWhere,
+      include: { selectedProviderUser: true },
+      orderBy: [{ scheduledDate: "desc" }, { createdAt: "desc" }],
+      take: limit,
+    }),
+    prisma.externalDispatch.count({ where: externalWhere }),
     prisma.user.findMany({ where: { role: "DRIVER", isActive: true, storeId: store.id } }),
   ]);
 
-  // Group orders by scheduled date
-  const grouped: Record<string, typeof orders> = {};
-  for (const order of orders) {
-    const dateKey = new Date(order.scheduledDate).toISOString().split("T")[0];
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push(order);
-  }
-  const sortedDateKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-
-  // Serialize orders for client component
-  const serializedGroups: Record<string, Array<{
-    id: string;
-    patientName: string;
-    deliveryAddress: string;
-    deliveryCity: string;
-    scheduledDate: string;
-    deliveryZoneName: string;
-    priceAtCreation: number;
-    status: string;
-    assignedDriverId: string | null;
-    assignedDriverName: string | null;
-    cancelledAt: string | null;
-  }>> = {};
-
-  for (const [dateKey, dateOrders] of Object.entries(grouped)) {
-    serializedGroups[dateKey] = dateOrders.map((order) => ({
+  const total = orderTotal + externalTotal;
+  const serializedOrders: SerializedOrder[] = [
+    ...orders.map((order) => ({
       id: order.id,
       patientName: order.patientName,
       deliveryAddress: order.deliveryAddress,
@@ -90,7 +118,49 @@ export default async function OrdersPage({
       assignedDriverId: order.assignedDriverId,
       assignedDriverName: order.assignedDriver?.name || null,
       cancelledAt: order.cancelledAt?.toISOString() ?? null,
-    }));
+      createdAt: order.createdAt.toISOString(),
+      isExternal: false,
+      externalProvider: null,
+    })),
+    ...externalDispatches.map((dispatch) => ({
+      id: `external-${dispatch.id}`,
+      patientName: dispatch.patientName,
+      deliveryAddress: dispatch.deliveryAddress,
+      deliveryCity: dispatch.deliveryCity,
+      scheduledDate: dispatch.scheduledDate.toISOString(),
+      deliveryZoneName: dispatch.deliveryZoneName,
+      priceAtCreation: dispatch.priceAtCreation,
+      status: dispatch.status,
+      assignedDriverId: null,
+      assignedDriverName: dispatch.selectedProviderUser?.name ?? "Anchor / Spoke",
+      cancelledAt: null,
+      createdAt: dispatch.createdAt.toISOString(),
+      isExternal: true,
+      externalProvider: "Spoke",
+    })),
+  ]
+    .sort((a, b) => {
+      const scheduledDiff =
+        new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime();
+      if (scheduledDiff !== 0) return scheduledDiff;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    .slice(0, limit);
+
+  // Group orders by scheduled date
+  const grouped: Record<string, SerializedOrder[]> = {};
+  for (const order of serializedOrders) {
+    const dateKey = new Date(order.scheduledDate).toISOString().split("T")[0];
+    if (!grouped[dateKey]) grouped[dateKey] = [];
+    grouped[dateKey].push(order);
+  }
+  const sortedDateKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+  // Serialize orders for client component
+  const serializedGroups: Record<string, SerializedOrder[]> = {};
+
+  for (const [dateKey, dateOrders] of Object.entries(grouped)) {
+    serializedGroups[dateKey] = dateOrders;
   }
 
   return (
@@ -135,7 +205,7 @@ export default async function OrdersPage({
         >
           All ({total})
         </Link>
-        {["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
+        {ORDER_STATUS_FILTERS.map(
           (s) => (
             <Link
               key={s}
@@ -146,14 +216,14 @@ export default async function OrdersPage({
                   : "bg-white/80 text-slate-500 hover:bg-white hover:text-[#1e3a8a]"
               }`}
             >
-              {s.replace("_", " ")}
+              {s.replace(/_/g, " ")}
             </Link>
           )
         )}
       </div>
 
       {/* Grouped Orders */}
-      {orders.length === 0 ? (
+      {serializedOrders.length === 0 ? (
         <div className={emptyState}>
           {search ? `No orders found for "${search}".` : <>No orders <span className="italic text-[#1e3a8a]">found</span>.</>}
         </div>
@@ -164,7 +234,7 @@ export default async function OrdersPage({
           storeSlug={storeSlug}
           drivers={drivers.map((d) => ({ id: d.id, name: d.name }))}
           statusColors={Object.fromEntries(
-            ["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map((s) => [s, statusBadgeClasses(s)])
+            ORDER_STATUS_FILTERS.map((s) => [s, statusBadgeClasses(s)])
           )}
         />
       )}

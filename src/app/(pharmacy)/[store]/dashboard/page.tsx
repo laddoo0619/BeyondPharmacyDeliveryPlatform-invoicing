@@ -20,6 +20,23 @@ type DashboardOrder = Prisma.OrderGetPayload<{
   include: { assignedDriver: true; deliveryZone: true };
 }>;
 
+type DashboardExternalDispatch = Prisma.ExternalDispatchGetPayload<{
+  include: { selectedProviderUser: true };
+}>;
+
+type DashboardDelivery = {
+  id: string;
+  patientName: string;
+  deliveryAddress: string;
+  deliveryCity: string;
+  driverName: string | null;
+  status: string;
+  priceAtCreation: number;
+  failedReason: string | null;
+  createdAt: Date;
+  isExternal: boolean;
+};
+
 function shouldReplaceDuplicateOrder(
   existing: DashboardOrder,
   candidate: DashboardOrder
@@ -59,6 +76,38 @@ function dedupeRecurringDashboardOrders(orders: DashboardOrder[]) {
   );
 }
 
+function toDashboardDelivery(order: DashboardOrder): DashboardDelivery {
+  return {
+    id: order.id,
+    patientName: order.patientName,
+    deliveryAddress: order.deliveryAddress,
+    deliveryCity: order.deliveryCity,
+    driverName: order.assignedDriver?.name ?? null,
+    status: order.status,
+    priceAtCreation: order.priceAtCreation,
+    failedReason: order.failedReason,
+    createdAt: order.createdAt,
+    isExternal: false,
+  };
+}
+
+function toExternalDashboardDelivery(
+  dispatch: DashboardExternalDispatch
+): DashboardDelivery {
+  return {
+    id: `external-${dispatch.id}`,
+    patientName: dispatch.patientName,
+    deliveryAddress: dispatch.deliveryAddress,
+    deliveryCity: dispatch.deliveryCity,
+    driverName: dispatch.selectedProviderUser?.name ?? "Anchor / Spoke",
+    status: dispatch.status,
+    priceAtCreation: dispatch.priceAtCreation,
+    failedReason: dispatch.errorMessage,
+    createdAt: dispatch.createdAt,
+    isExternal: true,
+  };
+}
+
 export default async function DashboardPage({
   params,
 }: {
@@ -73,15 +122,30 @@ export default async function DashboardPage({
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const rawTodayOrders = await prisma.order.findMany({
-    where: {
-      storeId: store.id,
-      scheduledDate: { gte: today, lt: tomorrow },
-    },
-    include: { assignedDriver: true, deliveryZone: true },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  });
-  const todayOrders = dedupeRecurringDashboardOrders(rawTodayOrders);
+  const [rawTodayOrders, todayExternalDispatches] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        storeId: store.id,
+        scheduledDate: { gte: today, lt: tomorrow },
+      },
+      include: { assignedDriver: true, deliveryZone: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+    prisma.externalDispatch.findMany({
+      where: {
+        storeId: store.id,
+        provider: "SPOKE",
+        scheduledDate: { gte: today, lt: tomorrow },
+        status: { not: "DISPATCH_FAILED" },
+      },
+      include: { selectedProviderUser: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+  ]);
+  const todayOrders = [
+    ...dedupeRecurringDashboardOrders(rawTodayOrders).map(toDashboardDelivery),
+    ...todayExternalDispatches.map(toExternalDashboardDelivery),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const totalToday = todayOrders.length;
   const statusCounts = todayOrders.reduce<Record<string, number>>((counts, order) => {
@@ -109,7 +173,7 @@ export default async function DashboardPage({
           <p className="text-sm text-slate-500">Today&apos;s Total</p>
           <p className="text-2xl font-bold text-[#1e3a8a]">{totalToday}</p>
         </div>
-        {["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "CANCELLED"].map(
+        {["PENDING", "ASSIGNED", "SUBMITTED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "DELIVERY_FAILED", "CANCELLED"].map(
           (status) => (
             <div
               key={status}
@@ -120,7 +184,7 @@ export default async function DashboardPage({
               }`}
             >
               <p className="text-sm text-slate-500">
-                {status.replace("_", " ")}
+                {status.replace(/_/g, " ")}
               </p>
               <p
                 className={`text-2xl font-bold ${
@@ -183,11 +247,16 @@ export default async function DashboardPage({
                         {order.deliveryAddress}, {order.deliveryCity}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">
-                        {order.assignedDriver?.name || "Unassigned"}
+                        <span>{order.driverName || "Unassigned"}</span>
+                        {order.isExternal && (
+                          <span className="ml-2 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                            Spoke
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={statusBadgeClasses(order.status)}>
-                          {order.status.replace("_", " ")}
+                          {order.status.replace(/_/g, " ")}
                         </span>
                         {order.status === "FAILED" && order.failedReason && (
                           <p className="text-xs text-rose-600 mt-1">

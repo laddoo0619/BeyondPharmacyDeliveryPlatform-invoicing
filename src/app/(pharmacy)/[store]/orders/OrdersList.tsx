@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import OrderActions from "./OrderActions";
-import { card, sectionTitle, tableHeader, tableRow } from "@/lib/portalStyles";
+import {
+  card,
+  sectionTitle,
+  statusBadgeClasses,
+  tableHeader,
+  tableRow,
+} from "@/lib/portalStyles";
 
 interface SerializedOrder {
   id: string;
@@ -16,6 +22,9 @@ interface SerializedOrder {
   assignedDriverId: string | null;
   assignedDriverName: string | null;
   cancelledAt: string | null;
+  createdAt: string;
+  isExternal: boolean;
+  externalProvider: string | null;
 }
 
 interface OrdersListProps {
@@ -115,21 +124,34 @@ export default function OrdersList({
                         <td className="px-6 py-4 text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{order.deliveryZoneName}</td>
                         <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">${order.priceAtCreation.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{order.assignedDriverName || "Unassigned"}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">
+                          <span>{order.assignedDriverName || "Unassigned"}</span>
+                          {order.isExternal && (
+                            <span className="ml-2 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                              {order.externalProvider}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
-                          <span className={statusColors[order.status] || "bg-slate-100 text-slate-600"}>
-                            {order.status.replace("_", " ")}
+                          <span className={statusColors[order.status] || statusBadgeClasses(order.status)}>
+                            {order.status.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <OrderActions
-                            orderId={order.id}
-                            currentStatus={order.status}
-                            currentDriverId={order.assignedDriverId}
-                            cancelledAt={order.cancelledAt}
-                            storeSlug={storeSlug}
-                            drivers={drivers}
-                          />
+                          {order.isExternal ? (
+                            <span className="text-xs font-semibold text-slate-500">
+                              External handoff
+                            </span>
+                          ) : (
+                            <OrderActions
+                              orderId={order.id}
+                              currentStatus={order.status}
+                              currentDriverId={order.assignedDriverId}
+                              cancelledAt={order.cancelledAt}
+                              storeSlug={storeSlug}
+                              drivers={drivers}
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}
