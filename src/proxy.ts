@@ -17,7 +17,8 @@ export const proxy = auth((req) => {
     pathname.startsWith("/api/auth") ||
     pathname === "/api/health" ||
     pathname === "/api/cron" ||
-    pathname.startsWith("/api/cron/")
+    pathname.startsWith("/api/cron/") ||
+    pathname === "/api/spoke/webhook"
   ) {
     if (isLoggedIn && pathname === "/login") {
       // Redirect to root which will show store selector or redirect driver
