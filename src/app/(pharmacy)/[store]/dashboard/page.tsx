@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import ExternalDispatchActions from "@/components/ExternalDispatchActions";
 import NotificationPanel from "@/components/NotificationPanel";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
@@ -35,7 +36,15 @@ type DashboardDelivery = {
   failedReason: string | null;
   createdAt: Date;
   isExternal: boolean;
+  externalDispatchId: string | null;
+  canCancelExternal: boolean;
 };
+
+const CANCELLABLE_EXTERNAL_STATUSES = new Set([
+  "PENDING",
+  "STOP_CREATED",
+  "SUBMITTED",
+]);
 
 function shouldReplaceDuplicateOrder(
   existing: DashboardOrder,
@@ -88,6 +97,8 @@ function toDashboardDelivery(order: DashboardOrder): DashboardDelivery {
     failedReason: order.failedReason,
     createdAt: order.createdAt,
     isExternal: false,
+    externalDispatchId: null,
+    canCancelExternal: false,
   };
 }
 
@@ -105,6 +116,10 @@ function toExternalDashboardDelivery(
     failedReason: dispatch.errorMessage,
     createdAt: dispatch.createdAt,
     isExternal: true,
+    externalDispatchId: dispatch.id,
+    canCancelExternal:
+      CANCELLABLE_EXTERNAL_STATUSES.has(dispatch.status) &&
+      (!dispatch.spokeStopId || dispatch.spokeStopId.startsWith("unassignedStops/")),
   };
 }
 
@@ -230,6 +245,9 @@ export default async function DashboardPage({
                     <th className="px-6 py-3">
                       Price
                     </th>
+                    <th className="px-6 py-3">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -266,6 +284,18 @@ export default async function DashboardPage({
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">
                         ${order.priceAtCreation.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {order.isExternal ? (
+                          <ExternalDispatchActions
+                            dispatchId={order.externalDispatchId}
+                            currentStatus={order.status}
+                            canCancel={order.canCancelExternal}
+                            storeSlug={store.slug}
+                          />
+                        ) : (
+                          <span className="text-xs text-slate-400">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}

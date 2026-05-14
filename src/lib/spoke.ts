@@ -239,7 +239,7 @@ async function spokeRequest<T>(
   config: SpokeConfig,
   path: string,
   options: {
-    method?: "GET" | "POST";
+    method?: "DELETE" | "GET" | "POST";
     body?: unknown;
     workflowStep: string;
     idempotencyKey?: string;
@@ -374,6 +374,57 @@ export async function createSpokeStop(
     stopId,
     pending: response?.pending === true,
   };
+}
+
+export async function createSpokeUnassignedStop(
+  config: SpokeConfig,
+  input: {
+    stopPayload: Record<string, unknown>;
+    idempotencyKey: string;
+  }
+): Promise<SpokeStopResult> {
+  const result = await spokeRequest<Record<string, unknown>>(config, "/unassignedStops", {
+    method: "POST",
+    body: input.stopPayload,
+    workflowStep: "CREATE_UNASSIGNED_STOP",
+    idempotencyKey: `${input.idempotencyKey}:unassigned-stop`,
+  });
+  const stopId = readString(result.responsePayload, "id");
+
+  if (!stopId) {
+    throw new SpokeDispatchError(
+      "Spoke could not create the unassigned delivery stop.",
+      502,
+      result.responsePayload,
+      "CREATE_UNASSIGNED_STOP"
+    );
+  }
+
+  return {
+    ...result,
+    stopId,
+    pending: false,
+  };
+}
+
+export async function deleteSpokeUnassignedStop(
+  config: SpokeConfig,
+  input: {
+    unassignedStopId: string;
+    idempotencyKey?: string;
+  }
+) {
+  const path = input.unassignedStopId.startsWith("unassignedStops/")
+    ? `/${input.unassignedStopId}`
+    : `/unassignedStops/${input.unassignedStopId}`;
+
+  return spokeRequest<null>(config, path, {
+    method: "DELETE",
+    workflowStep: "CANCEL_UNASSIGNED_STOP",
+    idempotencyKey: input.idempotencyKey
+      ? `${input.idempotencyKey}:cancel-unassigned-stop`
+      : undefined,
+  });
 }
 
 export async function optimizeSpokePlan(

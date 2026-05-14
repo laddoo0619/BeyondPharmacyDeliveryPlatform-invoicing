@@ -25,6 +25,12 @@ const ORDER_STATUS_FILTERS = [
   "CANCELLED",
 ];
 
+const CANCELLABLE_EXTERNAL_STATUSES = new Set([
+  "PENDING",
+  "STOP_CREATED",
+  "SUBMITTED",
+]);
+
 type SerializedOrder = {
   id: string;
   patientName: string;
@@ -40,6 +46,8 @@ type SerializedOrder = {
   createdAt: string;
   isExternal: boolean;
   externalProvider: string | null;
+  externalDispatchId: string | null;
+  canCancelExternal: boolean;
 };
 
 export default async function OrdersPage({
@@ -121,6 +129,8 @@ export default async function OrdersPage({
       createdAt: order.createdAt.toISOString(),
       isExternal: false,
       externalProvider: null,
+      externalDispatchId: null,
+      canCancelExternal: false,
     })),
     ...externalDispatches.map((dispatch) => ({
       id: `external-${dispatch.id}`,
@@ -137,6 +147,10 @@ export default async function OrdersPage({
       createdAt: dispatch.createdAt.toISOString(),
       isExternal: true,
       externalProvider: "Spoke",
+      externalDispatchId: dispatch.id,
+      canCancelExternal:
+        CANCELLABLE_EXTERNAL_STATUSES.has(dispatch.status) &&
+        (!dispatch.spokeStopId || dispatch.spokeStopId.startsWith("unassignedStops/")),
     })),
   ]
     .sort((a, b) => {
