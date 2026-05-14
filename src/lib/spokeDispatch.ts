@@ -6,16 +6,15 @@ import {
   buildSpokeStopPayload,
   createSpokePlan,
   createSpokeStop,
-  distributeSpokePlan,
   getSpokeConfig,
   getSpokeProviderUserIds,
-  optimizeSpokePlan,
   SpokeDispatchError,
   spokeDatePartsFromKey,
   spokePlanDateFromKey,
-  waitForSpokeOperation,
   type SpokeOrderInput,
 } from "./spoke";
+
+const COURIER_HANDOFF_DRIVER_MARKER = "courier-handoff";
 
 interface SpokeProviderUser {
   id: string;
@@ -154,6 +153,7 @@ function isTerminalExternalDispatch(dispatch: ExternalDispatch) {
     "IN_TRANSIT",
     "DEPARTED",
     "TRACKING_LINK_ADDED",
+    "SUBMITTED",
     "DELIVERED",
     "DELIVERY_FAILED",
   ].includes(dispatch.status);
@@ -187,7 +187,6 @@ async function ensureSpokePlanRecord(input: {
   selectedProviderUserId: string | null;
   providerName: string | null;
   scheduledDateKey: string;
-  spokeDriverId: string;
 }) {
   const planKey = buildSpokePlanKey({
     storeId: input.storeId,
@@ -204,7 +203,7 @@ async function ensureSpokePlanRecord(input: {
     where: { planKey },
     update: {
       title,
-      spokeDriverId: input.spokeDriverId,
+      spokeDriverId: COURIER_HANDOFF_DRIVER_MARKER,
       selectedProviderUserId: input.selectedProviderUserId,
     },
     create: {
@@ -213,7 +212,7 @@ async function ensureSpokePlanRecord(input: {
       status: "PENDING",
       title,
       scheduledDate: spokePlanDateFromKey(input.scheduledDateKey),
-      spokeDriverId: input.spokeDriverId,
+      spokeDriverId: COURIER_HANDOFF_DRIVER_MARKER,
       selectedProviderUserId: input.selectedProviderUserId,
       storeId: input.storeId,
     },
@@ -261,7 +260,7 @@ export async function dispatchOrderToSpoke(
       scheduledDate: input.scheduledDate,
       scheduledDateKey: input.scheduledDateKey,
     };
-    const stopPayload = buildSpokeStopPayload(spokeInput, spokeConfig.spokeDriverId);
+    const stopPayload = buildSpokeStopPayload(spokeInput, spokeConfig.circuitClientId);
 
     externalPlan = await ensureSpokePlanRecord({
       storeId: input.store.id,
@@ -269,7 +268,6 @@ export async function dispatchOrderToSpoke(
       selectedProviderUserId: input.selectedProviderUser?.id ?? null,
       providerName: input.selectedProviderUser?.name ?? "Anchor",
       scheduledDateKey: input.scheduledDateKey,
-      spokeDriverId: spokeConfig.spokeDriverId,
     });
 
     const baseAudit = {
@@ -291,7 +289,7 @@ export async function dispatchOrderToSpoke(
       createdById: input.createdById,
       externalPlanId: externalPlan.id,
       spokePlanId: externalPlan.spokePlanId,
-      spokeDriverId: spokeConfig.spokeDriverId,
+      spokeDriverId: null,
     };
 
     dispatch = await prisma.externalDispatch.upsert({
@@ -379,51 +377,6 @@ export async function dispatchOrderToSpoke(
       });
     }
 
-    const operationResult = await optimizeSpokePlan(spokeConfig, {
-      planId: spokePlanId,
-      live: livePlan,
-      idempotencyKey: input.idempotencyKey,
-    });
-    externalPlan = await prisma.externalPlan.update({
-      where: { id: externalPlan.id },
-      data: {
-        status: "OPTIMIZING",
-        lastOperationId: operationResult.operationId,
-        lastRequestPayload: asPrismaJson(operationResult.requestPayload),
-        lastResponsePayload: asPrismaJson(operationResult.responsePayload),
-        errorMessage: null,
-      },
-    });
-    dispatch = await prisma.externalDispatch.update({
-      where: { id: dispatch.id },
-      data: {
-        status: "OPTIMIZING",
-        workflowStep: livePlan ? "REOPTIMIZE_PLAN" : "OPTIMIZE_PLAN",
-        spokeOperationId: operationResult.operationId,
-        responsePayload: asPrismaJson(operationResult.responsePayload),
-        errorMessage: null,
-      },
-    });
-
-    const completedOperation = await waitForSpokeOperation(spokeConfig, {
-      operationId: operationResult.operationId,
-      stopId: spokeStopId,
-    });
-    externalPlan = await prisma.externalPlan.update({
-      where: { id: externalPlan.id },
-      data: {
-        status: "OPTIMIZED",
-        lastResponsePayload: asPrismaJson(completedOperation.responsePayload),
-        errorMessage: null,
-      },
-    });
-
-    const distributeResult = await distributeSpokePlan(spokeConfig, {
-      planId: spokePlanId,
-      live: livePlan,
-      idempotencyKey: input.idempotencyKey,
-    });
-
     const finalDispatch = await prisma.$transaction(async (tx) => {
       const finalSnapshot = input.onBeforeComplete
         ? await input.onBeforeComplete(tx)
@@ -435,9 +388,7 @@ export async function dispatchOrderToSpoke(
       await tx.externalPlan.update({
         where: { id: externalPlan!.id },
         data: {
-          status: "DISTRIBUTED",
-          lastRequestPayload: asPrismaJson(distributeResult.requestPayload),
-          lastResponsePayload: asPrismaJson(distributeResult.responsePayload),
+          status: "SUBMITTED",
           errorMessage: null,
         },
       });
@@ -445,15 +396,14 @@ export async function dispatchOrderToSpoke(
       return tx.externalDispatch.update({
         where: { id: dispatch!.id },
         data: {
-          status: "DISTRIBUTED",
-          workflowStep: livePlan ? "REDISTRIBUTE_PLAN" : "DISTRIBUTE_PLAN",
+          status: "SUBMITTED",
+          workflowStep: livePlan ? "LIVE_CREATE_STOP" : "CREATE_STOP",
           externalReference: spokeStopId,
           spokePlanId,
           spokeStopId,
-          spokeDriverId: spokeConfig.spokeDriverId,
+          spokeDriverId: null,
           patientId: finalSnapshot.patientId,
           deliveryAddressId: finalSnapshot.deliveryAddressId,
-          responsePayload: asPrismaJson(distributeResult.responsePayload),
           errorMessage: null,
         },
       });
