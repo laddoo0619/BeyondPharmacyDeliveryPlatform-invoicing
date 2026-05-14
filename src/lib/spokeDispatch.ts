@@ -163,6 +163,24 @@ function isLiveSpokePlan(plan: Pick<ExternalPlan, "status">) {
   return plan.status === "OPTIMIZED" || plan.status === "DISTRIBUTED";
 }
 
+function toSpokeDispatchError(err: unknown) {
+  if (err instanceof SpokeDispatchError) return err;
+
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    (err.code === "P2021" || err.code === "P2022")
+  ) {
+    return new SpokeDispatchError(
+      "Spoke dispatch audit is unavailable. Please confirm the Spoke database migration has run.",
+      500,
+      null,
+      "SETUP"
+    );
+  }
+
+  return new SpokeDispatchError("Failed to contact Spoke.", 502);
+}
+
 async function ensureSpokePlanRecord(input: {
   storeId: string;
   storeName: string;
@@ -206,25 +224,27 @@ export async function dispatchOrderToSpoke(
   input: SpokeDispatchInput
 ): Promise<SpokeDispatchResult> {
   let externalPlan: ExternalPlan | null = null;
-  let dispatch = await prisma.externalDispatch.findUnique({
-    where: { idempotencyKey: input.idempotencyKey },
-  });
-
-  if (dispatch) {
-    if (dispatch.storeId !== input.store.id) {
-      throw new SpokeDispatchError(
-        "Idempotency key conflict",
-        409,
-        null,
-        "IDEMPOTENCY"
-      );
-    }
-    if (isTerminalExternalDispatch(dispatch)) {
-      return { dispatch, alreadyDispatched: true };
-    }
-  }
+  let dispatch: ExternalDispatch | null = null;
 
   try {
+    dispatch = await prisma.externalDispatch.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+    });
+
+    if (dispatch) {
+      if (dispatch.storeId !== input.store.id) {
+        throw new SpokeDispatchError(
+          "Idempotency key conflict",
+          409,
+          null,
+          "IDEMPOTENCY"
+        );
+      }
+      if (isTerminalExternalDispatch(dispatch)) {
+        return { dispatch, alreadyDispatched: true };
+      }
+    }
+
     const spokeConfig = getSpokeConfig();
     const spokeInput: SpokeOrderInput = {
       idempotencyKey: input.idempotencyKey,
@@ -441,31 +461,36 @@ export async function dispatchOrderToSpoke(
 
     return { dispatch: finalDispatch, alreadyDispatched: false };
   } catch (err) {
-    const spokeError =
-      err instanceof SpokeDispatchError
-        ? err
-        : new SpokeDispatchError("Failed to contact Spoke.", 502);
+    const spokeError = toSpokeDispatchError(err);
 
     if (dispatch) {
-      await prisma.externalDispatch.update({
-        where: { id: dispatch.id },
-        data: {
-          status: "DISPATCH_FAILED",
-          workflowStep: spokeError.workflowStep,
-          responsePayload: asPrismaJson(spokeError.responsePayload),
-          errorMessage: spokeError.message,
-        },
-      });
+      try {
+        await prisma.externalDispatch.update({
+          where: { id: dispatch.id },
+          data: {
+            status: "DISPATCH_FAILED",
+            workflowStep: spokeError.workflowStep,
+            responsePayload: asPrismaJson(spokeError.responsePayload),
+            errorMessage: spokeError.message,
+          },
+        });
+      } catch (auditError) {
+        console.warn("[SPOKE] Failed to update dispatch failure audit:", auditError);
+      }
     }
     if (externalPlan) {
-      await prisma.externalPlan.update({
-        where: { id: externalPlan.id },
-        data: {
-          status: isLiveSpokePlan(externalPlan) ? externalPlan.status : "FAILED",
-          lastResponsePayload: asPrismaJson(spokeError.responsePayload),
-          errorMessage: spokeError.message,
-        },
-      });
+      try {
+        await prisma.externalPlan.update({
+          where: { id: externalPlan.id },
+          data: {
+            status: isLiveSpokePlan(externalPlan) ? externalPlan.status : "FAILED",
+            lastResponsePayload: asPrismaJson(spokeError.responsePayload),
+            errorMessage: spokeError.message,
+          },
+        });
+      } catch (auditError) {
+        console.warn("[SPOKE] Failed to update plan failure audit:", auditError);
+      }
     }
 
     throw spokeError;
