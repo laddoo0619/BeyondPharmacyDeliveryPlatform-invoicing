@@ -66,6 +66,9 @@ export default function RecurringOrderList({
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
   const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
+  const [editingDaysId, setEditingDaysId] = useState<string | null>(null);
+  const [draftActiveDays, setDraftActiveDays] = useState<number[]>([]);
+  const [daysError, setDaysError] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     () => new Set()
   );
@@ -178,6 +181,65 @@ export default function RecurringOrderList({
     });
     setLoading(null);
     router.refresh();
+  };
+
+  const startEditingDays = (order: RecurringOrderItem) => {
+    setEditingDaysId(order.id);
+    setDraftActiveDays([...order.activeDays].sort((a, b) => a - b));
+    setDaysError("");
+  };
+
+  const toggleDraftDay = (day: number) => {
+    setDraftActiveDays((current) => {
+      if (current.includes(day)) {
+        return current.filter((activeDay) => activeDay !== day);
+      }
+      return [...current, day].sort((a, b) => a - b);
+    });
+    setDaysError("");
+  };
+
+  const cancelEditingDays = () => {
+    setEditingDaysId(null);
+    setDraftActiveDays([]);
+    setDaysError("");
+  };
+
+  const saveActiveDays = async (id: string) => {
+    if (draftActiveDays.length === 0) {
+      setDaysError("Select at least one delivery day.");
+      return;
+    }
+
+    setLoading(id);
+    setDaysError("");
+    try {
+      const res = await fetch(`/api/${storeSlug}/recurring/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activeDays: draftActiveDays }),
+      });
+
+      if (!res.ok) {
+        let message = "Failed to update delivery days.";
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          // Keep the plain fallback when the server cannot return JSON.
+        }
+        setDaysError(message);
+        return;
+      }
+
+      setEditingDaysId(null);
+      setDraftActiveDays([]);
+      router.refresh();
+    } catch {
+      setDaysError("Network error. Please try again.");
+    } finally {
+      setLoading(null);
+    }
   };
 
   const deleteOrder = async (id: string) => {
@@ -304,6 +366,60 @@ export default function RecurringOrderList({
                           <p className="font-semibold text-[#1e3a8a]">{order.patientName}</p>
                           <p className="text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</p>
                           <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • {scheduleText(order)}</p>
+                          {editingDaysId === order.id ? (
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm shadow-slate-200/60">
+                              <div className="flex flex-wrap gap-1.5">
+                                {DAYS.map((day, index) => {
+                                  const selected = draftActiveDays.includes(index);
+                                  return (
+                                    <button
+                                      key={day}
+                                      type="button"
+                                      onClick={() => toggleDraftDay(index)}
+                                      disabled={loading === order.id}
+                                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition disabled:opacity-50 ${
+                                        selected
+                                          ? "bg-[#6f8f72] text-white ring-[#6f8f72]"
+                                          : "bg-sky-50 text-slate-600 ring-sky-100 hover:bg-sky-100"
+                                      }`}
+                                      aria-pressed={selected}
+                                    >
+                                      {day}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {daysError && (
+                                <p className="mt-2 text-xs font-medium text-rose-600">{daysError}</p>
+                              )}
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => saveActiveDays(order.id)}
+                                  disabled={loading === order.id || draftActiveDays.length === 0}
+                                  className={`${primaryButton} text-xs py-1.5 disabled:cursor-not-allowed disabled:opacity-50`}
+                                >
+                                  {loading === order.id ? "Saving..." : "Save Days"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEditingDays}
+                                  disabled={loading === order.id}
+                                  className={`${secondaryButton} text-xs py-1.5`}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startEditingDays(order)}
+                              className="mt-2 text-xs font-semibold text-[#6f8f72] hover:text-[#5f7d62]"
+                            >
+                              Edit Days
+                            </button>
+                          )}
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-slate-400">Driver:</span>
                             <select
