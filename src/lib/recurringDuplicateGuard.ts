@@ -43,7 +43,11 @@ export interface RecurringDuplicateCleanupChange {
   keptBy: Array<{
     day: number;
     recurringOrderId: string;
+    patientId: string | null;
     patientName: string;
+    deliveryAddress: string;
+    deliveryCity: string;
+    deliveryPostalCode: string;
   }>;
 }
 
@@ -72,6 +76,57 @@ function normalizeText(value: string | null | undefined) {
     .trim();
 }
 
+function normalizeName(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+  if (!normalized) return "";
+
+  const tokens = normalized.split(" ").filter(Boolean);
+  return [...tokens].sort().join(" ");
+}
+
+const ADDRESS_TOKEN_REPLACEMENTS: Record<string, string> = {
+  st: "street",
+  str: "street",
+  street: "street",
+  ave: "avenue",
+  av: "avenue",
+  avenue: "avenue",
+  rd: "road",
+  road: "road",
+  dr: "drive",
+  drive: "drive",
+  blvd: "boulevard",
+  boulevard: "boulevard",
+  ln: "lane",
+  lane: "lane",
+  ct: "court",
+  court: "court",
+  pl: "place",
+  place: "place",
+  cres: "crescent",
+  cr: "crescent",
+  crescent: "crescent",
+  hwy: "highway",
+  highway: "highway",
+  terr: "terrace",
+  terrace: "terrace",
+  cir: "circle",
+  circle: "circle",
+};
+
+function normalizeAddress(value: string | null | undefined) {
+  const normalized = normalizeText(value).replace(
+    /\b(\d+)\s+([a-z])\b/g,
+    "$1$2"
+  );
+  if (!normalized) return "";
+
+  return normalized
+    .split(" ")
+    .map((token) => ADDRESS_TOKEN_REPLACEMENTS[token] ?? token)
+    .join(" ");
+}
+
 function normalizePhone(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
@@ -82,9 +137,9 @@ function normalizePostalCode(value: string | null | undefined) {
 
 function normalizePersonFallback(input: RecurringPersonInput) {
   return {
-    name: normalizeText(input.patientName),
+    name: normalizeName(input.patientName),
     phone: normalizePhone(input.patientPhone),
-    address: normalizeText(input.deliveryAddress),
+    address: normalizeAddress(input.deliveryAddress),
     city: normalizeText(input.deliveryCity),
     postalCode: normalizePostalCode(input.deliveryPostalCode),
   };
@@ -116,7 +171,7 @@ export function recurringPeopleMatch(
   second: RecurringPersonInput
 ) {
   if (first.patientId && second.patientId) {
-    return first.patientId === second.patientId;
+    if (first.patientId === second.patientId) return true;
   }
 
   const a = normalizePersonFallback(first);
@@ -225,7 +280,11 @@ export function buildRecurringDuplicateCleanupPlan(
         change.keptBy.push({
           day,
           recurringOrderId: keeper.id,
+          patientId: keeper.patientId,
           patientName: keeper.patientName,
+          deliveryAddress: keeper.deliveryAddress,
+          deliveryCity: keeper.deliveryCity,
+          deliveryPostalCode: keeper.deliveryPostalCode,
         });
       }
 
