@@ -24,6 +24,19 @@ function getVancouverDayStart(now = new Date()) {
   return new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00.000Z`);
 }
 
+function patientIdLabel(patientId: string | null) {
+  return patientId ? `patientId=${patientId}` : "patientId=none";
+}
+
+function fullAddress(order: Pick<
+  RecurringDuplicateRecord,
+  "deliveryAddress" | "deliveryCity" | "deliveryPostalCode"
+>) {
+  return [order.deliveryAddress, order.deliveryCity, order.deliveryPostalCode]
+    .filter(Boolean)
+    .join(", ");
+}
+
 function describeChange(change: RecurringDuplicateCleanupChange) {
   const duplicateDays = formatRecurringDayList(change.duplicateDays);
   const action =
@@ -33,12 +46,13 @@ function describeChange(change: RecurringDuplicateCleanupChange) {
   const keptBy = change.keptBy
     .map(
       (keeper) =>
-        `${formatRecurringDayList([keeper.day])}: ${keeper.patientName} (${keeper.recurringOrderId})`
+        `${formatRecurringDayList([keeper.day])}: ${keeper.patientName} (${keeper.recurringOrderId}, ${patientIdLabel(keeper.patientId)}, ${fullAddress(keeper)})`
     )
     .join("; ");
 
   return [
-    `${change.order.patientName} (${change.order.id})`,
+    `${change.order.patientName} (${change.order.id}, ${patientIdLabel(change.order.patientId)})`,
+    `address: ${fullAddress(change.order)}`,
     `duplicate days: ${duplicateDays}`,
     `action: ${action}`,
     `kept by: ${keptBy}`,
