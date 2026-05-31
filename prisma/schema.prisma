@@ -227,6 +227,9 @@ model InvoiceLineItem {
   order       Order   @relation(fields: [orderId], references: [id])
   description String
   amount      Float
+
+  @@index([invoiceId])
+  @@index([orderId])
 }
 
 model Notification {
@@ -239,6 +242,10 @@ model Notification {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([storeId, isRead])
+  @@index([orderId])
+  @@index([storeId, createdAt])
 }
 
 model ExternalPlan {

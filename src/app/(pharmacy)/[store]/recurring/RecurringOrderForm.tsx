@@ -6,6 +6,7 @@ import { PatientAutocomplete } from "@/components/PatientAutocomplete";
 import { AddressSelect, type AddressValue } from "@/components/AddressSelect";
 import type { Patient } from "@/hooks/usePatientSearch";
 import { card, cn, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -20,33 +21,8 @@ interface Driver {
   name: string;
 }
 
-const EMPTY_ADDRESS: AddressValue = {
-  addressId: null,
-  address: "",
-  city: "",
-  postalCode: "",
-};
-
 function todayInputValue() {
   return new Date().toISOString().split("T")[0];
-}
-
-function addressFromPatient(patient: Patient): AddressValue {
-  if (patient.matchedAddress) {
-    return {
-      addressId: patient.matchedAddress.id,
-      address: patient.matchedAddress.address,
-      city: patient.matchedAddress.city,
-      postalCode: patient.matchedAddress.postalCode,
-    };
-  }
-
-  return {
-    addressId: null,
-    address: patient.address,
-    city: patient.city,
-    postalCode: patient.postalCode,
-  };
 }
 
 export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zones: Zone[]; drivers: Driver[]; storeSlug: string }) {

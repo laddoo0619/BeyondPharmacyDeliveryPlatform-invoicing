@@ -14,6 +14,7 @@ import {
   primaryButton,
   secondaryButton,
 } from "@/lib/portalStyles";
+import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 
 interface Zone {
   id: string;
@@ -25,31 +26,6 @@ interface Zone {
 interface Driver {
   id: string;
   name: string;
-}
-
-const EMPTY_ADDRESS: AddressValue = {
-  addressId: null,
-  address: "",
-  city: "",
-  postalCode: "",
-};
-
-function addressFromPatient(patient: Patient): AddressValue {
-  if (patient.matchedAddress) {
-    return {
-      addressId: patient.matchedAddress.id,
-      address: patient.matchedAddress.address,
-      city: patient.matchedAddress.city,
-      postalCode: patient.matchedAddress.postalCode,
-    };
-  }
-
-  return {
-    addressId: null,
-    address: patient.address,
-    city: patient.city,
-    postalCode: patient.postalCode,
-  };
 }
 
 export default function NewOrderForm({
