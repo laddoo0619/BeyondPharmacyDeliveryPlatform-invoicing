@@ -66,6 +66,7 @@ export default function RecurringOrderList({
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
   const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingDaysId, setEditingDaysId] = useState<string | null>(null);
   const [draftActiveDays, setDraftActiveDays] = useState<number[]>([]);
   const [daysError, setDaysError] = useState("");
@@ -91,15 +92,30 @@ export default function RecurringOrderList({
     return orders.filter((o) => o.assignedDriverId === activeDriverFilter);
   }, [orders, activeDriverFilter]);
 
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = trimmedQuery.length > 0;
+
+  // While searching we ignore the driver tab and scan the whole list; with no
+  // query we fall back to the driver-filtered view.
+  const displayOrders = useMemo(() => {
+    if (!isSearching) return visibleOrders;
+    return orders.filter(
+      (o) =>
+        o.patientName.toLowerCase().includes(trimmedQuery) ||
+        o.deliveryAddress.toLowerCase().includes(trimmedQuery) ||
+        o.deliveryCity.toLowerCase().includes(trimmedQuery)
+    );
+  }, [orders, visibleOrders, isSearching, trimmedQuery]);
+
   const groupedOrders = useMemo(() => {
     const groups = new Map<string, RecurringOrderItem[]>();
-    for (const order of visibleOrders) {
+    for (const order of displayOrders) {
       const key = lastNameGroup(order.patientName);
       groups.set(key, [...(groups.get(key) ?? []), order]);
     }
 
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [visibleOrders]);
+  }, [displayOrders]);
 
   const generateToday = async () => {
     setGenerating(true);
@@ -295,6 +311,22 @@ export default function RecurringOrderList({
           </button>
         </div>
       </div>
+      <div className="px-6 py-3 border-b">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={"Search by patient name, address, or city…"}
+          aria-label="Search recurring profiles"
+          className={input}
+        />
+        {isSearching && (
+          <p className="mt-1 text-xs text-slate-500">
+            {displayOrders.length} match{displayOrders.length === 1 ? "" : "es"} across all profiles
+            {activeDriverFilter !== ALL ? " (driver filter ignored while searching)" : ""}
+          </p>
+        )}
+      </div>
       <div className="px-6 py-3 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70 flex flex-wrap gap-2">
         <DriverTab
           label="All"
@@ -318,16 +350,18 @@ export default function RecurringOrderList({
           />
         ))}
       </div>
-      {visibleOrders.length === 0 ? (
+      {displayOrders.length === 0 ? (
         <div className={emptyState}>
-          {orders.length === 0
-            ? <>No recurring orders <span className="italic text-[#1e3a8a]">configured</span>.</>
-            : <>No recurring orders for this <span className="italic text-[#1e3a8a]">driver</span>.</>}
+          {isSearching
+            ? <>No recurring profiles match <span className="italic text-[#1e3a8a]">&ldquo;{searchQuery.trim()}&rdquo;</span>.</>
+            : orders.length === 0
+              ? <>No recurring orders <span className="italic text-[#1e3a8a]">configured</span>.</>
+              : <>No recurring orders for this <span className="italic text-[#1e3a8a]">driver</span>.</>}
         </div>
       ) : (
         <div className="divide-y divide-slate-100">
           {groupedOrders.map(([group, groupOrders]) => {
-            const isExpanded = expandedGroups.has(group);
+            const isExpanded = isSearching || expandedGroups.has(group);
             const groupId = `recurring-group-${group
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, "-")}`;

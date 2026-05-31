@@ -93,10 +93,18 @@ export async function POST(req: NextRequest) {
     ...attemptTimestamps,
     errorMessage: null,
   };
+  // Webhooks are not guaranteed to arrive in order. Never let a late event drag a dispatch
+  // back out of a settled terminal state — e.g. a delayed `stop.allocated` overwriting a
+  // recorded DELIVERED, or un-cancelling a pharmacy-cancelled handoff. The notIn guard is
+  // applied atomically in the updateMany so concurrent webhooks stay race-safe.
+  // DELIVERY_FAILED is intentionally NOT protected: a re-attempted delivery that later
+  // succeeds must still be able to progress from DELIVERY_FAILED to DELIVERED.
+  const PROTECTED_TERMINAL_STATUSES = ["DELIVERED", "CANCELLED"];
   let updated = await prisma.externalDispatch.updateMany({
     where: {
       provider: "SPOKE",
       spokeStopId: stopId,
+      status: { notIn: PROTECTED_TERMINAL_STATUSES },
     },
     data: updateData,
   });
@@ -107,6 +115,7 @@ export async function POST(req: NextRequest) {
       where: {
         provider: "SPOKE",
         idempotencyKey: sellerOrderId,
+        status: { notIn: PROTECTED_TERMINAL_STATUSES },
       },
       data: updateData,
     });

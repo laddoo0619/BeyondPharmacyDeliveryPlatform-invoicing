@@ -4,23 +4,34 @@ const DEFAULT_API_BASE_URL = "https://api.getcircuit.com/public/v0.2b";
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_OPTIMIZATION_MAX_WAIT_MS = 120000;
 const OPTIMIZATION_POLL_MS = 5000;
+// Spoke (Circuit) caps write endpoints at 5 req/s and reads at 10 req/s, signalling
+// overflow with HTTP 429. Retries are safe because every write carries an Idempotency-Key,
+// so Circuit dedupes a replayed request instead of creating a second stop/plan.
+const DEFAULT_MAX_ATTEMPTS = 4;
+const RETRY_BASE_DELAY_MS = 500;
+const RETRY_MAX_DELAY_MS = 8000;
 
 export class SpokeDispatchError extends Error {
   statusCode: number;
   responsePayload: unknown;
   workflowStep: string;
+  upstreamStatus: number | null;
 
   constructor(
     message: string,
     statusCode = 502,
     responsePayload: unknown = null,
-    workflowStep = "SPOKE_REQUEST"
+    workflowStep = "SPOKE_REQUEST",
+    upstreamStatus: number | null = null
   ) {
     super(message);
     this.name = "SpokeDispatchError";
     this.statusCode = statusCode;
     this.responsePayload = responsePayload;
     this.workflowStep = workflowStep;
+    // The true HTTP status Circuit returned (null for network/timeout). Kept for diagnosis
+    // and audit; distinct from `statusCode`, which is the status we surface to our own UI.
+    this.upstreamStatus = upstreamStatus;
   }
 }
 
@@ -78,6 +89,7 @@ export interface SpokeConfig {
   circuitClientId: string | null;
   timeoutMs: number;
   optimizationMaxWaitMs: number;
+  maxAttempts: number;
 }
 
 export function getSpokeProviderUserIds() {
@@ -217,6 +229,7 @@ export function getSpokeConfig(): SpokeConfig {
       "SPOKE_OPTIMIZATION_MAX_WAIT_MS",
       DEFAULT_OPTIMIZATION_MAX_WAIT_MS
     ),
+    maxAttempts: parsePositiveEnvInt("SPOKE_MAX_ATTEMPTS", DEFAULT_MAX_ATTEMPTS),
   };
 }
 
@@ -235,6 +248,43 @@ function pathToUrl(config: SpokeConfig, path: string) {
   return `${config.apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+// Transient upstream conditions worth retrying: rate limits (429), request timeout (408),
+// and any 5xx. Deterministic client errors (400/401/403/404/409/422) are NOT retried —
+// replaying them would just fail again.
+function isRetryableUpstreamStatus(status: number) {
+  return status === 408 || status === 429 || (status >= 500 && status <= 599);
+}
+
+// Translate Circuit's HTTP status into the status we expose on our own API surface.
+// Deliberately conservative: never surface Spoke's 401/403 as the user's own auth failure —
+// the pharmacy portal would treat that as session expiry and bounce them to the login page.
+function mapUpstreamToOutwardStatus(status: number) {
+  if (status === 400 || status === 422) return 400; // bad address / validation — user fixable
+  if (status === 409) return 409; // conflict (duplicate / idempotency)
+  if (status === 429) return 503; // rate-limited and out of retries
+  return 502; // 401/403/404/5xx/unknown → upstream failure, not a user auth problem
+}
+
+// Retry-After may be an integer number of seconds or an HTTP-date.
+function parseRetryAfterMs(headerValue: string | null) {
+  if (!headerValue) return null;
+  const trimmed = headerValue.trim();
+  if (/^\d+$/.test(trimmed)) return Number(trimmed) * 1000;
+  const date = Date.parse(trimmed);
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now());
+  return null;
+}
+
+// Exponential backoff with light jitter (attempt is 1-based), never shorter than Retry-After.
+function backoffDelayMs(attempt: number, retryAfterMs: number | null) {
+  const exponential = Math.min(
+    RETRY_MAX_DELAY_MS,
+    RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)
+  );
+  const jitter = Math.floor(Math.random() * RETRY_BASE_DELAY_MS);
+  return Math.max(retryAfterMs ?? 0, exponential + jitter);
+}
+
 async function spokeRequest<T>(
   config: SpokeConfig,
   path: string,
@@ -245,57 +295,89 @@ async function spokeRequest<T>(
     idempotencyKey?: string;
   }
 ): Promise<SpokeRequestResult<T>> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${config.apiKey}`,
+  };
+  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
-  try {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${config.apiKey}`,
-    };
-    if (options.body !== undefined) headers["Content-Type"] = "application/json";
-    if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
+  const maxAttempts = Math.max(1, config.maxAttempts);
+  let lastError: SpokeDispatchError | null = null;
 
-    const response = await fetch(pathToUrl(config, path), {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: controller.signal,
-    });
-    const responsePayload = await parseResponseBody(response);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Each attempt gets its own AbortController so the per-request timeout applies cleanly
+    // on every try rather than spanning all retries.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
 
-    if (!response.ok) {
-      throw new SpokeDispatchError(
+    try {
+      const response = await fetch(pathToUrl(config, path), {
+        method: options.method ?? "GET",
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        signal: controller.signal,
+      });
+      const responsePayload = await parseResponseBody(response);
+
+      if (response.ok) {
+        return {
+          requestPayload: options.body ?? null,
+          responsePayload: responsePayload as T,
+        };
+      }
+
+      const requestError = new SpokeDispatchError(
         `Spoke ${options.workflowStep} failed with status ${response.status}.`,
-        502,
+        mapUpstreamToOutwardStatus(response.status),
         responsePayload,
-        options.workflowStep
+        options.workflowStep,
+        response.status
       );
-    }
 
-    return {
-      requestPayload: options.body ?? null,
-      responsePayload: responsePayload as T,
-    };
-  } catch (error) {
-    if (error instanceof SpokeDispatchError) throw error;
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new SpokeDispatchError(
-        `Spoke ${options.workflowStep} request timed out.`,
+      // Out of budget or a non-retryable status → surface immediately.
+      if (attempt === maxAttempts || !isRetryableUpstreamStatus(response.status)) {
+        throw requestError;
+      }
+
+      lastError = requestError;
+      await delay(
+        backoffDelayMs(attempt, parseRetryAfterMs(response.headers.get("retry-after")))
+      );
+    } catch (error) {
+      if (error instanceof SpokeDispatchError) throw error;
+
+      // Network failures and timeouts (AbortError) are transient — retry until the budget runs out.
+      const isAbort = error instanceof Error && error.name === "AbortError";
+      const transientError = new SpokeDispatchError(
+        isAbort
+          ? `Spoke ${options.workflowStep} request timed out.`
+          : error instanceof Error
+            ? error.message
+            : `Spoke ${options.workflowStep} request failed.`,
         502,
         null,
-        options.workflowStep
+        options.workflowStep,
+        null
       );
-    }
 
-    throw new SpokeDispatchError(
-      error instanceof Error ? error.message : `Spoke ${options.workflowStep} request failed.`,
+      if (attempt === maxAttempts) throw transientError;
+      lastError = transientError;
+      await delay(backoffDelayMs(attempt, null));
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  // The loop always returns or throws; this satisfies the type checker for the maxAttempts<1 case.
+  throw (
+    lastError ??
+    new SpokeDispatchError(
+      `Spoke ${options.workflowStep} request failed.`,
       502,
       null,
       options.workflowStep
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
+    )
+  );
 }
 
 function objectPayload(value: unknown) {
