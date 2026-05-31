@@ -129,7 +129,9 @@ export async function GET(
   });
 
   const instances = [];
-  const seenInstances: Array<{ date: string; person: RecurringPersonInput }> = [];
+  // De-dup identical recurring profiles per calendar day. Bucketed by date so the
+  // fuzzy match only runs against same-day candidates instead of every instance seen.
+  const seenByDate = new Map<string, RecurringPersonInput[]>();
 
   for (const recurring of recurringOrders) {
     const activeDays = parseActiveDays(recurring.activeDays);
@@ -158,14 +160,15 @@ export async function GET(
         deliveryPostalCode: recurring.deliveryPostalCode,
       };
 
-      if (
-        seenInstances.some(
-          (seen) => seen.date === instanceDate && recurringPeopleMatch(seen.person, person)
-        )
-      ) {
+      const seenForDate = seenByDate.get(instanceDate);
+      if (seenForDate?.some((seen) => recurringPeopleMatch(seen, person))) {
         continue;
       }
-      seenInstances.push({ date: instanceDate, person });
+      if (seenForDate) {
+        seenForDate.push(person);
+      } else {
+        seenByDate.set(instanceDate, [person]);
+      }
 
       instances.push({
         id: `${recurring.id}:${instanceDate}`,

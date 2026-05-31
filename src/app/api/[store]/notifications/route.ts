@@ -20,7 +20,19 @@ export async function GET(
 
   const notifications = await prisma.notification.findMany({
     where: { storeId: store.id },
-    include: { order: true },
+    include: {
+      // Only the order fields the notifications UI renders — avoids shipping the
+      // entire Order row for every one of the 50 notifications.
+      order: {
+        select: {
+          id: true,
+          patientName: true,
+          deliveryAddress: true,
+          deliveryCity: true,
+          status: true,
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
   });

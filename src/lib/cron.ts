@@ -260,7 +260,9 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
   let due = 0;
   let existing = 0;
   let skipped = 0;
-  const seenDueRecurringPeople: Array<RecurringPersonInput & { storeId: string }> = [];
+  // De-dup identical recurring profiles that are due today. Bucketed by store so the
+  // fuzzy match only runs against same-store candidates instead of every profile seen.
+  const seenDueByStore = new Map<string, Array<RecurringPersonInput & { storeId: string }>>();
 
   for (const recurring of recurringOrders) {
     // Parse activeDays and check if today is a delivery day
@@ -284,17 +286,17 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       deliveryCity: recurring.deliveryCity,
       deliveryPostalCode: recurring.deliveryPostalCode,
     };
-    if (
-      seenDueRecurringPeople.some((person) =>
-        person.storeId === recurring.storeId &&
-        recurringPeopleMatch(person, recurringPerson)
-      )
-    ) {
+    const seenForStore = seenDueByStore.get(recurring.storeId);
+    if (seenForStore?.some((person) => recurringPeopleMatch(person, recurringPerson))) {
       console.log(`[CRON] Skipping duplicate recurring profile for ${recurring.patientName}`);
       skipped++;
       continue;
     }
-    seenDueRecurringPeople.push(recurringPerson);
+    if (seenForStore) {
+      seenForStore.push(recurringPerson);
+    } else {
+      seenDueByStore.set(recurring.storeId, [recurringPerson]);
+    }
 
     // Skip held instances. Older week-level skips are still honored.
     if (hasRecurringSkipForDate(recurring.skips, deliveryDate)) {

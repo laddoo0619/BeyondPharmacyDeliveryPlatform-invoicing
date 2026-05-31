@@ -433,7 +433,12 @@ export async function GET(
 
   const orders = await prisma.order.findMany({
     where: { storeId: store.id },
-    include: { assignedDriver: true, deliveryZone: true },
+    include: {
+      // Narrow the related rows to identity fields. Notably this stops the full
+      // driver User record (including passwordHash) from being serialized.
+      assignedDriver: { select: { id: true, name: true, email: true } },
+      deliveryZone: { select: { id: true, name: true, price: true } },
+    },
     orderBy: { scheduledDate: "desc" },
   });
 

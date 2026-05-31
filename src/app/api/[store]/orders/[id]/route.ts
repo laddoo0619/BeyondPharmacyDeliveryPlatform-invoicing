@@ -25,6 +25,13 @@ export async function PATCH(
 
   const body = await req.json();
 
+  // Load the order once up front and verify it belongs to this store. Every branch
+  // below reads from this record instead of issuing its own findUnique.
+  const order = await prisma.order.findUnique({ where: { id, storeId: store.id } });
+  if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
   const updateData: Record<string, unknown> = {};
 
   if (body.status) updateData.status = body.status;
@@ -41,23 +48,12 @@ export async function PATCH(
   }
 
   // Auto-promote PENDING to ASSIGNED when a driver is assigned without explicit status
-  if (body.assignedDriverId && !body.status) {
-    const current = await prisma.order.findUnique({ where: { id, storeId: store.id } });
-    if (!current) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-    if (current.status === "PENDING") {
-      updateData.status = "ASSIGNED";
-    }
+  if (body.assignedDriverId && !body.status && order.status === "PENDING") {
+    updateData.status = "ASSIGNED";
   }
 
   // Handle PICKED_UP status — create notification for pharmacy
   if (body.status === "PICKED_UP") {
-    const order = await prisma.order.findUnique({ where: { id, storeId: store.id } });
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
     const updated = await prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.update({
         where: { id, storeId: store.id },
@@ -83,11 +79,6 @@ export async function PATCH(
   if (body.status === "FAILED") {
     updateData.failedReason = body.failedReason || "No reason provided";
 
-    const order = await prisma.order.findUnique({ where: { id, storeId: store.id } });
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
     // Update order and create notification in a transaction
     const updated = await prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.update({
@@ -111,47 +102,38 @@ export async function PATCH(
   }
 
   // Handle re-attempt: when going from FAILED back to IN_TRANSIT, increment attempt count
-  if (body.status === "IN_TRANSIT") {
-    const order = await prisma.order.findUnique({ where: { id, storeId: store.id } });
-    if (order?.status === "FAILED") {
-      updateData.attemptCount = (order.attemptCount || 1) + 1;
-      updateData.failedReason = null;
-      updateData.completedAt = null;
+  if (body.status === "IN_TRANSIT" && order.status === "FAILED") {
+    updateData.attemptCount = (order.attemptCount || 1) + 1;
+    updateData.failedReason = null;
+    updateData.completedAt = null;
 
-      const updated = await prisma.$transaction(async (tx) => {
-        const updatedOrder = await tx.order.update({
-          where: { id, storeId: store.id },
-          data: updateData,
-        });
-
-        await tx.notification.create({
-          data: {
-            orderId: id,
-            type: "DELIVERY_REATTEMPT",
-            message: `Re-attempt #${updatedOrder.attemptCount} started for delivery to ${order.patientName} at ${order.deliveryAddress}, ${order.deliveryCity}`,
-            storeId: store.id,
-          },
-        });
-
-        return updatedOrder;
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.update({
+        where: { id, storeId: store.id },
+        data: updateData,
       });
 
-      return NextResponse.json(updated);
-    }
+      await tx.notification.create({
+        data: {
+          orderId: id,
+          type: "DELIVERY_REATTEMPT",
+          message: `Re-attempt #${updatedOrder.attemptCount} started for delivery to ${order.patientName} at ${order.deliveryAddress}, ${order.deliveryCity}`,
+          storeId: store.id,
+        },
+      });
+
+      return updatedOrder;
+    });
+
+    return NextResponse.json(updated);
   }
 
-  // Verify order belongs to store before generic update
-  const existing = await prisma.order.findUnique({ where: { id, storeId: store.id } });
-  if (!existing) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-
-  const order = await prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id, storeId: store.id },
     data: updateData,
   });
 
-  return NextResponse.json(order);
+  return NextResponse.json(updated);
 }
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
