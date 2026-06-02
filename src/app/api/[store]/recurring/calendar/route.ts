@@ -180,6 +180,7 @@ export async function GET(
         zoneName: recurring.deliveryZone.name,
         zonePrice: recurring.deliveryZone.price,
         assignedDriverName: recurring.assignedDriver?.name ?? null,
+        assignedDriverId: recurring.assignedDriverId,
         recurrenceIntervalWeeks: recurring.recurrenceIntervalWeeks,
         isHeld: !!skip || templateHold,
         holdType: skip ? "INSTANCE" : templateHold ? "TEMPLATE" : null,
