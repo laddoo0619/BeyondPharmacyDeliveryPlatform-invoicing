@@ -14,6 +14,9 @@ const sections = [
   { path: "users", label: "Users" },
 ];
 
+const SPOKE_DASHBOARD_URL =
+  "https://connect.spoke.com/orders?sortField=createdAt&sortDirection=descending";
+
 const stores = [
   { slug: "surrey", label: "Surrey" },
   { slug: "abbotsford", label: "Abbotsford" },
@@ -74,6 +77,15 @@ export default function PharmacyNav({
                 {item.label}
               </Link>
             ))}
+            <a
+              href={SPOKE_DASHBOARD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open the Spoke orders dashboard (opens in a new tab)"
+              className="px-3 py-2 rounded-full text-sm font-semibold transition-colors text-slate-500 hover:text-[#1e3a8a] hover:bg-white"
+            >
+              Spoke
+            </a>
           </div>
         </div>
         <button
