@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   card,
   cn,
+  input,
+  label,
   primaryButton,
   secondaryButton,
   sectionTitle,
@@ -24,6 +26,7 @@ interface CalendarInstance {
   isHeld: boolean;
   holdType: "INSTANCE" | "TEMPLATE" | null;
   skipDate: string | null;
+  holdReason: string | null;
   generatedOrderStatus: string | null;
 }
 
@@ -89,6 +92,7 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
   const [selectedInstance, setSelectedInstance] =
     useState<CalendarInstance | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [holdReasonDraft, setHoldReasonDraft] = useState("");
 
   const { start, end } = useMemo(
     () => getCalendarRange(visibleWeek),
@@ -150,6 +154,13 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
   const toggleInstanceHold = async (instance: CalendarInstance) => {
     if (instance.holdType === "TEMPLATE") return;
 
+    const holding = !instance.isHeld;
+    const reason = holdReasonDraft.trim();
+    if (holding && !reason) {
+      setError("Enter a reason for the hold.");
+      return;
+    }
+
     setBusyInstance(instance.id);
     setError("");
 
@@ -161,7 +172,7 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           skipDate: instance.isHeld && instance.skipDate ? instance.skipDate : instance.date,
-          reason: "Held from recurring calendar",
+          ...(holding ? { reason } : {}),
         }),
       }
     );
@@ -172,10 +183,12 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
     } else {
       setSelectedInstance({
         ...instance,
-        isHeld: !instance.isHeld,
-        holdType: instance.isHeld ? null : "INSTANCE",
-        skipDate: instance.isHeld ? null : instance.date,
+        isHeld: holding,
+        holdType: holding ? "INSTANCE" : null,
+        skipDate: holding ? instance.date : null,
+        holdReason: holding ? reason : null,
       });
+      setHoldReasonDraft("");
       setLoading(true);
       setRefreshToken((value) => value + 1);
       router.refresh();
@@ -298,11 +311,19 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
                         key={instance.id}
                         type="button"
                         disabled={isBusy}
-                        onClick={() => setSelectedInstance(instance)}
+                        onClick={() => {
+                          setHoldReasonDraft("");
+                          setSelectedInstance(instance);
+                        }}
+                        title={
+                          instance.isHeld && instance.holdReason
+                            ? `On hold: ${instance.holdReason}`
+                            : undefined
+                        }
                         className={cn(
                           "block w-full truncate rounded-full px-2.5 py-1 text-left text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-70",
                           instance.isHeld
-                            ? "bg-violet-50 text-violet-800 ring-1 ring-inset ring-violet-200"
+                            ? "bg-red-600 text-white ring-1 ring-inset ring-red-700 hover:bg-red-700"
                             : "bg-white text-[#1e3a8a] ring-1 ring-inset ring-slate-200 hover:bg-emerald-50 hover:ring-[#6f8f72]/40"
                         )}
                       >
@@ -376,18 +397,43 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
                   value={selectedInstance.generatedOrderStatus.replace("_", " ")}
                 />
               )}
+              {selectedInstance.isHeld && selectedInstance.holdReason && (
+                <QuickViewRow
+                  label="Hold reason"
+                  value={selectedInstance.holdReason}
+                />
+              )}
             </div>
+
+            {selectedInstance.holdType !== "TEMPLATE" && !selectedInstance.isHeld && (
+              <div className="mt-4">
+                <label htmlFor="hold-reason" className={label}>
+                  Reason for hold
+                </label>
+                <textarea
+                  id="hold-reason"
+                  rows={2}
+                  value={holdReasonDraft}
+                  onChange={(event) => setHoldReasonDraft(event.target.value)}
+                  placeholder="e.g. Patient in hospital until next week"
+                  className={input}
+                />
+              </div>
+            )}
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
               {selectedInstance.holdType === "TEMPLATE" ? (
-                <span className="rounded-full bg-violet-50 px-3 py-2 text-center text-xs font-semibold text-violet-800 ring-1 ring-violet-100">
+                <span className="rounded-full bg-red-600 px-3 py-2 text-center text-xs font-semibold text-white ring-1 ring-red-700">
                   Vacation hold
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => toggleInstanceHold(selectedInstance)}
-                  disabled={busyInstance === selectedInstance.id}
+                  disabled={
+                    busyInstance === selectedInstance.id ||
+                    (!selectedInstance.isHeld && !holdReasonDraft.trim())
+                  }
                   className={`${secondaryButton} justify-center text-xs`}
                 >
                   {busyInstance === selectedInstance.id
