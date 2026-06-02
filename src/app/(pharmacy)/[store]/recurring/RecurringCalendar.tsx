@@ -323,7 +323,7 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
                         className={cn(
                           "block w-full truncate rounded-full px-2.5 py-1 text-left text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-70",
                           instance.isHeld
-                            ? "bg-violet-50 text-violet-800 ring-1 ring-inset ring-violet-200"
+                            ? "bg-red-600 text-white ring-1 ring-inset ring-red-700 hover:bg-red-700"
                             : "bg-white text-[#1e3a8a] ring-1 ring-inset ring-slate-200 hover:bg-emerald-50 hover:ring-[#6f8f72]/40"
                         )}
                       >
@@ -423,7 +423,7 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
               {selectedInstance.holdType === "TEMPLATE" ? (
-                <span className="rounded-full bg-violet-50 px-3 py-2 text-center text-xs font-semibold text-violet-800 ring-1 ring-violet-100">
+                <span className="rounded-full bg-red-600 px-3 py-2 text-center text-xs font-semibold text-white ring-1 ring-red-700">
                   Vacation hold
                 </span>
               ) : (
