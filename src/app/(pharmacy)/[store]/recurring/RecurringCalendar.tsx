@@ -14,6 +14,14 @@ import {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const ALL = "__all__";
+const UNASSIGNED = "__unassigned__";
+
+interface Driver {
+  id: string;
+  name: string;
+}
+
 interface CalendarInstance {
   id: string;
   recurringOrderId: string;
@@ -23,6 +31,7 @@ interface CalendarInstance {
   deliveryCity: string;
   zoneName: string;
   assignedDriverName: string | null;
+  assignedDriverId: string | null;
   isHeld: boolean;
   holdType: "INSTANCE" | "TEMPLATE" | null;
   skipDate: string | null;
@@ -82,7 +91,13 @@ function formatDayLabel(date: Date) {
   });
 }
 
-export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) {
+export default function RecurringCalendar({
+  storeSlug,
+  drivers,
+}: {
+  storeSlug: string;
+  drivers: Driver[];
+}) {
   const router = useRouter();
   const [visibleWeek, setVisibleWeek] = useState(() => weekStart(new Date()));
   const [instances, setInstances] = useState<CalendarInstance[]>([]);
@@ -93,6 +108,7 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
     useState<CalendarInstance | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [holdReasonDraft, setHoldReasonDraft] = useState("");
+  const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
 
   const { start, end } = useMemo(
     () => getCalendarRange(visibleWeek),
@@ -104,15 +120,38 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
     [start]
   );
 
+  // Counts for the current week's instances, per driver tab.
+  const driverCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      [ALL]: instances.length,
+      [UNASSIGNED]: 0,
+    };
+    for (const d of drivers) counts[d.id] = 0;
+    for (const inst of instances) {
+      const key = inst.assignedDriverId ?? UNASSIGNED;
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }, [instances, drivers]);
+
+  // Filter the week's instances to the selected driver tab before grouping.
+  const visibleInstances = useMemo(() => {
+    if (activeDriverFilter === ALL) return instances;
+    if (activeDriverFilter === UNASSIGNED) {
+      return instances.filter((i) => !i.assignedDriverId);
+    }
+    return instances.filter((i) => i.assignedDriverId === activeDriverFilter);
+  }, [instances, activeDriverFilter]);
+
   const instancesByDate = useMemo(() => {
     const map = new Map<string, CalendarInstance[]>();
-    for (const instance of instances) {
+    for (const instance of visibleInstances) {
       const current = map.get(instance.date) ?? [];
       current.push(instance);
       map.set(instance.date, current);
     }
     return map;
-  }, [instances]);
+  }, [visibleInstances]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -257,6 +296,32 @@ export default function RecurringCalendar({ storeSlug }: { storeSlug: string }) 
             Next Week
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70 px-6 py-3">
+        <CalendarDriverTab
+          label="All"
+          count={driverCounts[ALL]}
+          active={activeDriverFilter === ALL}
+          onClick={() => setActiveDriverFilter(ALL)}
+        />
+        {driverCounts[UNASSIGNED] > 0 && (
+          <CalendarDriverTab
+            label="Unassigned"
+            count={driverCounts[UNASSIGNED]}
+            active={activeDriverFilter === UNASSIGNED}
+            onClick={() => setActiveDriverFilter(UNASSIGNED)}
+          />
+        )}
+        {drivers.map((d) => (
+          <CalendarDriverTab
+            key={d.id}
+            label={d.name}
+            count={driverCounts[d.id] ?? 0}
+            active={activeDriverFilter === d.id}
+            onClick={() => setActiveDriverFilter(d.id)}
+          />
+        ))}
       </div>
 
       {error && (
@@ -467,5 +532,31 @@ function QuickViewRow({ label, value }: { label: string; value: string }) {
       </p>
       <p className="text-sm font-medium text-slate-700">{value}</p>
     </div>
+  );
+}
+
+function CalendarDriverTab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+        active
+          ? "border-[#6f8f72] bg-[#6f8f72] text-white"
+          : "border-slate-200 bg-white text-slate-600 hover:bg-sky-50"
+      }`}
+    >
+      {label} <span className={active ? "opacity-80" : "text-slate-400"}>({count})</span>
+    </button>
   );
 }

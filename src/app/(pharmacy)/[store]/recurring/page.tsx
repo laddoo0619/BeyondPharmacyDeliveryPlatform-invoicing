@@ -67,7 +67,7 @@ export default async function RecurringPage({
           />
         </div>
         <div className="space-y-6 lg:col-span-2">
-          <RecurringCalendar storeSlug={storeSlug} />
+          <RecurringCalendar storeSlug={storeSlug} drivers={drivers} />
           <RecurringOrderList
             storeSlug={storeSlug}
             drivers={drivers}
