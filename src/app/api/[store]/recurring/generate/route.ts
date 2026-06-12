@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { formatGenerationMessage, generateRecurringOrders } from "@/lib/cron";
 
+// Same time budget as the cron route: the generation loop's Spoke dispatches
+// (with 429 retry/backoff) must not be killed mid-run by the platform default.
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ store: string }> }

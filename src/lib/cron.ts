@@ -21,7 +21,7 @@ export function initCronJobs() {
 
   if (process.env.VERCEL === "1") {
     console.log(
-      "[CRON] Skipping in-process recurring order scheduler on Vercel; Vercel Cron handles it."
+      "[CRON] Skipping in-process schedulers on Vercel; Vercel Cron handles generation and cleanup."
     );
   } else {
     // Run every day at 6:00 AM to generate orders from recurring templates
@@ -29,13 +29,15 @@ export function initCronJobs() {
       console.log("[CRON] Generating recurring orders...");
       await generateRecurringOrders();
     });
-  }
 
-  // Run every day at 2:00 AM to purge old invoiced records (3-month retention)
-  cron.schedule("0 2 * * *", async () => {
-    console.log("[CRON] Running 3-month data cleanup...");
-    await purgeOldInvoicedOrders();
-  });
+    // Run every day at 2:00 AM to purge old invoiced records (3-month retention).
+    // On Vercel this timer would never fire (instances are frozen between
+    // requests), so the /api/cron/purge route + Vercel Cron handles it there.
+    cron.schedule("0 2 * * *", async () => {
+      console.log("[CRON] Running 3-month data cleanup...");
+      await purgeOldInvoicedOrders();
+    });
+  }
 
   console.log("[CRON] Recurring order scheduler initialized");
   console.log("[CRON] Data retention cleanup scheduler initialized");
