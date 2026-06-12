@@ -234,11 +234,11 @@ model InvoiceLineItem {
 
 model Notification {
   id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id])
   storeId   String
   store     Store    @relation(fields: [storeId], references: [id])
-  type      String // DELIVERY_FAILED | DELIVERY_REATTEMPT
+  type      String // DELIVERY_FAILED | DELIVERY_REATTEMPT | ORDER_PICKED_UP | SPOKE_DISPATCH_FAILED
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())

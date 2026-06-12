@@ -56,12 +56,18 @@ export default function OrderActions({
 
   const updateOrder = async (data: Record<string, string>) => {
     setLoading(true);
-    await fetch(`/api/${storeSlug}/orders/${orderId}`, {
+    const res = await fetch(`/api/${storeSlug}/orders/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     setLoading(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || "Failed to update order");
+    }
+
     router.refresh();
   };
 

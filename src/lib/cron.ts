@@ -365,6 +365,19 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       } catch (err) {
         console.warn(`[CRON] Failed to send recurring order for ${recurring.patientName} to Spoke:`, err);
         skipped++;
+        // Surface the miss to pharmacy staff — a log line alone means this
+        // patient's delivery is silently lost for the day.
+        try {
+          await prisma.notification.create({
+            data: {
+              type: "SPOKE_DISPATCH_FAILED",
+              message: `Spoke dispatch failed for ${recurring.patientName} (${recurring.deliveryAddress}, ${recurring.deliveryCity}) — today's delivery was NOT sent to Spoke. Use "Generate Today's Orders" to retry.`,
+              storeId: recurring.storeId,
+            },
+          });
+        } catch (notifyErr) {
+          console.error("[CRON] Failed to record Spoke dispatch failure notification:", notifyErr);
+        }
       }
       continue;
     }

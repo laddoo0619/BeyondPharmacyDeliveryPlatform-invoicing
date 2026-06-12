@@ -82,6 +82,14 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    // A future anchor makes weeksSinceAnchor negative in isRecurringScheduleDue,
+    // which silently stops the profile from ever generating until that date.
+    if (recurrenceAnchorDate.getTime() > Date.now()) {
+      return NextResponse.json(
+        { error: "recurrenceAnchorDate cannot be in the future" },
+        { status: 400 }
+      );
+    }
     updateData.recurrenceAnchorDate = recurrenceAnchorDate;
   }
 
