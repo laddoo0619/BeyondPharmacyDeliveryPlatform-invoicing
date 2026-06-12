@@ -111,6 +111,9 @@ export default function NewOrderForm({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (editingSavedAddress) return;
+    // Driver assignment is mandatory — the select is `required`, this is a guard
+    // for completeness (the server enforces it too).
+    if (!selectedDriverId) return;
     const patientName = selectedPatient?.name ?? patientNameFreeText;
     submit({
       patientId: selectedPatient?.id ?? null,
@@ -122,7 +125,7 @@ export default function NewOrderForm({
       deliveryAddressId: address.addressId,
       saveAddressToPatient: saveAddress,
       deliveryZoneId: selectedZoneId,
-      assignedDriverId: selectedDriverId || null,
+      assignedDriverId: selectedDriverId,
       instructions,
       scheduledDate,
     });
@@ -211,6 +214,7 @@ export default function NewOrderForm({
         autoFilledFromZone={
           !!zoneDefaultDriverId && selectedDriverId === zoneDefaultDriverId
         }
+        required
       />
 
       <div>

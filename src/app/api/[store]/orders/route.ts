@@ -186,6 +186,16 @@ export async function POST(
     return NextResponse.json({ error: "Invalid delivery zone" }, { status: 400 });
   }
 
+  // Driver assignment is mandatory for staff-created orders: every order must
+  // leave the form with explicit routing (an in-house driver, or the Spoke
+  // provider user — e.g. "Anchor" — which routes the order to Spoke).
+  if (!data.assignedDriverId) {
+    return NextResponse.json(
+      { error: "A driver must be assigned before the order can be created" },
+      { status: 400 }
+    );
+  }
+
   let assignedDriverId: string | null = null;
   let assignedDriver: { id: string; name: string; email: string } | null = null;
   if (data.assignedDriverId) {
