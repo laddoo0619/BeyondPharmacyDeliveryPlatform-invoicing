@@ -13,18 +13,22 @@ interface Props {
   value: string;
   onChange: (id: string) => void;
   autoFilledFromZone: boolean;
+  required?: boolean;
 }
 
-function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone }: Props) {
+function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone, required }: Props) {
   return (
     <div>
-      <label className={label}>Assign Driver</label>
+      <label className={label}>Assign Driver{required ? " *" : ""}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={input}
+        required={required}
       >
-        <option value="">No driver (assign later)</option>
+        <option value="">
+          {required ? "Select driver..." : "No driver (assign later)"}
+        </option>
         {drivers.map((d) => (
           <option key={d.id} value={d.id}>
             {d.name}
