@@ -20,8 +20,14 @@ export async function POST(
 
   const { name, price } = await req.json();
 
-  if (!name || price === undefined) {
+  if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Name and price required" }, { status: 400 });
+  }
+  if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+    return NextResponse.json(
+      { error: "price must be a non-negative number" },
+      { status: 400 }
+    );
   }
 
   const existing = await prisma.deliveryZone.findUnique({

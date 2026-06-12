@@ -27,7 +27,15 @@ export async function PATCH(
   const body = await req.json();
 
   const updateData: Record<string, unknown> = {};
-  if (body.price !== undefined) updateData.price = body.price;
+  if (body.price !== undefined) {
+    if (typeof body.price !== "number" || !Number.isFinite(body.price) || body.price < 0) {
+      return NextResponse.json(
+        { error: "price must be a non-negative number" },
+        { status: 400 }
+      );
+    }
+    updateData.price = body.price;
+  }
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
   if ("defaultDriverId" in body) updateData.defaultDriverId = body.defaultDriverId || null;
 

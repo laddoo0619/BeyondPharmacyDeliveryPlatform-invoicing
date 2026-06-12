@@ -7,6 +7,10 @@ import {
 } from "@/lib/cron";
 
 export const dynamic = "force-dynamic";
+// The run dispatches every due recurring order sequentially (Spoke caps writes at
+// 5 req/s, so 429 retries with backoff are expected); the platform default duration
+// can kill the function mid-loop and silently drop the rest of the day's orders.
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");

@@ -65,6 +65,7 @@ export default function RecurringOrderList({
   const [loading, setLoading] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
+  const [actionError, setActionError] = useState("");
   const [activeDriverFilter, setActiveDriverFilter] = useState<string>(ALL);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingDaysId, setEditingDaysId] = useState<string | null>(null);
@@ -140,6 +141,33 @@ export default function RecurringOrderList({
     setGenerating(false);
   };
 
+  // Shared wrapper for row actions: surfaces server/network failures instead of
+  // silently refreshing as if the update had succeeded.
+  const runAction = async (id: string, request: () => Promise<Response>) => {
+    setLoading(id);
+    setActionError("");
+    try {
+      const res = await request();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error || "Update failed. Please try again.");
+      }
+    } catch {
+      setActionError("Network error. Please try again.");
+    }
+    setLoading(null);
+    router.refresh();
+  };
+
+  const patchRecurring = (id: string, payload: unknown) =>
+    runAction(id, () =>
+      fetch(`/api/${storeSlug}/recurring/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+    );
+
   const toggleHold = async (id: string, isOnHold: boolean) => {
     if (!isOnHold) {
       // Prompt for dates — use simple prompt for now (frontend already has date pickers)
@@ -148,55 +176,25 @@ export default function RecurringOrderList({
       const holdEnd = prompt("Hold end date (YYYY-MM-DD):");
       if (!holdEnd) return;
 
-      setLoading(id);
-      await fetch(`/api/${storeSlug}/recurring/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isOnHold: true, holdStart, holdEnd }),
-      });
+      await patchRecurring(id, { isOnHold: true, holdStart, holdEnd });
     } else {
-      setLoading(id);
-      await fetch(`/api/${storeSlug}/recurring/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isOnHold: false }),
-      });
+      await patchRecurring(id, { isOnHold: false });
     }
-    setLoading(null);
-    router.refresh();
   };
 
   const toggleSkip = async (id: string, currentlySkipped: boolean) => {
-    setLoading(id);
-    if (currentlySkipped) {
-      await fetch(`/api/${storeSlug}/recurring/${id}/unskip`, { method: "POST" });
-    } else {
-      await fetch(`/api/${storeSlug}/recurring/${id}/skip`, { method: "POST" });
-    }
-    setLoading(null);
-    router.refresh();
+    const action = currentlySkipped ? "unskip" : "skip";
+    await runAction(id, () =>
+      fetch(`/api/${storeSlug}/recurring/${id}/${action}`, { method: "POST" })
+    );
   };
 
   const toggleActive = async (id: string, isActive: boolean) => {
-    setLoading(id);
-    await fetch(`/api/${storeSlug}/recurring/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !isActive }),
-    });
-    setLoading(null);
-    router.refresh();
+    await patchRecurring(id, { isActive: !isActive });
   };
 
   const reassignDriver = async (id: string, assignedDriverId: string | null) => {
-    setLoading(id);
-    await fetch(`/api/${storeSlug}/recurring/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assignedDriverId }),
-    });
-    setLoading(null);
-    router.refresh();
+    await patchRecurring(id, { assignedDriverId });
   };
 
   const startEditingDays = (order: RecurringOrderItem) => {
@@ -262,10 +260,9 @@ export default function RecurringOrderList({
     if (!confirm("Are you sure you want to delete this recurring order? This cannot be undone. Existing delivery records will be preserved.")) {
       return;
     }
-    setLoading(id);
-    await fetch(`/api/${storeSlug}/recurring/${id}`, { method: "DELETE" });
-    setLoading(null);
-    router.refresh();
+    await runAction(id, () =>
+      fetch(`/api/${storeSlug}/recurring/${id}`, { method: "DELETE" })
+    );
   };
 
   const scheduleText = (order: RecurringOrderItem) => {
@@ -327,6 +324,11 @@ export default function RecurringOrderList({
           </p>
         )}
       </div>
+      {actionError && (
+        <div className="border-b bg-rose-50 px-6 py-3 text-sm text-rose-700">
+          {actionError}
+        </div>
+      )}
       <div className="px-6 py-3 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70 flex flex-wrap gap-2">
         <DriverTab
           label="All"
@@ -472,8 +474,10 @@ export default function RecurringOrderList({
                         <div className="flex flex-wrap items-center gap-3">
                           {order.isOnHold && (
                             <span className={statusBadgeClasses("HOLD")}>
+                              {/* Hold dates are stored as UTC midnight; format in UTC so the
+                                  badge doesn't show the previous day in local time. */}
                               On Hold {order.holdStart && order.holdEnd
-                                ? `${new Date(order.holdStart).toLocaleDateString()} – ${new Date(order.holdEnd).toLocaleDateString()}`
+                                ? `${new Date(order.holdStart).toLocaleDateString(undefined, { timeZone: "UTC" })} – ${new Date(order.holdEnd).toLocaleDateString(undefined, { timeZone: "UTC" })}`
                                 : ""}
                             </span>
                           )}

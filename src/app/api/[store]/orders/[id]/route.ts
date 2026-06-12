@@ -34,17 +34,47 @@ export async function PATCH(
 
   const updateData: Record<string, unknown> = {};
 
-  if (body.status) updateData.status = body.status;
+  const VALID_STATUSES = [
+    "PENDING",
+    "ASSIGNED",
+    "PICKED_UP",
+    "IN_TRANSIT",
+    "DELIVERED",
+    "FAILED",
+    "CANCELLED",
+  ];
+
+  if (body.status !== undefined) {
+    if (typeof body.status !== "string" || !VALID_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+    // Invoiced orders are settled money — a status change would corrupt billing.
+    if (order.isInvoiced && body.status !== order.status) {
+      return NextResponse.json(
+        { error: "Cannot change the status of an invoiced order" },
+        { status: 409 }
+      );
+    }
+    updateData.status = body.status;
+  }
   if (body.assignedDriverId) updateData.assignedDriverId = body.assignedDriverId;
 
-  // Set cancelledAt timestamp when cancelling an order (Stage 1 of soft delete)
+  // Set cancelledAt timestamp when cancelling an order (Stage 1 of soft delete);
+  // clear it when an order is moved back out of CANCELLED.
   if (body.status === "CANCELLED") {
     updateData.cancelledAt = new Date();
+  } else if (body.status && order.cancelledAt) {
+    updateData.cancelledAt = null;
   }
 
-  // Set completedAt when order reaches a terminal status
+  // Set completedAt when order reaches a terminal status; clear it (and any stale
+  // failure reason) when a terminal status is reverted, so invoicing and the
+  // retention purge never see a "completed" order that is actually in progress.
   if (body.status === "DELIVERED" || body.status === "FAILED") {
     updateData.completedAt = new Date();
+  } else if (body.status) {
+    if (order.completedAt) updateData.completedAt = null;
+    if (order.failedReason) updateData.failedReason = null;
   }
 
   // Auto-promote PENDING to ASSIGNED when a driver is assigned without explicit status

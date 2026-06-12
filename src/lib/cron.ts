@@ -21,7 +21,7 @@ export function initCronJobs() {
 
   if (process.env.VERCEL === "1") {
     console.log(
-      "[CRON] Skipping in-process recurring order scheduler on Vercel; Vercel Cron handles it."
+      "[CRON] Skipping in-process schedulers on Vercel; Vercel Cron handles generation and cleanup."
     );
   } else {
     // Run every day at 6:00 AM to generate orders from recurring templates
@@ -29,13 +29,15 @@ export function initCronJobs() {
       console.log("[CRON] Generating recurring orders...");
       await generateRecurringOrders();
     });
-  }
 
-  // Run every day at 2:00 AM to purge old invoiced records (3-month retention)
-  cron.schedule("0 2 * * *", async () => {
-    console.log("[CRON] Running 3-month data cleanup...");
-    await purgeOldInvoicedOrders();
-  });
+    // Run every day at 2:00 AM to purge old invoiced records (3-month retention).
+    // On Vercel this timer would never fire (instances are frozen between
+    // requests), so the /api/cron/purge route + Vercel Cron handles it there.
+    cron.schedule("0 2 * * *", async () => {
+      console.log("[CRON] Running 3-month data cleanup...");
+      await purgeOldInvoicedOrders();
+    });
+  }
 
   console.log("[CRON] Recurring order scheduler initialized");
   console.log("[CRON] Data retention cleanup scheduler initialized");
@@ -363,6 +365,19 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       } catch (err) {
         console.warn(`[CRON] Failed to send recurring order for ${recurring.patientName} to Spoke:`, err);
         skipped++;
+        // Surface the miss to pharmacy staff — a log line alone means this
+        // patient's delivery is silently lost for the day.
+        try {
+          await prisma.notification.create({
+            data: {
+              type: "SPOKE_DISPATCH_FAILED",
+              message: `Spoke dispatch failed for ${recurring.patientName} (${recurring.deliveryAddress}, ${recurring.deliveryCity}) — today's delivery was NOT sent to Spoke. Use "Generate Today's Orders" to retry.`,
+              storeId: recurring.storeId,
+            },
+          });
+        } catch (notifyErr) {
+          console.error("[CRON] Failed to record Spoke dispatch failure notification:", notifyErr);
+        }
       }
       continue;
     }
