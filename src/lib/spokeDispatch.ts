@@ -326,3 +326,99 @@ export async function dispatchOrderToSpoke(
     throw spokeError;
   }
 }
+
+// Records a Spoke handoff WITHOUT contacting Spoke, for orders whose delivery
+// day hasn't arrived yet. Unassigned stops carry no machine-readable date, so a
+// stop created days early sits in Anchor's queue and never lands on the right
+// day's plan (Shirley Heap, Jul 6 2026). The daily cron releases these through
+// dispatchOrderToSpoke (same idempotency key) on the morning of delivery —
+// "SCHEDULED" is deliberately not a terminal status, so the release proceeds.
+export async function scheduleDeferredSpokeDispatch(
+  input: SpokeDispatchInput
+): Promise<SpokeDispatchResult> {
+  try {
+    const existing = await prisma.externalDispatch.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+    });
+
+    if (existing) {
+      if (existing.storeId !== input.store.id) {
+        throw new SpokeDispatchError(
+          "Idempotency key conflict",
+          409,
+          null,
+          "IDEMPOTENCY"
+        );
+      }
+      if (isTerminalExternalDispatch(existing) || existing.status === "SCHEDULED") {
+        return { dispatch: existing, alreadyDispatched: true };
+      }
+    }
+
+    // Build the same payload the release step will send, for the audit trail
+    // (also surfaces a missing SPOKE_API_KEY now rather than at 6 AM).
+    const spokeConfig = getSpokeConfig();
+    const stopPayload = buildSpokeStopPayload(
+      {
+        idempotencyKey: input.idempotencyKey,
+        patientId: input.patientId,
+        store: input.store,
+        providerUser: input.selectedProviderUser,
+        patientName: input.patientName,
+        patientPhone: input.patientPhone,
+        deliveryAddress: input.deliveryAddress,
+        deliveryCity: input.deliveryCity,
+        deliveryPostalCode: input.deliveryPostalCode,
+        deliveryZoneName: input.deliveryZoneName,
+        instructions: input.instructions,
+        scheduledDate: input.scheduledDate,
+        scheduledDateKey: input.scheduledDateKey,
+      },
+      spokeConfig.circuitClientId
+    );
+
+    const dispatch = await prisma.$transaction(async (tx) => {
+      const snapshot = input.onBeforeComplete
+        ? await input.onBeforeComplete(tx)
+        : {
+            patientId: input.patientId,
+            deliveryAddressId: input.deliveryAddressId,
+          };
+
+      const auditData = buildExternalDispatchAuditData({
+        status: "SCHEDULED",
+        workflowStep: "AWAITING_RELEASE",
+        requestPayload: stopPayload,
+        selectedProviderUserId: input.selectedProviderUser?.id ?? null,
+        patientId: snapshot.patientId,
+        patientName: input.patientName,
+        patientPhone: input.patientPhone,
+        deliveryAddress: input.deliveryAddress,
+        deliveryCity: input.deliveryCity,
+        deliveryPostalCode: input.deliveryPostalCode,
+        deliveryAddressId: snapshot.deliveryAddressId,
+        deliveryZoneId: input.deliveryZoneId,
+        deliveryZoneName: input.deliveryZoneName,
+        priceAtCreation: input.priceAtCreation,
+        instructions: input.instructions,
+        scheduledDate: input.scheduledDate,
+        storeId: input.store.id,
+        createdById: input.createdById,
+        externalPlanId: null,
+        spokePlanId: null,
+        spokeDriverId: null,
+        errorMessage: null,
+      });
+
+      return tx.externalDispatch.upsert({
+        where: { idempotencyKey: input.idempotencyKey },
+        update: auditData,
+        create: { idempotencyKey: input.idempotencyKey, ...auditData },
+      });
+    });
+
+    return { dispatch, alreadyDispatched: false };
+  } catch (err) {
+    throw toSpokeDispatchError(err);
+  }
+}

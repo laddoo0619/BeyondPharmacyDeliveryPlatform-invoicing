@@ -6,6 +6,7 @@ import { deleteSpokeUnassignedStop, getSpokeConfig, SpokeDispatchError } from "@
 import { resolveStore } from "@/lib/store";
 
 const CANCELLABLE_EXTERNAL_STATUSES = new Set([
+  "SCHEDULED",
   "PENDING",
   "STOP_CREATED",
   "SUBMITTED",
