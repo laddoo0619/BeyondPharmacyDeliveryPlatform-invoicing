@@ -17,7 +17,9 @@ import {
 import {
   buildExternalDispatchResponse,
   dispatchOrderToSpoke,
+  scheduleDeferredSpokeDispatch,
 } from "@/lib/spokeDispatch";
+import { getVancouverDeliveryDateInfo } from "@/lib/cron";
 import { z } from "zod";
 
 const createOrderSchema = z.object({
@@ -338,7 +340,17 @@ export async function POST(
         );
       }
 
-      const result = await dispatchOrderToSpoke({
+      // Spoke's unassigned stops carry no machine-readable delivery date, so a
+      // stop created before its delivery day sits in Anchor's queue and misses
+      // that day's plan. Future-dated orders are held locally as SCHEDULED and
+      // released by the daily 6 AM cron on the morning of delivery.
+      const todayKey = getVancouverDeliveryDateInfo().dateKey;
+      const sendToSpoke =
+        scheduledDateKey > todayKey
+          ? scheduleDeferredSpokeDispatch
+          : dispatchOrderToSpoke;
+
+      const result = await sendToSpoke({
         idempotencyKey: data.idempotencyKey,
         patientId,
         store: {

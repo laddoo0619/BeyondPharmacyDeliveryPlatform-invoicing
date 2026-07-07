@@ -214,6 +214,17 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
     console.log(`[CRON] Auto-cleared ${clearedHolds.count} expired vacation holds`);
   }
 
+  // Release future-dated manual Spoke handoffs whose delivery day has arrived,
+  // and flag yesterday's stops that Anchor never progressed.
+  const releasedDispatches = await releaseDueSpokeDispatches(deliveryDate);
+  if (releasedDispatches > 0) {
+    console.log(`[CRON] Released ${releasedDispatches} scheduled Spoke dispatch(es)`);
+  }
+  const stalledDispatches = await flagStalledSpokeDispatches(deliveryDate);
+  if (stalledDispatches > 0) {
+    console.log(`[CRON] Flagged ${stalledDispatches} stalled Spoke dispatch(es) from yesterday`);
+  }
+
   // Find active recurring orders that are not currently on hold
   const recurringOrders = await prisma.recurringOrder.findMany({
     where: {
@@ -428,6 +439,127 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
     existing,
     skipped,
   };
+}
+
+// Dispatch SCHEDULED (deferred, future-dated) Spoke handoffs whose delivery day
+// has arrived. All dispatch inputs were captured on the ExternalDispatch row at
+// scheduling time; the original idempotency key makes the release replay-safe.
+export async function releaseDueSpokeDispatches(
+  deliveryDate: Pick<DeliveryDateInfo, "nextDayStart">
+) {
+  const dueDispatches = await prisma.externalDispatch.findMany({
+    where: {
+      provider: "SPOKE",
+      status: "SCHEDULED",
+      scheduledDate: { lt: deliveryDate.nextDayStart },
+    },
+    include: {
+      store: { select: { id: true, slug: true, name: true } },
+      selectedProviderUser: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { scheduledDate: "asc" },
+  });
+
+  let released = 0;
+  for (const dispatch of dueDispatches) {
+    try {
+      await dispatchOrderToSpoke({
+        idempotencyKey: dispatch.idempotencyKey,
+        patientId: dispatch.patientId,
+        store: {
+          id: dispatch.store.id,
+          slug: dispatch.store.slug,
+          name: dispatch.store.name,
+        },
+        selectedProviderUser: dispatch.selectedProviderUser
+          ? {
+              id: dispatch.selectedProviderUser.id,
+              name: dispatch.selectedProviderUser.name ?? "Anchor",
+              email: dispatch.selectedProviderUser.email ?? "",
+            }
+          : null,
+        patientName: dispatch.patientName,
+        patientPhone: dispatch.patientPhone,
+        deliveryAddress: dispatch.deliveryAddress,
+        deliveryCity: dispatch.deliveryCity,
+        deliveryPostalCode: dispatch.deliveryPostalCode,
+        deliveryAddressId: dispatch.deliveryAddressId,
+        deliveryZoneId: dispatch.deliveryZoneId,
+        deliveryZoneName: dispatch.deliveryZoneName,
+        priceAtCreation: dispatch.priceAtCreation,
+        instructions: dispatch.instructions,
+        scheduledDate: dispatch.scheduledDate,
+        scheduledDateKey: dispatch.scheduledDate.toISOString().slice(0, 10),
+        createdById: dispatch.createdById,
+      });
+      released++;
+      console.log(`[CRON] Released scheduled Spoke dispatch for ${dispatch.patientName}`);
+    } catch (err) {
+      console.warn(
+        `[CRON] Failed to release scheduled Spoke dispatch for ${dispatch.patientName}:`,
+        err
+      );
+      try {
+        await prisma.notification.create({
+          data: {
+            type: "SPOKE_DISPATCH_FAILED",
+            message: `Spoke dispatch failed for ${dispatch.patientName} (${dispatch.deliveryAddress}, ${dispatch.deliveryCity}) — the scheduled delivery was NOT sent to Spoke. Use "Generate Today's Orders" to retry.`,
+            storeId: dispatch.storeId,
+          },
+        });
+      } catch (notifyErr) {
+        console.error(
+          "[CRON] Failed to record Spoke release failure notification:",
+          notifyErr
+        );
+      }
+    }
+  }
+
+  return released;
+}
+
+// One-shot watchdog: a dispatch still sitting in Spoke's unassigned queue the
+// morning AFTER its delivery date means the delivery was likely missed (this is
+// exactly how the Shirley Heap Jul 6 2026 incident went unnoticed). The window
+// only covers yesterday so each miss alerts exactly once.
+export async function flagStalledSpokeDispatches(
+  deliveryDate: Pick<DeliveryDateInfo, "dayStart">
+) {
+  const yesterdayStart = new Date(deliveryDate.dayStart);
+  yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
+
+  const stalled = await prisma.externalDispatch.findMany({
+    where: {
+      provider: "SPOKE",
+      status: { in: ["PENDING", "STOP_CREATED", "SUBMITTED"] },
+      scheduledDate: { gte: yesterdayStart, lt: deliveryDate.dayStart },
+    },
+    select: {
+      patientName: true,
+      deliveryAddress: true,
+      deliveryCity: true,
+      scheduledDate: true,
+      status: true,
+      storeId: true,
+    },
+  });
+
+  for (const dispatch of stalled) {
+    try {
+      await prisma.notification.create({
+        data: {
+          type: "SPOKE_DISPATCH_STALLED",
+          message: `Spoke stop for ${dispatch.patientName} (${dispatch.deliveryAddress}, ${dispatch.deliveryCity}) scheduled for ${dispatch.scheduledDate.toISOString().slice(0, 10)} was never allocated or delivered (status: ${dispatch.status}). Check Anchor's dashboard — this delivery may have been missed.`,
+          storeId: dispatch.storeId,
+        },
+      });
+    } catch (err) {
+      console.error("[CRON] Failed to record stalled Spoke dispatch notification:", err);
+    }
+  }
+
+  return stalled.length;
 }
 
 const PURGE_BATCH_SIZE = 500;
