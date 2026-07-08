@@ -22,7 +22,14 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await generateRecurringOrders();
+  const result = await generateRecurringOrders(new Date(), {
+    // Shorter budget: an admin is waiting on this response, and the returned
+    // message guides a follow-up click. Auto-continuation is the cron's job.
+    timeBudgetMs: 50_000,
+    // Stalled-dispatch alerts only fire on the first 6 AM cron leg — repeated
+    // manual clicks must not duplicate them.
+    runStallWatchdog: false,
+  });
 
   return NextResponse.json({
     ...result,
