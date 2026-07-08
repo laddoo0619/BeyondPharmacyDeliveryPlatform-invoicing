@@ -76,15 +76,17 @@ export default function NotificationPanel({ storeSlug }: { storeSlug: string }) 
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <span
-                      className={`inline-block w-2 h-2 rounded-full ${n.type === "DELIVERY_FAILED" || n.type === "SPOKE_DISPATCH_FAILED" || n.type === "SPOKE_DISPATCH_STALLED" ? "bg-rose-500" : n.type === "ORDER_PICKED_UP" ? "bg-teal-500" : "bg-sky-500"}`}
+                      className={`inline-block w-2 h-2 rounded-full ${n.type === "DELIVERY_FAILED" || n.type === "SPOKE_DISPATCH_FAILED" || n.type === "SPOKE_DISPATCH_STALLED" || n.type === "GENERATION_INCOMPLETE" ? "bg-rose-500" : n.type === "ORDER_PICKED_UP" ? "bg-teal-500" : "bg-sky-500"}`}
                     />
-                    <span className={statusBadgeClasses(n.type === "DELIVERY_FAILED" || n.type === "SPOKE_DISPATCH_FAILED" || n.type === "SPOKE_DISPATCH_STALLED" ? "FAILED" : n.type === "ORDER_PICKED_UP" ? "PICKED_UP" : "IN_TRANSIT")}>
+                    <span className={statusBadgeClasses(n.type === "DELIVERY_FAILED" || n.type === "SPOKE_DISPATCH_FAILED" || n.type === "SPOKE_DISPATCH_STALLED" || n.type === "GENERATION_INCOMPLETE" ? "FAILED" : n.type === "ORDER_PICKED_UP" ? "PICKED_UP" : "IN_TRANSIT")}>
                       {n.type === "DELIVERY_FAILED"
                         ? "Delivery Failed"
                         : n.type === "SPOKE_DISPATCH_FAILED"
                         ? "Spoke Dispatch Failed"
                         : n.type === "SPOKE_DISPATCH_STALLED"
                         ? "Spoke Delivery Stalled"
+                        : n.type === "GENERATION_INCOMPLETE"
+                        ? "Generation Incomplete"
                         : n.type === "ORDER_PICKED_UP"
                         ? "Order Picked Up"
                       : "Re-attempt Started"}

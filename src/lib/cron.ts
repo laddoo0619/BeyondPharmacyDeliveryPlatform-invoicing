@@ -12,6 +12,9 @@ import {
 
 const DELIVERY_TIME_ZONE = "America/Vancouver";
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+// Stop the generation run before the platform's 60s function limit kills it
+// mid-loop (Spoke's 5 req/s write cap makes large dispatch batches slow).
+const GENERATION_TIME_BUDGET_MS = 50_000;
 
 let initialized = false;
 
@@ -77,6 +80,7 @@ export interface RecurringGenerationResult {
   created: number;
   existing: number;
   skipped: number;
+  unprocessed: number;
 }
 
 export function getVancouverDeliveryDateInfo(now = new Date()): DeliveryDateInfo {
@@ -125,6 +129,10 @@ export function isVancouverSixAmWindow(now = new Date()) {
 }
 
 export function formatGenerationMessage(result: RecurringGenerationResult) {
+  if (result.unprocessed > 0) {
+    return `${result.created} order${result.created === 1 ? "" : "s"} generated before the time limit — ${result.unprocessed} profile(s) remaining. Click "Generate Today's Orders" again to continue.`;
+  }
+
   if (result.created > 0) {
     return `${result.created} order${result.created === 1 ? "" : "s"} generated for today.`;
   }
@@ -204,6 +212,8 @@ export function hasRecurringSkipForDate(
 
 export async function generateRecurringOrders(now = new Date()): Promise<RecurringGenerationResult> {
   const deliveryDate = getVancouverDeliveryDateInfo(now);
+  // Budget covers the whole run (deferred-dispatch release + generation loop).
+  const startedAt = Date.now();
 
   // Batch: auto-clear all expired holds in one query
   const clearedHolds = await prisma.recurringOrder.updateMany({
@@ -269,15 +279,68 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
   });
   const existingSet = new Set(existingOrders.map((o) => o.recurringOrderId));
 
+  // Profiles with a live Spoke dispatch today are also "handled": after an
+  // Anchor → in-house reassignment mid-day, regenerating must not create a
+  // duplicate in-house order while the Spoke stop is still active. Cancelled
+  // and failed dispatches don't block, so the cancel-then-regenerate flow and
+  // failed-dispatch retries keep working.
+  const todaysRecurringDispatches = await prisma.externalDispatch.findMany({
+    where: {
+      provider: "SPOKE",
+      scheduledDate: { gte: deliveryDate.dayStart, lt: deliveryDate.nextDayStart },
+      idempotencyKey: { startsWith: "recurring:" },
+      status: { notIn: ["CANCELLED", "DISPATCH_FAILED"] },
+    },
+    select: { idempotencyKey: true },
+  });
+  const spokeHandledSet = new Set(
+    todaysRecurringDispatches
+      .map((d) => d.idempotencyKey.split(":")[1])
+      .filter(Boolean)
+  );
+
   let created = 0;
   let due = 0;
   let existing = 0;
   let skipped = 0;
+  let unprocessed = 0;
+  let processedCount = 0;
   // De-dup identical recurring profiles that are due today. Bucketed by store so the
   // fuzzy match only runs against same-store candidates instead of every profile seen.
   const seenDueByStore = new Map<string, Array<RecurringPersonInput & { storeId: string }>>();
 
   for (const recurring of recurringOrders) {
+    // Stop cleanly before the platform kills the function mid-loop. The dedup
+    // sets + Spoke idempotency keys make a re-run resume exactly where this
+    // left off, so nothing is lost — staff just need to know to re-run.
+    if (Date.now() - startedAt > GENERATION_TIME_BUDGET_MS) {
+      unprocessed = recurringOrders.length - processedCount;
+      console.warn(
+        `[CRON] Generation time budget reached — ${unprocessed} profile(s) left unprocessed; re-run "Generate Today's Orders" to continue`
+      );
+      const remainingStoreIds = new Set(
+        recurringOrders.slice(processedCount).map((r) => r.storeId)
+      );
+      for (const storeId of remainingStoreIds) {
+        try {
+          await prisma.notification.create({
+            data: {
+              type: "GENERATION_INCOMPLETE",
+              message: `Recurring order generation ran out of time — ${unprocessed} profile(s) not yet processed. Click "Generate Today's Orders" to continue where it left off.`,
+              storeId,
+            },
+          });
+        } catch (notifyErr) {
+          console.error(
+            "[CRON] Failed to record incomplete-generation notification:",
+            notifyErr
+          );
+        }
+      }
+      break;
+    }
+    processedCount++;
+
     // Parse activeDays and check if today is a delivery day
     const activeDays = parseActiveDays(recurring.activeDays);
     if (!activeDays) {
@@ -393,6 +456,22 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
       continue;
     }
 
+    if (recurring.assignedDriverId && !selectedDriverId) {
+      console.warn(
+        `[CRON] Recurring profile for ${recurring.patientName} has an invalid assigned driver (${recurring.assignedDriverId}) — falling back to the zone default`
+      );
+    }
+
+    // A live Spoke dispatch already covers today for this profile (it was
+    // Spoke-assigned when dispatched). Don't create a duplicate in-house order.
+    if (spokeHandledSet.has(recurring.id)) {
+      console.log(
+        `[CRON] Skipping ${recurring.patientName} — a live Spoke dispatch already exists today`
+      );
+      existing++;
+      continue;
+    }
+
     // Priority: recurring order's selected non-Spoke driver > zone's default driver > PENDING
     const driverId =
       selectedDriverId ??
@@ -438,6 +517,7 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
     created,
     existing,
     skipped,
+    unprocessed,
   };
 }
 
@@ -597,6 +677,42 @@ export async function purgeOldInvoicedOrders() {
       console.log(`[CRON] Purged batch of ${batch.length} old invoiced orders`);
 
       if (batch.length < PURGE_BATCH_SIZE) break;
+    }
+
+    // Settled external dispatches were previously never purged — the fastest-
+    // growing table (large request/webhook JSON payloads). Same 3-month
+    // retention policy as orders.
+    let dispatchesPurged = 0;
+    while (true) {
+      const batch = await prisma.externalDispatch.findMany({
+        where: {
+          status: {
+            in: ["DELIVERED", "CANCELLED", "DELIVERY_FAILED", "DISPATCH_FAILED"],
+          },
+          scheduledDate: { lt: threeMonthsAgo },
+        },
+        select: { id: true },
+        take: PURGE_BATCH_SIZE,
+      });
+      if (batch.length === 0) break;
+
+      await prisma.externalDispatch.deleteMany({
+        where: { id: { in: batch.map((d) => d.id) } },
+      });
+      dispatchesPurged += batch.length;
+      console.log(`[CRON] Purged batch of ${batch.length} old external dispatches`);
+      if (batch.length < PURGE_BATCH_SIZE) break;
+    }
+
+    // Store-level notifications (orderId = null, e.g. Spoke alerts) are not
+    // covered by the order-based cleanup above.
+    const orphanNotifications = await prisma.notification.deleteMany({
+      where: { orderId: null, createdAt: { lt: threeMonthsAgo } },
+    });
+    if (dispatchesPurged > 0 || orphanNotifications.count > 0) {
+      console.log(
+        `[CRON] Purged ${dispatchesPurged} old external dispatches and ${orphanNotifications.count} orphan notifications`
+      );
     }
 
     if (totalPurged === 0) {
