@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { getVancouverDeliveryDateInfo } from "@/lib/cron";
+import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
 import { resolveStore } from "@/lib/store";
 import {
   findRecurringDuplicate,
@@ -200,7 +202,60 @@ export async function PATCH(
     data: updateData,
   });
 
-  return NextResponse.json(updated);
+  // Propagate a driver reassignment to today's (and any future) already-generated
+  // orders that haven't left the pharmacy yet. Without this, an order created by
+  // the 6 AM run keeps the OLD driver all day and never appears on the newly
+  // assigned driver's app — the change would only apply from tomorrow.
+  let reassignedOrders = 0;
+  if ("assignedDriverId" in body) {
+    const newDriverId = normalizeOptionalId(body.assignedDriverId);
+    if (isSelectedSpokeProvider(newDriverId)) {
+      // Profile now routes to Spoke from the next generation. Existing in-house
+      // orders keep their current driver — converting them into a Spoke handoff
+      // is an explicit action (cancel + re-enter), not a PATCH side effect.
+    } else {
+      // Resolve the effective driver the same way generation does:
+      // profile driver, else the zone's default driver, else unassigned.
+      let effectiveDriverId = newDriverId;
+      if (!effectiveDriverId) {
+        const zone = await prisma.deliveryZone.findUnique({
+          where: { id: existing.deliveryZoneId },
+          select: {
+            defaultDriver: {
+              select: { id: true, role: true, isActive: true, storeId: true },
+            },
+          },
+        });
+        const zoneDefault = zone?.defaultDriver;
+        effectiveDriverId =
+          zoneDefault &&
+          zoneDefault.role === "DRIVER" &&
+          zoneDefault.isActive &&
+          zoneDefault.storeId === store.id &&
+          !isSelectedSpokeProvider(zoneDefault.id)
+            ? zoneDefault.id
+            : null;
+      }
+
+      // Only orders still in the pharmacy's hands move; anything picked up,
+      // in transit, or settled is deliberately left with its current driver.
+      const synced = await prisma.order.updateMany({
+        where: {
+          recurringOrderId: id,
+          storeId: store.id,
+          scheduledDate: { gte: getVancouverDeliveryDateInfo().dayStart },
+          status: { in: ["PENDING", "ASSIGNED"] },
+        },
+        data: {
+          assignedDriverId: effectiveDriverId,
+          status: effectiveDriverId ? "ASSIGNED" : "PENDING",
+        },
+      });
+      reassignedOrders = synced.count;
+    }
+  }
+
+  return NextResponse.json({ ...updated, reassignedOrders });
 }
 
 export async function DELETE(

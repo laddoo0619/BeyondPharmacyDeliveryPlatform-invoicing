@@ -318,4 +318,5 @@ model ExternalDispatch {
   @@index([storeId, status])
   @@index([externalPlanId])
   @@index([selectedProviderUserId, storeId, scheduledDate])
+  @@index([provider, status, scheduledDate])
 }
