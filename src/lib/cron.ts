@@ -210,8 +210,25 @@ export function hasRecurringSkipForDate(
   );
 }
 
-export async function generateRecurringOrders(now = new Date()): Promise<RecurringGenerationResult> {
+export interface RecurringGenerationOptions {
+  // Wall-clock budget for the whole run; the loop stops cleanly when exceeded.
+  timeBudgetMs?: number;
+  // The caller will automatically start a continuation run — switches the
+  // incomplete-notification wording from "click to continue" to "auto-continuing".
+  autoContinuing?: boolean;
+  // The stalled-dispatch watchdog must run at most once per day (first cron
+  // leg); continuations and manual re-runs pass false to avoid duplicate alerts.
+  runStallWatchdog?: boolean;
+  // Whether a budget stop creates a "Generation Incomplete" notification.
+  notifyOnIncomplete?: boolean;
+}
+
+export async function generateRecurringOrders(
+  now = new Date(),
+  opts: RecurringGenerationOptions = {}
+): Promise<RecurringGenerationResult> {
   const deliveryDate = getVancouverDeliveryDateInfo(now);
+  const timeBudgetMs = opts.timeBudgetMs ?? GENERATION_TIME_BUDGET_MS;
   // Budget covers the whole run (deferred-dispatch release + generation loop).
   const startedAt = Date.now();
 
@@ -230,9 +247,11 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
   if (releasedDispatches > 0) {
     console.log(`[CRON] Released ${releasedDispatches} scheduled Spoke dispatch(es)`);
   }
-  const stalledDispatches = await flagStalledSpokeDispatches(deliveryDate);
-  if (stalledDispatches > 0) {
-    console.log(`[CRON] Flagged ${stalledDispatches} stalled Spoke dispatch(es) from yesterday`);
+  if (opts.runStallWatchdog !== false) {
+    const stalledDispatches = await flagStalledSpokeDispatches(deliveryDate);
+    if (stalledDispatches > 0) {
+      console.log(`[CRON] Flagged ${stalledDispatches} stalled Spoke dispatch(es) from yesterday`);
+    }
   }
 
   // Find active recurring orders that are not currently on hold
@@ -313,28 +332,33 @@ export async function generateRecurringOrders(now = new Date()): Promise<Recurri
     // Stop cleanly before the platform kills the function mid-loop. The dedup
     // sets + Spoke idempotency keys make a re-run resume exactly where this
     // left off, so nothing is lost — staff just need to know to re-run.
-    if (Date.now() - startedAt > GENERATION_TIME_BUDGET_MS) {
+    if (Date.now() - startedAt > timeBudgetMs) {
       unprocessed = recurringOrders.length - processedCount;
       console.warn(
-        `[CRON] Generation time budget reached — ${unprocessed} profile(s) left unprocessed; re-run "Generate Today's Orders" to continue`
+        `[CRON] Generation time budget reached — ${unprocessed} profile(s) left unprocessed; ${
+          opts.autoContinuing
+            ? "a continuation run will pick them up"
+            : 're-run "Generate Today\'s Orders" to continue'
+        }`
       );
-      const remainingStoreIds = new Set(
-        recurringOrders.slice(processedCount).map((r) => r.storeId)
-      );
-      for (const storeId of remainingStoreIds) {
-        try {
-          await prisma.notification.create({
-            data: {
-              type: "GENERATION_INCOMPLETE",
-              message: `Recurring order generation ran out of time — ${unprocessed} profile(s) not yet processed. Click "Generate Today's Orders" to continue where it left off.`,
-              storeId,
-            },
-          });
-        } catch (notifyErr) {
-          console.error(
-            "[CRON] Failed to record incomplete-generation notification:",
-            notifyErr
-          );
+      if (opts.notifyOnIncomplete !== false) {
+        const message = opts.autoContinuing
+          ? `Recurring order generation hit its time limit with ${unprocessed} profile(s) remaining — an automatic continuation has started. If this alert keeps appearing without the count going down, click "Generate Today's Orders".`
+          : `Recurring order generation ran out of time — ${unprocessed} profile(s) not yet processed. Click "Generate Today's Orders" to continue where it left off.`;
+        const remainingStoreIds = new Set(
+          recurringOrders.slice(processedCount).map((r) => r.storeId)
+        );
+        for (const storeId of remainingStoreIds) {
+          try {
+            await prisma.notification.create({
+              data: { type: "GENERATION_INCOMPLETE", message, storeId },
+            });
+          } catch (notifyErr) {
+            console.error(
+              "[CRON] Failed to record incomplete-generation notification:",
+              notifyErr
+            );
+          }
         }
       }
       break;
