@@ -151,7 +151,8 @@ export default async function DashboardPage({
         storeId: store.id,
         provider: "SPOKE",
         scheduledDate: { gte: today, lt: tomorrow },
-        status: { not: "DISPATCH_FAILED" },
+        // Failed handoffs stay visible — hiding them makes the delivery look
+        // "never entered" and invites a duplicate re-entry.
       },
       include: { selectedProviderUser: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],

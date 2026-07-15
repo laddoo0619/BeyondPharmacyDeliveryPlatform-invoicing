@@ -57,6 +57,10 @@ export function useCreateOrder(storeSlug: string) {
         });
 
         if (res.ok) {
+          // Deliberately keep loading/inFlight set: navigation to the orders
+          // page is still in flight, and re-arming the button in that window
+          // is how a same-tab double submission mints a duplicate delivery.
+          // The server-side duplicate check is the backstop for other tabs.
           router.push(`/${storeSlug}/orders`);
           return;
         }
@@ -73,10 +77,10 @@ export function useCreateOrder(storeSlug: string) {
       } catch {
         setError("Network error — please try again");
         // Network errors keep the same key so a retry dedupes server-side.
-      } finally {
-        inFlight.current = false;
-        setLoading(false);
       }
+
+      inFlight.current = false;
+      setLoading(false);
     },
     [storeSlug, router]
   );

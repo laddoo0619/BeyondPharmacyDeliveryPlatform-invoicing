@@ -33,6 +33,43 @@ export default function ExternalDispatchActions({
     );
   }
 
+  if (currentStatus === "DISPATCH_FAILED" && dispatchId) {
+    const retryDispatch = async () => {
+      if (
+        !confirm(
+          "Retry sending this delivery to Spoke? The original request identity is reused, so this cannot create a duplicate stop."
+        )
+      ) {
+        return;
+      }
+
+      setLoading(true);
+      const res = await fetch(
+        `/api/${storeSlug}/external-dispatches/${dispatchId}/retry`,
+        { method: "POST" }
+      );
+      setLoading(false);
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to retry Spoke handoff");
+        return;
+      }
+
+      router.refresh();
+    };
+
+    return (
+      <button
+        onClick={retryDispatch}
+        disabled={loading}
+        className="text-xs font-semibold text-[#6f8f72] transition hover:text-[#5f7d62] disabled:opacity-50"
+      >
+        {loading ? "Retrying..." : "Retry Spoke"}
+      </button>
+    );
+  }
+
   if (!canCancel || !dispatchId || !CANCELLABLE_EXTERNAL_STATUSES.has(currentStatus)) {
     return (
       <span className="text-xs font-semibold text-slate-500">
