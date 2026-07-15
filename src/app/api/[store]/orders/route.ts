@@ -263,36 +263,80 @@ export async function POST(
     deliveryCompany: cleanOptionalText(data.delivery_company),
   });
 
-  const sameDayOrders = await prisma.order.findMany({
-    where: {
-      storeId: store.id,
-      status: { not: "CANCELLED" },
-      scheduledDate: {
-        gte: scheduledDateRange.dayStart,
-        lt: scheduledDateRange.nextDayStart,
+  const [sameDayOrders, sameDayDispatches] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        storeId: store.id,
+        status: { not: "CANCELLED" },
+        scheduledDate: {
+          gte: scheduledDateRange.dayStart,
+          lt: scheduledDateRange.nextDayStart,
+        },
       },
-    },
-    select: {
-      patientId: true,
-      patientName: true,
-      deliveryAddress: true,
-      deliveryCity: true,
-      deliveryPostalCode: true,
-    },
-  });
+      select: {
+        patientId: true,
+        patientName: true,
+        deliveryAddress: true,
+        deliveryCity: true,
+        deliveryPostalCode: true,
+      },
+    }),
+    // Anchor/Spoke deliveries live in ExternalDispatch, not Order — without this
+    // leg a re-entered Spoke delivery sails past the duplicate check (Kimbelee
+    // Home, Jul 14 2026: two stops created six seconds apart). Everything but
+    // CANCELLED blocks; a DISPATCH_FAILED handoff is recovered via its Retry
+    // action (same idempotency key), never by re-entering a new order identity.
+    // The caller's own key is excluded so a same-key replay still reaches the
+    // idempotent 200 path below instead of a 409.
+    prisma.externalDispatch.findMany({
+      where: {
+        storeId: store.id,
+        provider: "SPOKE",
+        status: { not: "CANCELLED" },
+        idempotencyKey: { not: data.idempotencyKey },
+        scheduledDate: {
+          gte: scheduledDateRange.dayStart,
+          lt: scheduledDateRange.nextDayStart,
+        },
+      },
+      select: {
+        patientId: true,
+        patientName: true,
+        deliveryAddress: true,
+        deliveryCity: true,
+        deliveryPostalCode: true,
+        status: true,
+      },
+    }),
+  ]);
+
+  const duplicateInput = {
+    patientId,
+    patientName,
+    deliveryAddress,
+    deliveryCity,
+    deliveryPostalCode,
+  };
 
   const duplicate = sameDayOrders.find((order) =>
-    orderMatchesDuplicate(order, {
-      patientId,
-      patientName,
-      deliveryAddress,
-      deliveryCity,
-      deliveryPostalCode,
-    })
+    orderMatchesDuplicate(order, duplicateInput)
   );
 
   if (duplicate) {
     return NextResponse.json({ error: DUPLICATE_ORDER_MESSAGE }, { status: 409 });
+  }
+
+  const duplicateDispatch = sameDayDispatches.find((dispatch) =>
+    orderMatchesDuplicate(dispatch, duplicateInput)
+  );
+
+  if (duplicateDispatch) {
+    return NextResponse.json(
+      {
+        error: `An Anchor/Spoke delivery already exists for this patient, address, and date (status: ${duplicateDispatch.status}). Manage it from the Orders page instead of re-entering it.`,
+      },
+      { status: 409 }
+    );
   }
 
   const savePatientAddress = async (tx: Prisma.TransactionClient) => {

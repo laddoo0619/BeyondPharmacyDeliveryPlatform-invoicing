@@ -84,7 +84,10 @@ export default async function OrdersPage({
       ? { status: { in: ["DELIVERY_FAILED", "DISPATCH_FAILED"] } }
       : status
         ? { status }
-        : { status: { not: "DISPATCH_FAILED" } };
+        : // Failed handoffs must stay visible in the default view — hiding them
+          // makes the delivery look "never entered" and invites a duplicate
+          // re-entry. Recovery is the row's "Retry Spoke" action.
+          {};
   const externalWhere: Prisma.ExternalDispatchWhereInput = {
     storeId: store.id,
     provider: "SPOKE",
