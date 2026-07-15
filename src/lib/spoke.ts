@@ -656,3 +656,35 @@ export function mapSpokeWebhookStatus(eventType: string, data: Record<string, un
 
   return { status: "WEBHOOK_RECEIVED" };
 }
+
+// Monotonic ordering for external-dispatch statuses. Webhooks can arrive out of
+// order or duplicated, and can interleave with our own submission/cancel writes;
+// a dispatch may only move forward through this progression, and nothing leaves
+// the settled terminal states. DELIVERY_FAILED → DELIVERED stays allowed so a
+// re-attempted delivery can still complete. Unknown statuses rank 0 (never able
+// to regress a known state).
+const DISPATCH_STATUS_RANK: Record<string, number> = {
+  SCHEDULED: 0,
+  PENDING: 0,
+  DISPATCH_FAILED: 1,
+  STOP_CREATED: 1,
+  SUBMITTED: 2,
+  WEBHOOK_RECEIVED: 2,
+  DISTRIBUTED: 3,
+  ALLOCATED: 3,
+  TRACKING_LINK_ADDED: 3,
+  IN_TRANSIT: 4,
+  DEPARTED: 5,
+  DELIVERY_FAILED: 6,
+  DELIVERED: 7,
+  CANCELLED: 7,
+};
+
+const SETTLED_DISPATCH_STATUSES = new Set(["DELIVERED", "CANCELLED"]);
+
+export function canAdvanceDispatchStatus(from: string, to: string) {
+  if (SETTLED_DISPATCH_STATUSES.has(from)) return false;
+  const fromRank = DISPATCH_STATUS_RANK[from] ?? 0;
+  const toRank = DISPATCH_STATUS_RANK[to] ?? 0;
+  return toRank >= fromRank;
+}

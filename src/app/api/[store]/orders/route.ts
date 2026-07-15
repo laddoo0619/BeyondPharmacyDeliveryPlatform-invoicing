@@ -9,6 +9,7 @@ import {
   createOrReuseSavedAddress,
   createPatientWithDefaultAddress,
 } from "@/lib/patientAddressRecords";
+import { orderMatchesDuplicate } from "@/lib/orderDuplicate";
 import {
   parseScheduledDateKey,
   shouldRouteToSpoke,
@@ -45,14 +46,6 @@ const DUPLICATE_ORDER_MESSAGE =
 const SPOKE_AUDIT_UNAVAILABLE_MESSAGE =
   "Spoke dispatch audit is unavailable. Please confirm the Spoke database migration has run.";
 
-function normalizeDuplicateText(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function normalizePostalCode(value: string) {
-  return normalizeDuplicateText(value).replace(/\s/g, "");
-}
-
 function getScheduledDateRange(value: string) {
   const scheduledDate = new Date(value);
   if (Number.isNaN(scheduledDate.getTime())) return null;
@@ -68,38 +61,6 @@ function getScheduledDateRange(value: string) {
   nextDayStart.setUTCDate(nextDayStart.getUTCDate() + 1);
 
   return { scheduledDate, dayStart, nextDayStart };
-}
-
-function orderMatchesDuplicate(
-  order: {
-    patientId: string | null;
-    patientName: string;
-    deliveryAddress: string;
-    deliveryCity: string;
-    deliveryPostalCode: string;
-  },
-  input: {
-    patientId: string | null;
-    patientName: string;
-    deliveryAddress: string;
-    deliveryCity: string;
-    deliveryPostalCode: string;
-  }
-) {
-  const samePatient = input.patientId
-    ? order.patientId === input.patientId
-    : normalizeDuplicateText(order.patientName) ===
-      normalizeDuplicateText(input.patientName);
-
-  return (
-    samePatient &&
-    normalizeDuplicateText(order.deliveryAddress) ===
-      normalizeDuplicateText(input.deliveryAddress) &&
-    normalizeDuplicateText(order.deliveryCity) ===
-      normalizeDuplicateText(input.deliveryCity) &&
-    normalizePostalCode(order.deliveryPostalCode) ===
-      normalizePostalCode(input.deliveryPostalCode)
-  );
 }
 
 function toSpokeOrderError(err: unknown) {

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { mapSpokeWebhookStatus, verifySpokeSignature } from "@/lib/spoke";
+import {
+  canAdvanceDispatchStatus,
+  mapSpokeWebhookStatus,
+  verifySpokeSignature,
+} from "@/lib/spoke";
 
 function asPrismaJson(value: unknown) {
   if (value === undefined || value === null) return Prisma.JsonNull;
@@ -83,43 +87,69 @@ export async function POST(req: NextRequest) {
     ...("deliveredAt" in mapped ? { deliveredAt: mapped.deliveredAt } : {}),
     ...("failedAt" in mapped ? { failedAt: mapped.failedAt } : {}),
   };
-  const updateData = {
-    status: mapped.status,
-    lastWebhookEventType: eventType,
-    webhookPayload: asPrismaJson(eventPayload),
-    trackingLink: readTrackingLink(data),
-    spokeStopId: stopId,
-    externalReference: stopId,
-    ...attemptTimestamps,
-    errorMessage: null,
-  };
-  // Webhooks are not guaranteed to arrive in order. Never let a late event drag a dispatch
-  // back out of a settled terminal state — e.g. a delayed `stop.allocated` overwriting a
-  // recorded DELIVERED, or un-cancelling a pharmacy-cancelled handoff. The notIn guard is
-  // applied atomically in the updateMany so concurrent webhooks stay race-safe.
-  // DELIVERY_FAILED is intentionally NOT protected: a re-attempted delivery that later
-  // succeeds must still be able to progress from DELIVERY_FAILED to DELIVERED.
-  const PROTECTED_TERMINAL_STATUSES = ["DELIVERED", "CANCELLED"];
-  let updated = await prisma.externalDispatch.updateMany({
-    where: {
-      provider: "SPOKE",
-      spokeStopId: stopId,
-      status: { notIn: PROTECTED_TERMINAL_STATUSES },
-    },
-    data: updateData,
-  });
-
+  // Tracking links are metadata, not lifecycle: recording one must never move
+  // the status (a late tracking event used to regress IN_TRANSIT/DEPARTED).
+  const isTrackingOnly = eventType.endsWith(".tracking_link_added");
   const sellerOrderId = readSellerOrderId(data);
-  if (updated.count === 0 && sellerOrderId) {
-    updated = await prisma.externalDispatch.updateMany({
+
+  // Webhooks are not guaranteed to arrive in order, can be duplicated, and can
+  // interleave with our own submission/cancel writes. Resolve the dispatch
+  // first (stop id, falling back to sellerOrderId → idempotency key), then
+  // apply a monotonic, optimistically-locked update: the status only moves
+  // forward per canAdvanceDispatchStatus, and a concurrent writer triggers one
+  // re-read + re-evaluation instead of a blind overwrite.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const dispatch = await prisma.externalDispatch.findFirst({
       where: {
         provider: "SPOKE",
-        idempotencyKey: sellerOrderId,
-        status: { notIn: PROTECTED_TERMINAL_STATUSES },
+        OR: [
+          { spokeStopId: stopId },
+          ...(sellerOrderId ? [{ idempotencyKey: sellerOrderId }] : []),
+        ],
       },
-      data: updateData,
+      select: { id: true, status: true },
     });
+
+    if (!dispatch) {
+      console.warn(
+        `[SPOKE] Webhook ${eventType} matched no dispatch (stop ${stopId})`
+      );
+      return NextResponse.json({ ok: true, matched: 0 });
+    }
+
+    // Settled handoffs stay exactly as recorded — late events can't even
+    // touch their payload/metadata.
+    if (dispatch.status === "DELIVERED" || dispatch.status === "CANCELLED") {
+      return NextResponse.json({ ok: true, matched: 0, ignored: true });
+    }
+
+    const advanceStatus =
+      !isTrackingOnly && canAdvanceDispatchStatus(dispatch.status, mapped.status);
+
+    const updated = await prisma.externalDispatch.updateMany({
+      where: { id: dispatch.id, status: dispatch.status },
+      data: {
+        ...(advanceStatus
+          ? { status: mapped.status, ...attemptTimestamps, errorMessage: null }
+          : {}),
+        lastWebhookEventType: eventType,
+        webhookPayload: asPrismaJson(eventPayload),
+        trackingLink: readTrackingLink(data),
+        spokeStopId: stopId,
+        externalReference: stopId,
+      },
+    });
+
+    if (updated.count > 0) {
+      return NextResponse.json({
+        ok: true,
+        matched: updated.count,
+        advanced: advanceStatus,
+      });
+    }
+    // Status changed between read and write (concurrent webhook or submission
+    // write) — loop once to re-evaluate against the fresh status.
   }
 
-  return NextResponse.json({ ok: true, matched: updated.count });
+  return NextResponse.json({ ok: true, matched: 0, raced: true });
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
@@ -285,8 +286,13 @@ export async function POST(
             storeId: store.id,
           },
         });
-      } catch {
-        // Dedup: order may already exist for today (e.g. cron already ran)
+      } catch (err) {
+        // Dedup: the unique (recurringOrderId, scheduledDate) constraint means
+        // the cron already created today's order. Any OTHER database failure is
+        // real and must fail the transaction — not be mislabelled a duplicate.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
+          throw err;
+        }
       }
     }
 
@@ -329,7 +335,9 @@ export async function POST(
 
       return NextResponse.json(
         {
-          error: spokeError.message,
+          // The profile itself committed before the dispatch attempt — say so,
+          // or staff re-enter it and trip the duplicate guard.
+          error: `Recurring profile was saved, but today's Spoke dispatch failed: ${spokeError.message} Use "Generate Today's Orders" to retry.`,
           external: true,
           provider: "SPOKE",
           recurringOrder,

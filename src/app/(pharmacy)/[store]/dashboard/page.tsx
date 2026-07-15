@@ -5,6 +5,7 @@ import NotificationPanel from "@/components/NotificationPanel";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import { recurringPeopleMatch } from "@/lib/recurringDuplicateGuard";
+import { getVancouverDeliveryDateInfo } from "@/lib/cron";
 import type { Prisma } from "@prisma/client";
 import {
   card,
@@ -132,10 +133,9 @@ export default async function DashboardPage({
   const store = await resolveStore(storeSlug);
   if (!store) notFound();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // "Today" must be Vancouver's today — server-local midnight (UTC on Vercel)
+  // rolls the dashboard to the next day at ~5 PM Pacific.
+  const { dayStart: today, nextDayStart: tomorrow } = getVancouverDeliveryDateInfo();
 
   const [rawTodayOrders, todayExternalDispatches] = await Promise.all([
     prisma.order.findMany({
