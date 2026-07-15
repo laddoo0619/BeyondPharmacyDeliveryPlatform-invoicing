@@ -287,8 +287,13 @@ export async function dispatchOrderToSpoke(
             deliveryAddressId: input.deliveryAddressId,
           };
 
-      return tx.externalDispatch.update({
-        where: { id: dispatch!.id },
+      // Only advance PENDING/STOP_CREATED to SUBMITTED. A fast webhook (e.g.
+      // stop.allocated seconds after creation) or a staff cancellation can land
+      // between the stop creation and this write; blindly overwriting would
+      // regress the webhook's status or silently un-cancel the handoff. When
+      // that happens, persist the metadata only and keep the newer status.
+      const advanced = await tx.externalDispatch.updateMany({
+        where: { id: dispatch!.id, status: { in: ["PENDING", "STOP_CREATED"] } },
         data: {
           status: "SUBMITTED",
           workflowStep: "CREATE_UNASSIGNED_STOP",
@@ -301,6 +306,22 @@ export async function dispatchOrderToSpoke(
           errorMessage: null,
         },
       });
+
+      if (advanced.count === 0) {
+        await tx.externalDispatch.updateMany({
+          where: { id: dispatch!.id },
+          data: {
+            externalReference: spokeStopId,
+            spokeStopId,
+            patientId: finalSnapshot.patientId,
+            deliveryAddressId: finalSnapshot.deliveryAddressId,
+          },
+        });
+      }
+
+      return tx.externalDispatch.findUniqueOrThrow({
+        where: { id: dispatch!.id },
+      });
     });
 
     return { dispatch: finalDispatch, alreadyDispatched: false };
@@ -309,8 +330,10 @@ export async function dispatchOrderToSpoke(
 
     if (dispatch) {
       try {
-        await prisma.externalDispatch.update({
-          where: { id: dispatch.id },
+        // Only early states may be marked failed — a webhook or cancellation
+        // that advanced the row in the meantime must not be regressed.
+        await prisma.externalDispatch.updateMany({
+          where: { id: dispatch.id, status: { in: ["PENDING", "STOP_CREATED", "SCHEDULED"] } },
           data: {
             status: "DISPATCH_FAILED",
             workflowStep: spokeError.workflowStep,

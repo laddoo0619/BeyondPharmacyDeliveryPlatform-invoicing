@@ -1,9 +1,11 @@
 import cron from "node-cron";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import {
   recurringPeopleMatch,
   type RecurringPersonInput,
 } from "./recurringDuplicateGuard";
+import { getSpokeProviderUserIds } from "./spoke";
 import {
   buildRecurringSpokeIdempotencyKey,
   dispatchOrderToSpoke,
@@ -318,6 +320,24 @@ export async function generateRecurringOrders(
       .filter(Boolean)
   );
 
+  // Fail closed if the Spoke provider configuration goes missing: anyone who
+  // has ever been the selected provider on a dispatch is a known Spoke
+  // provider. If SPOKE_PROVIDER_USER_IDS no longer contains them (unset,
+  // typo'd, redeploy accident), generating an internal order for that driver
+  // would silently strand deliveries on an account nobody logs into.
+  const configuredSpokeProviderIds = getSpokeProviderUserIds();
+  const historicalProviders = await prisma.externalDispatch.findMany({
+    where: { provider: "SPOKE", selectedProviderUserId: { not: null } },
+    select: { selectedProviderUserId: true },
+    distinct: ["selectedProviderUserId"],
+  });
+  const unconfiguredSpokeProviderIds = new Set(
+    historicalProviders
+      .map((row) => row.selectedProviderUserId as string)
+      .filter((providerId) => !configuredSpokeProviderIds.has(providerId))
+  );
+  const misconfiguredByStore = new Map<string, number>();
+
   let created = 0;
   let due = 0;
   let existing = 0;
@@ -502,6 +522,21 @@ export async function generateRecurringOrders(
       validDriverId(recurring.deliveryZone.defaultDriver, recurring.storeId);
     const status = driverId ? "ASSIGNED" : "PENDING";
 
+    // Fail closed: this driver has Spoke dispatch history but is missing from
+    // the configured provider list — an internal order here would silently
+    // strand the delivery. Skip and alert instead.
+    if (driverId && unconfiguredSpokeProviderIds.has(driverId)) {
+      console.error(
+        `[CRON] NOT generating internal order for ${recurring.patientName} — driver ${driverId} has Spoke dispatch history but is missing from SPOKE_PROVIDER_USER_IDS`
+      );
+      misconfiguredByStore.set(
+        recurring.storeId,
+        (misconfiguredByStore.get(recurring.storeId) ?? 0) + 1
+      );
+      skipped++;
+      continue;
+    }
+
     // Create the order — catch unique constraint errors for race condition safety
     try {
       await prisma.order.create({
@@ -527,9 +562,30 @@ export async function generateRecurringOrders(
       created++;
       console.log(`[CRON] Created order for ${recurring.patientName} (${recurring.store.name}) — ${status}${driverId ? " (auto-assigned)" : ""}`);
     } catch (err) {
-      // Race condition: another instance may have created this order
-      console.warn(`[CRON] Skipped duplicate for ${recurring.patientName}:`, err);
-      existing++;
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        // Race condition: another run created this order between the dedup
+        // check and the insert (unique on recurringOrderId + scheduledDate).
+        console.warn(`[CRON] Skipped duplicate for ${recurring.patientName}`);
+        existing++;
+      } else {
+        // A real database failure — never mislabel it as a duplicate.
+        console.error(`[CRON] Failed to create order for ${recurring.patientName}:`, err);
+        skipped++;
+      }
+    }
+  }
+
+  for (const [storeId, count] of misconfiguredByStore) {
+    try {
+      await prisma.notification.create({
+        data: {
+          type: "GENERATION_INCOMPLETE",
+          message: `${count} Anchor deliver${count === 1 ? "y was" : "ies were"} NOT generated — the assigned driver has Spoke dispatch history but is missing from SPOKE_PROVIDER_USER_IDS. Fix the configuration and click "Generate Today's Orders".`,
+          storeId,
+        },
+      });
+    } catch (notifyErr) {
+      console.error("[CRON] Failed to record routing-configuration notification:", notifyErr);
     }
   }
 

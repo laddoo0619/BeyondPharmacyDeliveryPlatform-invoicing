@@ -7,6 +7,7 @@ import { AddressSelect, type AddressValue } from "@/components/AddressSelect";
 import type { Patient } from "@/hooks/usePatientSearch";
 import { card, cn, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
+import { vancouverTodayKey } from "@/lib/vancouverDate";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -22,7 +23,8 @@ interface Driver {
 }
 
 function todayInputValue() {
-  return new Date().toISOString().split("T")[0];
+  // Vancouver's today — toISOString() rolls to tomorrow after ~5 PM Pacific.
+  return vancouverTodayKey();
 }
 
 export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zones: Zone[]; drivers: Driver[]; storeSlug: string }) {

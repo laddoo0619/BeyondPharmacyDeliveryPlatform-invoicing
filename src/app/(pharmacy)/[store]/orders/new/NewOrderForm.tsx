@@ -15,6 +15,7 @@ import {
   secondaryButton,
 } from "@/lib/portalStyles";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
+import { vancouverTodayKey } from "@/lib/vancouverDate";
 
 interface Zone {
   id: string;
@@ -51,7 +52,8 @@ export default function NewOrderForm({
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
   const [scheduledDate, setScheduledDate] = useState(
-    () => new Date().toISOString().split("T")[0]
+    // Vancouver's today — toISOString() would default to tomorrow after ~5 PM Pacific.
+    () => vancouverTodayKey()
   );
 
   const selectedZone = useMemo(

@@ -44,19 +44,24 @@ export default function ExternalDispatchActions({
       }
 
       setLoading(true);
-      const res = await fetch(
-        `/api/${storeSlug}/external-dispatches/${dispatchId}/retry`,
-        { method: "POST" }
-      );
-      setLoading(false);
+      try {
+        const res = await fetch(
+          `/api/${storeSlug}/external-dispatches/${dispatchId}/retry`,
+          { method: "POST" }
+        );
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        alert(data?.error || "Failed to retry Spoke handoff");
-        return;
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          alert(data?.error || "Failed to retry Spoke handoff");
+          return;
+        }
+
+        router.refresh();
+      } catch {
+        alert("Network error — the retry may not have been sent. Refresh and check the handoff status.");
+      } finally {
+        setLoading(false);
       }
-
-      router.refresh();
     };
 
     return (
@@ -88,18 +93,23 @@ export default function ExternalDispatchActions({
     }
 
     setLoading(true);
-    const res = await fetch(`/api/${storeSlug}/external-dispatches/${dispatchId}`, {
-      method: "DELETE",
-    });
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/${storeSlug}/external-dispatches/${dispatchId}`, {
+        method: "DELETE",
+      });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      alert(data?.error || "Failed to cancel Spoke handoff");
-      return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to cancel Spoke handoff");
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      alert("Network error — the cancellation may not have been sent. Refresh and check the handoff status.");
+    } finally {
+      setLoading(false);
     }
-
-    router.refresh();
   };
 
   return (

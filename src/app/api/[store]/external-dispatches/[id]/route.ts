@@ -111,6 +111,26 @@ export async function DELETE(
         ? err
         : new SpokeDispatchError("Failed to cancel Spoke handoff.", 502);
 
+    // The stop is already gone on Spoke's side (removed in Anchor's dashboard,
+    // or a previous cancel attempt succeeded upstream) — deleting a missing
+    // stop IS the desired outcome, so record the cancellation instead of
+    // leaving a handoff that can never be cancelled.
+    if (spokeError.upstreamStatus === 404) {
+      const cancelled = await prisma.externalDispatch.update({
+        where: { id: dispatch.id },
+        data: {
+          status: "CANCELLED",
+          workflowStep: "CANCEL_UNASSIGNED_STOP",
+          errorMessage: null,
+        },
+      });
+
+      return NextResponse.json({
+        message: "Spoke stop was already removed on Spoke's side; handoff marked cancelled.",
+        dispatch: cancelled,
+      });
+    }
+
     await prisma.externalDispatch.update({
       where: { id: dispatch.id },
       data: {
