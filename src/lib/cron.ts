@@ -300,25 +300,75 @@ export async function generateRecurringOrders(
   });
   const existingSet = new Set(existingOrders.map((o) => o.recurringOrderId));
 
+  // Person-level dedup seed: EVERY live delivery already scheduled for today,
+  // regardless of source. A deferred manual Spoke order released minutes before
+  // this loop (or a manual in-house order entered yesterday for today) is
+  // invisible to the id-based dedup sets above — on Jul 10 2026 that produced
+  // double deliveries for three patients (manual stop + recurring stop).
+  const todaysLiveOrders = await prisma.order.findMany({
+    where: {
+      status: { not: "CANCELLED" },
+      scheduledDate: { gte: deliveryDate.dayStart, lt: deliveryDate.nextDayStart },
+    },
+    select: {
+      storeId: true,
+      patientId: true,
+      patientName: true,
+      patientPhone: true,
+      deliveryAddress: true,
+      deliveryCity: true,
+      deliveryPostalCode: true,
+    },
+  });
+
   // Profiles with a live Spoke dispatch today are also "handled": after an
   // Anchor → in-house reassignment mid-day, regenerating must not create a
   // duplicate in-house order while the Spoke stop is still active. Cancelled
   // and failed dispatches don't block, so the cancel-then-regenerate flow and
   // failed-dispatch retries keep working.
-  const todaysRecurringDispatches = await prisma.externalDispatch.findMany({
+  const todaysLiveDispatches = await prisma.externalDispatch.findMany({
     where: {
       provider: "SPOKE",
       scheduledDate: { gte: deliveryDate.dayStart, lt: deliveryDate.nextDayStart },
-      idempotencyKey: { startsWith: "recurring:" },
       status: { notIn: ["CANCELLED", "DISPATCH_FAILED"] },
     },
-    select: { idempotencyKey: true },
+    select: {
+      idempotencyKey: true,
+      storeId: true,
+      patientId: true,
+      patientName: true,
+      patientPhone: true,
+      deliveryAddress: true,
+      deliveryCity: true,
+      deliveryPostalCode: true,
+    },
   });
   const spokeHandledSet = new Set(
-    todaysRecurringDispatches
+    todaysLiveDispatches
+      .filter((d) => d.idempotencyKey.startsWith("recurring:"))
       .map((d) => d.idempotencyKey.split(":")[1])
       .filter(Boolean)
   );
+
+  // Bucket today's already-live deliveries (orders + dispatches, any source)
+  // by store for the fuzzy person match.
+  const preexistingPeopleByStore = new Map<string, RecurringPersonInput[]>();
+  for (const row of [...todaysLiveOrders, ...todaysLiveDispatches]) {
+    const bucket = preexistingPeopleByStore.get(row.storeId);
+    const person = {
+      patientId: row.patientId,
+      patientName: row.patientName,
+      patientPhone: row.patientPhone,
+      deliveryAddress: row.deliveryAddress,
+      deliveryCity: row.deliveryCity,
+      deliveryPostalCode: row.deliveryPostalCode,
+    };
+    if (bucket) {
+      bucket.push(person);
+    } else {
+      preexistingPeopleByStore.set(row.storeId, [person]);
+    }
+  }
 
   // Fail closed if the Spoke provider configuration goes missing: anyone who
   // has ever been the selected provider on a dispatch is a known Spoke
@@ -428,6 +478,22 @@ export async function generateRecurringOrders(
     // Batch dedup check (no per-order query)
     if (existingSet.has(recurring.id)) {
       console.log(`[CRON] Order already exists for ${recurring.patientName} today`);
+      existing++;
+      continue;
+    }
+
+    // A live delivery for this person/address already exists today from ANY
+    // source — e.g. a deferred manual Spoke order released this same morning,
+    // or a manual in-house order entered yesterday for today. Don't deliver
+    // twice via the profile. (A profile at a DIFFERENT address still generates
+    // — the fuzzy match requires the address to agree.)
+    const preexisting = preexistingPeopleByStore.get(recurring.storeId);
+    if (
+      preexisting?.some((person) => recurringPeopleMatch(person, recurringPerson))
+    ) {
+      console.log(
+        `[CRON] Skipping ${recurring.patientName} — a live delivery for this person/address already exists today`
+      );
       existing++;
       continue;
     }
