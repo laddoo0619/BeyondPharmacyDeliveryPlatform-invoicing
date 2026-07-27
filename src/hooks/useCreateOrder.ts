@@ -16,12 +16,21 @@ export interface CreateOrderInput {
   assignedDriverId: string | null;
   instructions: string;
   scheduledDate: string;
+  allowDuplicate?: boolean;
+}
+
+export interface DuplicateBlockInfo {
+  kind: string;
+  status: string;
 }
 
 export function useCreateOrder(storeSlug: string) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Set when the server 409'd because a same-day delivery already exists —
+  // the form uses this to offer the explicit "create second delivery" confirm.
+  const [duplicate, setDuplicate] = useState<DuplicateBlockInfo | null>(null);
   const inFlight = useRef(false);
   const idempotencyKey = useRef<string>(crypto.randomUUID());
 
@@ -30,6 +39,7 @@ export function useCreateOrder(storeSlug: string) {
       if (inFlight.current) return;
       inFlight.current = true;
       setError("");
+      setDuplicate(null);
       setLoading(true);
 
       try {
@@ -53,6 +63,7 @@ export function useCreateOrder(storeSlug: string) {
             assignedDriverId: input.assignedDriverId ?? undefined,
             instructions: input.instructions,
             scheduledDate: input.scheduledDate,
+            allowDuplicate: input.allowDuplicate ?? false,
           }),
         });
 
@@ -67,6 +78,15 @@ export function useCreateOrder(storeSlug: string) {
 
         const body = await res.json().catch(() => ({}));
         setError(body?.error || "Failed to create order");
+
+        // A duplicate 409 carries metadata about the existing delivery; the
+        // form uses it to offer the intentional-second-delivery confirmation.
+        if (res.status === 409 && body?.duplicateBlocked) {
+          setDuplicate({
+            kind: typeof body.existingKind === "string" ? body.existingKind : "IN_HOUSE",
+            status: typeof body.existingStatus === "string" ? body.existingStatus : "unknown",
+          });
+        }
 
         // On validation failure the old key wasn't consumed by a row, but
         // semantically the user is submitting a new intent after editing.
@@ -85,5 +105,5 @@ export function useCreateOrder(storeSlug: string) {
     [storeSlug, router]
   );
 
-  return { submit, loading, error };
+  return { submit, loading, error, duplicate };
 }

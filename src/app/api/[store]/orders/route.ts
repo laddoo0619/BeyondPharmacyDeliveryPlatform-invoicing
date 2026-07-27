@@ -37,6 +37,11 @@ const createOrderSchema = z.object({
   instructions: z.string().optional().default(""),
   scheduledDate: z.string().min(1),
   assignedDriverId: z.string().optional(),
+  // Explicit staff confirmation that a same-day delivery for the same
+  // patient/address is intentional (e.g. a forgotten med). Skips the
+  // duplicate 409s; everything else (driver requirement, Spoke routing,
+  // idempotency) behaves identically.
+  allowDuplicate: z.boolean().optional().default(false),
   isExternalProvider: z.boolean().optional().default(false),
   delivery_company: z.string().optional().default(""),
 });
@@ -240,6 +245,7 @@ export async function POST(
         deliveryAddress: true,
         deliveryCity: true,
         deliveryPostalCode: true,
+        status: true,
       },
     }),
     // Anchor/Spoke deliveries live in ExternalDispatch, not Order — without this
@@ -271,33 +277,49 @@ export async function POST(
     }),
   ]);
 
-  const duplicateInput = {
-    patientId,
-    patientName,
-    deliveryAddress,
-    deliveryCity,
-    deliveryPostalCode,
-  };
+  // Staff can explicitly confirm an intentional second same-day delivery via
+  // allowDuplicate — the 409s below carry machine-readable metadata so the
+  // form can offer that confirmation. Accidental re-entries stay blocked.
+  if (!data.allowDuplicate) {
+    const duplicateInput = {
+      patientId,
+      patientName,
+      deliveryAddress,
+      deliveryCity,
+      deliveryPostalCode,
+    };
 
-  const duplicate = sameDayOrders.find((order) =>
-    orderMatchesDuplicate(order, duplicateInput)
-  );
-
-  if (duplicate) {
-    return NextResponse.json({ error: DUPLICATE_ORDER_MESSAGE }, { status: 409 });
-  }
-
-  const duplicateDispatch = sameDayDispatches.find((dispatch) =>
-    orderMatchesDuplicate(dispatch, duplicateInput)
-  );
-
-  if (duplicateDispatch) {
-    return NextResponse.json(
-      {
-        error: `An Anchor/Spoke delivery already exists for this patient, address, and date (status: ${duplicateDispatch.status}). Manage it from the Orders page instead of re-entering it.`,
-      },
-      { status: 409 }
+    const duplicate = sameDayOrders.find((order) =>
+      orderMatchesDuplicate(order, duplicateInput)
     );
+
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error: DUPLICATE_ORDER_MESSAGE,
+          duplicateBlocked: true,
+          existingKind: "IN_HOUSE",
+          existingStatus: duplicate.status,
+        },
+        { status: 409 }
+      );
+    }
+
+    const duplicateDispatch = sameDayDispatches.find((dispatch) =>
+      orderMatchesDuplicate(dispatch, duplicateInput)
+    );
+
+    if (duplicateDispatch) {
+      return NextResponse.json(
+        {
+          error: `An Anchor/Spoke delivery already exists for this patient, address, and date (status: ${duplicateDispatch.status}). Manage it from the Orders page instead of re-entering it.`,
+          duplicateBlocked: true,
+          existingKind: "SPOKE",
+          existingStatus: duplicateDispatch.status,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const savePatientAddress = async (tx: Prisma.TransactionClient) => {
