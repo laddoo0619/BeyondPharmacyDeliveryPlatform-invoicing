@@ -39,7 +39,7 @@ export default function NewOrderForm({
   storeSlug: string;
 }) {
   const router = useRouter();
-  const { submit, loading, error } = useCreateOrder(storeSlug);
+  const { submit, loading, error, duplicate } = useCreateOrder(storeSlug);
 
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientNameFreeText, setPatientNameFreeText] = useState("");
@@ -110,27 +110,29 @@ export default function NewOrderForm({
     setSelectedDriverId(id);
   }, []);
 
+  const buildInput = (allowDuplicate: boolean) => ({
+    patientId: selectedPatient?.id ?? null,
+    patientName: selectedPatient?.name ?? patientNameFreeText,
+    patientPhone,
+    deliveryAddress: address.address,
+    deliveryCity: address.city,
+    deliveryPostalCode: address.postalCode,
+    deliveryAddressId: address.addressId,
+    saveAddressToPatient: saveAddress,
+    deliveryZoneId: selectedZoneId,
+    assignedDriverId: selectedDriverId,
+    instructions,
+    scheduledDate,
+    allowDuplicate,
+  });
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (editingSavedAddress) return;
     // Driver assignment is mandatory — the select is `required`, this is a guard
     // for completeness (the server enforces it too).
     if (!selectedDriverId) return;
-    const patientName = selectedPatient?.name ?? patientNameFreeText;
-    submit({
-      patientId: selectedPatient?.id ?? null,
-      patientName,
-      patientPhone,
-      deliveryAddress: address.address,
-      deliveryCity: address.city,
-      deliveryPostalCode: address.postalCode,
-      deliveryAddressId: address.addressId,
-      saveAddressToPatient: saveAddress,
-      deliveryZoneId: selectedZoneId,
-      assignedDriverId: selectedDriverId,
-      instructions,
-      scheduledDate,
-    });
+    submit(buildInput(false));
   };
 
   return (
@@ -141,6 +143,25 @@ export default function NewOrderForm({
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm">
           {error}
+        </div>
+      )}
+
+      {duplicate && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm space-y-2">
+          <p>
+            This client already has a{" "}
+            {duplicate.kind === "SPOKE" ? "Spoke/Anchor" : "driver"} delivery
+            today (status: {duplicate.status}). Check the Orders page first —
+            if this is an intentional second delivery, confirm below.
+          </p>
+          <button
+            type="button"
+            onClick={() => submit(buildInput(true))}
+            disabled={loading || editingSavedAddress || !selectedDriverId}
+            className="rounded-full border border-amber-400 bg-white px-4 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+          >
+            {loading ? "Creating..." : "Create second delivery anyway"}
+          </button>
         </div>
       )}
 
