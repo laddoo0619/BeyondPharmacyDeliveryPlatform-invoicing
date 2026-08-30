@@ -180,7 +180,7 @@ model Order {
   fridgeItemNote     String?
   fridgeCheckedAt    DateTime?
   fridgeCheckedById  String?
-  status             String          @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
+  status             String          @default("PENDING") // PENDING | ASSIGNED | PICKED_UP | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
   cancelledAt        DateTime?
   isInvoiced         Boolean         @default(false)
   completedAt        DateTime?
