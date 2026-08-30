@@ -533,8 +533,6 @@ export async function generateRecurringOrders(
           deliveryZoneName: recurring.deliveryZone.name,
           priceAtCreation: recurring.deliveryZone.price,
           instructions: recurring.instructions,
-          hasFridgeItem: recurring.hasFridgeItem,
-          fridgeItemNote: recurring.fridgeItemNote,
           scheduledDate: deliveryDate.dayStart,
           scheduledDateKey: deliveryDate.dateKey,
           createdById: recurring.createdById,
@@ -618,10 +616,6 @@ export async function generateRecurringOrders(
           deliveryZoneName: recurring.deliveryZone.name,
           priceAtCreation: recurring.deliveryZone.price,
           instructions: recurring.instructions,
-          // Inherited from the profile so the client lands on today's fridge
-          // reminder without anyone re-entering it.
-          hasFridgeItem: recurring.hasFridgeItem,
-          fridgeItemNote: recurring.fridgeItemNote,
           status,
           assignedDriverId: driverId,
           scheduledDate: deliveryDate.dayStart,
@@ -720,10 +714,6 @@ export async function releaseDueSpokeDispatches(
         deliveryZoneName: dispatch.deliveryZoneName,
         priceAtCreation: dispatch.priceAtCreation,
         instructions: dispatch.instructions,
-        // Carry the flag (and any tick already made) through the release so a
-        // deferred fridge delivery still shows on its delivery day.
-        hasFridgeItem: dispatch.hasFridgeItem,
-        fridgeItemNote: dispatch.fridgeItemNote,
         scheduledDate: dispatch.scheduledDate,
         scheduledDateKey: dispatch.scheduledDate.toISOString().slice(0, 10),
         createdById: dispatch.createdById,

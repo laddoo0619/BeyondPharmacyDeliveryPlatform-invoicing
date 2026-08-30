@@ -24,6 +24,7 @@ model Store {
   notifications      Notification[]
   externalPlans      ExternalPlan[]
   externalDispatches ExternalDispatch[]
+  reminders          Reminder[]
 }
 
 model User {
@@ -118,10 +119,6 @@ model RecurringOrder {
   deliveryZoneId          String
   deliveryZone            DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
   instructions            String?
-  // Refrigerated medication: set once on the profile and every delivery this
-  // profile generates inherits it, so staff are reminded every delivery day.
-  hasFridgeItem           Boolean      @default(false)
-  fridgeItemNote          String?
   assignedDriverId        String?
   assignedDriver          User?        @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
   activeDays              String       @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
@@ -174,12 +171,6 @@ model Order {
   deliveryZoneName   String
   priceAtCreation    Float
   instructions       String?
-  // Refrigerated medication that must be pulled from the fridge at packing
-  // time. fridgeCheckedAt is set when staff tick it off the daily reminder.
-  hasFridgeItem      Boolean         @default(false)
-  fridgeItemNote     String?
-  fridgeCheckedAt    DateTime?
-  fridgeCheckedById  String?
   status             String          @default("PENDING") // PENDING | ASSIGNED | PICKED_UP | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
   cancelledAt        DateTime?
   isInvoiced         Boolean         @default(false)
@@ -310,13 +301,6 @@ model ExternalDispatch {
   deliveryZoneName       String
   priceAtCreation        Float
   instructions           String?
-  // Anchor/Spoke deliveries never create an Order row, so the fridge flag and
-  // its daily acknowledgement must live here too or they'd be invisible to the
-  // reminder.
-  hasFridgeItem          Boolean       @default(false)
-  fridgeItemNote         String?
-  fridgeCheckedAt        DateTime?
-  fridgeCheckedById      String?
   scheduledDate          DateTime
   requestPayload         Json
   responsePayload        Json?
@@ -339,4 +323,35 @@ model ExternalDispatch {
   // Serves the daily fridge lookup and the same-day duplicate guard, both of
   // which filter by store + scheduled day.
   @@index([storeId, scheduledDate])
+}
+
+// Staff-authored reminder that pops up on a chosen day — "pull Ozempic from the
+// fridge for Mrs. Kaur". Deliberately NOT tied to a delivery row: fridge items
+// often arrive monthly while the delivery profile runs weekly, so a per-profile
+// flag would nag on every delivery instead of the day that matters.
+model Reminder {
+  id          String  @id @default(cuid())
+  note        String
+  // Optional: picked from the recurring list so the name matches the profile.
+  patientName String?
+  // Traceability back to the profile the name came from (no FK — a deleted
+  // profile must not delete history).
+  recurringOrderId String?
+  // UTC-midnight day key, matching Order.scheduledDate conventions.
+  remindOn    DateTime
+  // null = one-off. N = repeat every N weeks; ticking it off spawns the next.
+  repeatIntervalWeeks Int?
+  // Set on a spawned follow-up so re-ticking can never duplicate the chain.
+  sourceReminderId String?
+  completedAt   DateTime?
+  completedById String?
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Serves the daily popup lookup (open reminders due on/before today).
+  @@index([storeId, completedAt, remindOn])
+  @@index([sourceReminderId])
 }

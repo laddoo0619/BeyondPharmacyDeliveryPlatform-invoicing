@@ -1,5 +1,5 @@
 import PharmacyNav from "@/components/PharmacyNav";
-import FridgeReminder from "@/components/FridgeReminder";
+import ReminderPopup from "@/components/ReminderPopup";
 import { resolveStore } from "@/lib/store";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
@@ -53,9 +53,9 @@ export default async function PharmacyLayout({
     <div className={portalShell}>
       <PharmacyNav storeSlug={store.slug} storeName={store.name} />
       <main className={portalMain}>{children}</main>
-      {/* Daily 10 AM reminder to pull refrigerated items — renders itself only
-          when the day has unticked fridge deliveries. */}
-      <FridgeReminder storeSlug={store.slug} />
+      {/* Staff reminders for the day — renders itself only from 10 AM, and
+          only when something is actually outstanding. */}
+      <ReminderPopup storeSlug={store.slug} />
     </div>
   );
 }

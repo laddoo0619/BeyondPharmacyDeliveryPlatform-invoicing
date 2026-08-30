@@ -51,8 +51,6 @@ export default function NewOrderForm({
   const [selectedZoneId, setSelectedZoneId] = useState("");
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [hasFridgeItem, setHasFridgeItem] = useState(false);
-  const [fridgeItemNote, setFridgeItemNote] = useState("");
   const [scheduledDate, setScheduledDate] = useState(
     // Vancouver's today — toISOString() would default to tomorrow after ~5 PM Pacific.
     () => vancouverTodayKey()
@@ -126,8 +124,6 @@ export default function NewOrderForm({
     instructions,
     scheduledDate,
     allowDuplicate,
-    hasFridgeItem,
-    fridgeItemNote,
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -253,33 +249,6 @@ export default function NewOrderForm({
           placeholder="Leave at door, ring bell, etc."
           className={input}
         />
-      </div>
-
-      {/* Puts this delivery on today's 10 AM fridge reminder. For clients who
-          always have a fridge item, set it on their recurring profile instead
-          so it applies to every delivery automatically. */}
-      <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={hasFridgeItem}
-            onChange={(e) => setHasFridgeItem(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-[#6f8f72] focus:ring-[#6f8f72]"
-          />
-          <span className="text-sm font-medium text-slate-700">
-            🧊 Fridge item — remind staff to pull it before this delivery
-          </span>
-        </label>
-        {hasFridgeItem && (
-          <input
-            type="text"
-            value={fridgeItemNote}
-            onChange={(e) => setFridgeItemNote(e.target.value)}
-            placeholder="Which item? (e.g. Ozempic) — optional"
-            maxLength={200}
-            className={`${input} mt-2`}
-          />
-        )}
       </div>
 
       <div className="flex space-x-3 pt-4">

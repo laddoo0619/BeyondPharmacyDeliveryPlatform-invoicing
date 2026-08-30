@@ -39,8 +39,6 @@ interface RecurringOrderItem {
   isSkippedThisWeek: boolean;
   assignedDriverId: string | null;
   assignedDriverName: string | null;
-  hasFridgeItem: boolean;
-  fridgeItemNote: string | null;
 }
 
 function lastNameGroup(patientName: string) {
@@ -189,19 +187,6 @@ export default function RecurringOrderList({
     await runAction(id, () =>
       fetch(`/api/${storeSlug}/recurring/${id}/${action}`, { method: "POST" })
     );
-  };
-
-  const toggleFridge = async (id: string, hasFridgeItem: boolean) => {
-    if (hasFridgeItem) {
-      await patchRecurring(id, { hasFridgeItem: false });
-      return;
-    }
-    // Optional note, so a blank entry still turns the flag on.
-    const note = prompt(
-      "Which fridge item does this client get? (optional — leave blank to just flag it)"
-    );
-    if (note === null) return;
-    await patchRecurring(id, { hasFridgeItem: true, fridgeItemNote: note });
   };
 
   const toggleActive = async (id: string, isActive: boolean) => {
@@ -502,11 +487,6 @@ export default function RecurringOrderList({
                           {!order.isActive && (
                             <span className={statusBadgeClasses("INACTIVE")}>Inactive</span>
                           )}
-                          {order.hasFridgeItem && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">
-                              🧊 Fridge{order.fridgeItemNote ? `: ${order.fridgeItemNote}` : ""}
-                            </span>
-                          )}
                           {order.isActive && (
                             <button onClick={() => toggleHold(order.id, order.isOnHold)} disabled={loading === order.id}
                               className={`${secondaryButton} text-xs py-1.5`}>
@@ -519,10 +499,6 @@ export default function RecurringOrderList({
                               {order.isSkippedThisWeek ? "Unskip" : "Skip This Week"}
                             </button>
                           )}
-                          <button onClick={() => toggleFridge(order.id, order.hasFridgeItem)} disabled={loading === order.id}
-                            className="text-xs text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50">
-                            {order.hasFridgeItem ? "Remove Fridge Flag" : "Mark Fridge Item"}
-                          </button>
                           <button onClick={() => toggleActive(order.id, order.isActive)} disabled={loading === order.id}
                             className="text-xs text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50">
                             {order.isActive ? "Deactivate" : "Activate"}

@@ -17,8 +17,6 @@ export interface CreateOrderInput {
   instructions: string;
   scheduledDate: string;
   allowDuplicate?: boolean;
-  hasFridgeItem: boolean;
-  fridgeItemNote: string;
 }
 
 export interface DuplicateBlockInfo {
@@ -66,8 +64,6 @@ export function useCreateOrder(storeSlug: string) {
             instructions: input.instructions,
             scheduledDate: input.scheduledDate,
             allowDuplicate: input.allowDuplicate ?? false,
-            hasFridgeItem: input.hasFridgeItem,
-            fridgeItemNote: input.fridgeItemNote || undefined,
           }),
         });
 
