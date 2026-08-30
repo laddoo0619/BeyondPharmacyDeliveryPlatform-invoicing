@@ -42,9 +42,6 @@ const createOrderSchema = z.object({
   // duplicate 409s; everything else (driver requirement, Spoke routing,
   // idempotency) behaves identically.
   allowDuplicate: z.boolean().optional().default(false),
-  // Refrigerated medication — surfaces on the daily 10 AM fridge reminder.
-  hasFridgeItem: z.boolean().optional().default(false),
-  fridgeItemNote: z.string().max(200).optional(),
   isExternalProvider: z.boolean().optional().default(false),
   delivery_company: z.string().optional().default(""),
 });
@@ -224,10 +221,6 @@ export async function POST(
   }
 
   const instructions = data.instructions || null;
-  const hasFridgeItem = data.hasFridgeItem === true;
-  const fridgeItemNote = hasFridgeItem
-    ? cleanOptionalText(data.fridgeItemNote)
-    : null;
   const scheduledDate = scheduledDateRange.scheduledDate;
   const scheduledDateKey = parseScheduledDateKey(data.scheduledDate, scheduledDate);
   const routeToSpoke = shouldRouteToSpoke({
@@ -403,8 +396,6 @@ export async function POST(
         deliveryZoneName: zone.name,
         priceAtCreation: zone.price,
         instructions,
-        hasFridgeItem,
-        fridgeItemNote,
         scheduledDate,
         scheduledDateKey,
         createdById: session.user.id,
@@ -446,8 +437,6 @@ export async function POST(
           deliveryZoneName: zone.name,
           priceAtCreation: zone.price,
           instructions,
-          hasFridgeItem,
-          fridgeItemNote,
           scheduledDate,
           status: assignedDriverId ? "ASSIGNED" : "PENDING",
           assignedDriverId,

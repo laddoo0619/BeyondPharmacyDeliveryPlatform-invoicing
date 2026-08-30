@@ -9,6 +9,7 @@ const sections = [
   { path: "dashboard", label: "Dashboard" },
   { path: "orders", label: "Orders" },
   { path: "recurring", label: "Recurring" },
+  { path: "reminders", label: "Reminders" },
   { path: "pricing", label: "Pricing" },
   { path: "invoices", label: "Invoices" },
   { path: "users", label: "Users" },
