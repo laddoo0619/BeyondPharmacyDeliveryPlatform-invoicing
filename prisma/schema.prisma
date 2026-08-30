@@ -118,6 +118,10 @@ model RecurringOrder {
   deliveryZoneId          String
   deliveryZone            DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
   instructions            String?
+  // Refrigerated medication: set once on the profile and every delivery this
+  // profile generates inherits it, so staff are reminded every delivery day.
+  hasFridgeItem           Boolean      @default(false)
+  fridgeItemNote          String?
   assignedDriverId        String?
   assignedDriver          User?        @relation("RecurringOrderAssignedDriver", fields: [assignedDriverId], references: [id])
   activeDays              String       @default("[1]") // JSON array of day numbers 0=Sun..6=Sat, e.g. "[1,2,3,4,5]"
@@ -170,6 +174,12 @@ model Order {
   deliveryZoneName   String
   priceAtCreation    Float
   instructions       String?
+  // Refrigerated medication that must be pulled from the fridge at packing
+  // time. fridgeCheckedAt is set when staff tick it off the daily reminder.
+  hasFridgeItem      Boolean         @default(false)
+  fridgeItemNote     String?
+  fridgeCheckedAt    DateTime?
+  fridgeCheckedById  String?
   status             String          @default("PENDING") // PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | FAILED | CANCELLED
   cancelledAt        DateTime?
   isInvoiced         Boolean         @default(false)
@@ -300,6 +310,13 @@ model ExternalDispatch {
   deliveryZoneName       String
   priceAtCreation        Float
   instructions           String?
+  // Anchor/Spoke deliveries never create an Order row, so the fridge flag and
+  // its daily acknowledgement must live here too or they'd be invisible to the
+  // reminder.
+  hasFridgeItem          Boolean       @default(false)
+  fridgeItemNote         String?
+  fridgeCheckedAt        DateTime?
+  fridgeCheckedById      String?
   scheduledDate          DateTime
   requestPayload         Json
   responsePayload        Json?
@@ -319,4 +336,7 @@ model ExternalDispatch {
   @@index([externalPlanId])
   @@index([selectedProviderUserId, storeId, scheduledDate])
   @@index([provider, status, scheduledDate])
+  // Serves the daily fridge lookup and the same-day duplicate guard, both of
+  // which filter by store + scheduled day.
+  @@index([storeId, scheduledDate])
 }

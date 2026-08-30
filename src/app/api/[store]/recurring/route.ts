@@ -87,6 +87,11 @@ export async function POST(
     );
   }
 
+  // Refrigerated-medication flag: inherited by every delivery this profile
+  // generates so the daily reminder never depends on staff remembering.
+  const hasFridgeItem = body.hasFridgeItem === true;
+  const fridgeItemNote = hasFridgeItem ? cleanOptionalText(body.fridgeItemNote) : null;
+
   const activeDays = parseRecurringActiveDays(body.activeDays ?? [1]);
   if (!activeDays) {
     return NextResponse.json(
@@ -246,6 +251,8 @@ export async function POST(
         deliveryPostalCode,
         deliveryZoneId: zone.id,
         instructions: body.instructions || null,
+        hasFridgeItem,
+        fridgeItemNote,
         assignedDriverId,
         activeDays: JSON.stringify(activeDays),
         recurrenceIntervalWeeks,
@@ -278,6 +285,8 @@ export async function POST(
             deliveryZoneName: createdRecurringOrder.deliveryZone.name,
             priceAtCreation: createdRecurringOrder.deliveryZone.price,
             instructions: body.instructions || null,
+            hasFridgeItem,
+            fridgeItemNote,
             status,
             assignedDriverId: driverId,
             scheduledDate: deliveryDate.dayStart,
@@ -323,6 +332,8 @@ export async function POST(
         deliveryZoneName: recurringOrder.deliveryZone.name,
         priceAtCreation: recurringOrder.deliveryZone.price,
         instructions: body.instructions || null,
+        hasFridgeItem,
+        fridgeItemNote,
         scheduledDate: deliveryDate.dayStart,
         scheduledDateKey: deliveryDate.dateKey,
         createdById: session.user.id,

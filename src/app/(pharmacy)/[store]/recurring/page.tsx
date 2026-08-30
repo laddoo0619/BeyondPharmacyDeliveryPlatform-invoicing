@@ -92,6 +92,8 @@ export default async function RecurringPage({
                 isSkippedThisWeek: o.skips.length > 0,
                 assignedDriverId: o.assignedDriverId,
                 assignedDriverName: o.assignedDriver?.name ?? null,
+                hasFridgeItem: o.hasFridgeItem,
+                fridgeItemNote: o.fridgeItemNote,
               }))}
           />
         </div>

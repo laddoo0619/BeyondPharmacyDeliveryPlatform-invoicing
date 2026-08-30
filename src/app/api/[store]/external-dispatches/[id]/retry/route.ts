@@ -77,6 +77,11 @@ export async function POST(
       deliveryZoneName: dispatch.deliveryZoneName,
       priceAtCreation: dispatch.priceAtCreation,
       instructions: dispatch.instructions,
+      // Must be replayed: the audit upsert rewrites these columns, so omitting
+      // them would clear the fridge flag on retry and drop the delivery off the
+      // daily reminder.
+      hasFridgeItem: dispatch.hasFridgeItem,
+      fridgeItemNote: dispatch.fridgeItemNote,
       scheduledDate: dispatch.scheduledDate,
       scheduledDateKey: dispatch.scheduledDate.toISOString().slice(0, 10),
       createdById: dispatch.createdById,
