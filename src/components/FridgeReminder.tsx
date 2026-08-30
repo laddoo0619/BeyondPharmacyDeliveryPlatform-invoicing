@@ -58,12 +58,20 @@ export default function FridgeReminder({ storeSlug }: { storeSlug: string }) {
   const [snoozedUntil, setSnoozedUntil] = useState(0);
   const [now, setNow] = useState(() => new Date());
   const snoozeRef = useRef(() => {});
+  // Bumped on every tick so a poll that started earlier can't overwrite the
+  // fresher state it doesn't know about.
+  const mutationSeq = useRef(0);
 
   const fetchChecklist = useCallback(async () => {
+    const seq = mutationSeq.current;
     try {
       const res = await fetch(`/api/${storeSlug}/fridge`);
       if (!res.ok) return;
-      setChecklist(await res.json());
+      const data = await res.json();
+      // A tick landed while this poll was in flight — its response already
+      // carries newer state, so drop this one.
+      if (mutationSeq.current !== seq) return;
+      setChecklist(data);
     } catch {
       // Offline or transient — keep whatever list we already have.
     }
@@ -85,6 +93,7 @@ export default function FridgeReminder({ storeSlug }: { storeSlug: string }) {
   }, [storeSlug, dateKey]);
 
   const toggleItem = async (item: FridgeChecklistItem) => {
+    mutationSeq.current += 1;
     setSaving(item.id);
     setError("");
     try {
@@ -112,15 +121,6 @@ export default function FridgeReminder({ storeSlug }: { storeSlug: string }) {
     }
   };
 
-  // Escape snoozes, matching ConfirmModal's dismiss behaviour.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") snoozeRef.current();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-
   const hideUntil = (until: number) => {
     writeSnoozedUntil(storeSlug, dateKey, until);
     setSnoozedUntil(until);
@@ -137,6 +137,18 @@ export default function FridgeReminder({ storeSlug }: { storeSlug: string }) {
   const outstanding = checklist?.outstanding ?? 0;
   const visible =
     outstanding > 0 && isFridgeReminderDue(now) && Date.now() >= snoozedUntil;
+
+  // Bound to `visible`: a listener that lives while the popup is hidden turns
+  // every Escape elsewhere in the portal (ConfirmModal uses the same key) into
+  // a silent 30-minute snooze of a reminder the user never saw.
+  useEffect(() => {
+    if (!visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") snoozeRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [visible]);
 
   if (!visible || !checklist || typeof document === "undefined") return null;
 

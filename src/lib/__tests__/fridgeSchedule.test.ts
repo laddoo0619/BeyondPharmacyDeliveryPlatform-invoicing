@@ -40,3 +40,50 @@ describe("isFridgeReminderDue", () => {
     expect(FRIDGE_REMINDER_HOUR).toBe(10);
   });
 });
+
+// The status filters live in fridge.ts (which imports prisma); importing the
+// constants alone runs no queries. These pin the exact regression found in
+// post-merge review: PICKED_UP was missing, so a fridge order the driver had
+// just loaded into the van disappeared from the 10 AM list.
+describe("fridge checklist status filters", () => {
+  it("keeps every order status a fridge item can still be acted on", async () => {
+    const { SETTLED_ORDER_STATUSES } = await import("@/lib/fridge");
+    for (const status of ["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT"]) {
+      expect(SETTLED_ORDER_STATUSES).not.toContain(status);
+    }
+  });
+
+  it("drops settled orders so the popup can't nag about them", async () => {
+    const { SETTLED_ORDER_STATUSES } = await import("@/lib/fridge");
+    for (const status of ["DELIVERED", "FAILED", "CANCELLED"]) {
+      expect(SETTLED_ORDER_STATUSES).toContain(status);
+    }
+  });
+
+  it("keeps live Anchor dispatch statuses on the list", async () => {
+    const { SETTLED_DISPATCH_STATUSES } = await import("@/lib/fridge");
+    for (const status of [
+      "PENDING",
+      "SCHEDULED",
+      "STOP_CREATED",
+      "SUBMITTED",
+      "ALLOCATED",
+      "IN_TRANSIT",
+      "DEPARTED",
+    ]) {
+      expect(SETTLED_DISPATCH_STATUSES).not.toContain(status);
+    }
+  });
+
+  it("drops settled Anchor dispatches, including a failed delivery attempt", async () => {
+    const { SETTLED_DISPATCH_STATUSES } = await import("@/lib/fridge");
+    for (const status of [
+      "DELIVERED",
+      "DELIVERY_FAILED",
+      "DISPATCH_FAILED",
+      "CANCELLED",
+    ]) {
+      expect(SETTLED_DISPATCH_STATUSES).toContain(status);
+    }
+  });
+});

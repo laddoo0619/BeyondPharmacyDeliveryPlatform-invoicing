@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { SETTLED_DISPATCH_STATUSES, SETTLED_ORDER_STATUSES } from "@/lib/fridge";
 import { getVancouverDeliveryDateInfo } from "@/lib/cron";
 import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
 import { resolveStore } from "@/lib/store";
@@ -240,7 +241,10 @@ export async function PATCH(
           recurringOrderId: id,
           storeId: store.id,
           scheduledDate: fromToday,
-          status: { in: ["PENDING", "ASSIGNED"] },
+          // Same rule the checklist uses, so a toggle reaches every delivery
+          // the reminder can show — including PICKED_UP, which is still at the
+          // pharmacy being loaded.
+          status: { notIn: SETTLED_ORDER_STATUSES },
         },
         data: fridgeData,
       }),
@@ -250,7 +254,7 @@ export async function PATCH(
           storeId: store.id,
           idempotencyKey: { startsWith: `recurring:${id}:` },
           scheduledDate: fromToday,
-          status: { notIn: ["CANCELLED", "DISPATCH_FAILED", "DELIVERED"] },
+          status: { notIn: SETTLED_DISPATCH_STATUSES },
         },
         data: fridgeData,
       }),

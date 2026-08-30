@@ -1,4 +1,15 @@
 /**
+ * ⚠️ NOT DEPLOYED AND OUT OF DATE — DO NOT FOLLOW THE INSTRUCTIONS BELOW.
+ *
+ * Production generates recurring orders through vercel.json ->
+ * /api/cron/generate-recurring -> generateRecurringOrders() in src/lib/cron.ts.
+ * This file has drifted from that implementation and is missing, at least:
+ * Spoke/Anchor routing, Vancouver-timezone day handling, the person-level
+ * duplicate guard, the time-budget continuation, and the fridge-item flag.
+ * Deploying it as written would create wrong and duplicate deliveries.
+ *
+ * Either delete this file or re-derive it from src/lib/cron.ts before use.
+ *
  * AWS Lambda handler for generating daily recurring orders.
  *
  * Deployment:

@@ -22,10 +22,18 @@ export interface FridgeChecklist {
   outstanding: number;
 }
 
-// Only deliveries still in (or just leaving) the pharmacy's hands. A DELIVERED
-// or FAILED order can no longer have an item added, so keeping it on the list
-// would leave the popup permanently open on an unticked row nobody can action.
-const OPEN_ORDER_STATUSES = ["PENDING", "ASSIGNED", "IN_TRANSIT"];
+// Expressed as "everything except settled" rather than a list of open statuses:
+// enumerating the open ones silently dropped PICKED_UP (set by the driver while
+// loading the van — exactly when the fridge item still has to go in the bag),
+// because the Order.status schema comment omits it. Settled deliveries are
+// excluded so the popup can't stay open on a row nobody can action.
+export const SETTLED_ORDER_STATUSES = ["DELIVERED", "FAILED", "CANCELLED"];
+export const SETTLED_DISPATCH_STATUSES = [
+  "DELIVERED",
+  "DELIVERY_FAILED",
+  "DISPATCH_FAILED",
+  "CANCELLED",
+];
 
 export async function getFridgeChecklist(
   storeId: string,
@@ -40,7 +48,7 @@ export async function getFridgeChecklist(
         storeId,
         scheduledDate,
         hasFridgeItem: true,
-        status: { in: OPEN_ORDER_STATUSES },
+        status: { notIn: SETTLED_ORDER_STATUSES },
       },
       select: {
         id: true,
@@ -56,7 +64,7 @@ export async function getFridgeChecklist(
         storeId,
         scheduledDate,
         hasFridgeItem: true,
-        status: { notIn: ["CANCELLED", "DISPATCH_FAILED", "DELIVERED"] },
+        status: { notIn: SETTLED_DISPATCH_STATUSES },
       },
       select: {
         id: true,
