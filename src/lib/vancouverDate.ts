@@ -13,3 +13,21 @@ export function vancouverTodayKey(now: Date = new Date()) {
     day: "2-digit",
   }).format(now);
 }
+
+// Vancouver wall-clock hour (0-23). The browser's own clock may be in another
+// timezone (or plain wrong), so anything scheduled against the pharmacy's day
+// has to be derived this way rather than from getHours().
+export function vancouverHour(now: Date = new Date()) {
+  const hour = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DELIVERY_TIME_ZONE,
+    hour: "2-digit",
+    hour12: false,
+  })
+    .formatToParts(now)
+    .find((part) => part.type === "hour")?.value;
+
+  // "24" is a valid en-CA rendering of midnight in some runtimes.
+  const parsed = Number(hour);
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed % 24;
+}

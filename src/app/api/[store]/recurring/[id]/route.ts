@@ -51,6 +51,17 @@ export async function PATCH(
     updateData.isActive = body.isActive;
   }
 
+  // Fridge (refrigerated medication) flag. Note is cleared when the flag is
+  // turned off so a stale item name can never resurface later.
+  if (typeof body.hasFridgeItem === "boolean") {
+    updateData.hasFridgeItem = body.hasFridgeItem;
+    if (!body.hasFridgeItem) {
+      updateData.fridgeItemNote = null;
+    } else if (typeof body.fridgeItemNote === "string") {
+      updateData.fridgeItemNote = body.fridgeItemNote.trim() || null;
+    }
+  }
+
   let nextActiveDays = parseRecurringActiveDays(existing.activeDays);
 
   // Custom delivery days
@@ -202,6 +213,51 @@ export async function PATCH(
     data: updateData,
   });
 
+  // Propagate the fridge flag to today's (and any future) already-generated
+  // deliveries. Without this, flagging a client at 9 AM would not put them on
+  // the 10 AM reminder for the delivery the 6 AM run already created — the
+  // flag would only take effect tomorrow, which is exactly the miss this
+  // feature exists to prevent. Both delivery tables are covered because an
+  // Anchor delivery never creates an Order row.
+  let syncedFridgeDeliveries = 0;
+  if (typeof body.hasFridgeItem === "boolean") {
+    const nextHasFridgeItem = updateData.hasFridgeItem as boolean;
+    const fridgeData = {
+      hasFridgeItem: nextHasFridgeItem,
+      // Off clears the note; on keeps the newly supplied note, or the profile's
+      // existing one when the caller didn't send a new value.
+      fridgeItemNote: !nextHasFridgeItem
+        ? null
+        : ((("fridgeItemNote" in updateData
+            ? updateData.fridgeItemNote
+            : existing.fridgeItemNote) ?? null) as string | null),
+    };
+    const fromToday = { gte: getVancouverDeliveryDateInfo().dayStart };
+
+    const [syncedOrders, syncedDispatches] = await Promise.all([
+      prisma.order.updateMany({
+        where: {
+          recurringOrderId: id,
+          storeId: store.id,
+          scheduledDate: fromToday,
+          status: { in: ["PENDING", "ASSIGNED"] },
+        },
+        data: fridgeData,
+      }),
+      // Recurring Spoke dispatches are keyed "recurring:<profileId>:<date>".
+      prisma.externalDispatch.updateMany({
+        where: {
+          storeId: store.id,
+          idempotencyKey: { startsWith: `recurring:${id}:` },
+          scheduledDate: fromToday,
+          status: { notIn: ["CANCELLED", "DISPATCH_FAILED", "DELIVERED"] },
+        },
+        data: fridgeData,
+      }),
+    ]);
+    syncedFridgeDeliveries = syncedOrders.count + syncedDispatches.count;
+  }
+
   // Propagate a driver reassignment to today's (and any future) already-generated
   // orders that haven't left the pharmacy yet. Without this, an order created by
   // the 6 AM run keeps the OLD driver all day and never appears on the newly
@@ -255,7 +311,7 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ ...updated, reassignedOrders });
+  return NextResponse.json({ ...updated, reassignedOrders, syncedFridgeDeliveries });
 }
 
 export async function DELETE(

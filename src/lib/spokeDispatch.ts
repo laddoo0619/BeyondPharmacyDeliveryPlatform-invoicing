@@ -28,6 +28,10 @@ interface SpokeDispatchInput {
   deliveryZoneName: string;
   priceAtCreation: number;
   instructions: string | null;
+  // Refrigerated medication. Anchor deliveries never create an Order row, so
+  // this is the only place the daily fridge reminder can read them from.
+  hasFridgeItem?: boolean;
+  fridgeItemNote?: string | null;
   scheduledDate: Date;
   scheduledDateKey: string;
   store: {
@@ -83,6 +87,8 @@ function buildExternalDispatchAuditData(input: {
   deliveryZoneName: string;
   priceAtCreation: number;
   instructions: string | null;
+  hasFridgeItem?: boolean;
+  fridgeItemNote?: string | null;
   scheduledDate: Date;
   storeId: string;
   createdById: string;
@@ -109,6 +115,8 @@ function buildExternalDispatchAuditData(input: {
     deliveryZoneName: input.deliveryZoneName,
     priceAtCreation: input.priceAtCreation,
     instructions: input.instructions,
+    hasFridgeItem: input.hasFridgeItem ?? false,
+    fridgeItemNote: input.fridgeItemNote ?? null,
     scheduledDate: input.scheduledDate,
     requestPayload: asPrismaJson(input.requestPayload),
     responsePayload: asPrismaJson(input.responsePayload),
@@ -227,6 +235,8 @@ export async function dispatchOrderToSpoke(
       deliveryZoneName: input.deliveryZoneName,
       priceAtCreation: input.priceAtCreation,
       instructions: input.instructions,
+      hasFridgeItem: input.hasFridgeItem ?? false,
+      fridgeItemNote: input.fridgeItemNote ?? null,
       scheduledDate: input.scheduledDate,
       storeId: input.store.id,
       createdById: input.createdById,
@@ -424,6 +434,8 @@ export async function scheduleDeferredSpokeDispatch(
         deliveryZoneName: input.deliveryZoneName,
         priceAtCreation: input.priceAtCreation,
         instructions: input.instructions,
+        hasFridgeItem: input.hasFridgeItem ?? false,
+        fridgeItemNote: input.fridgeItemNote ?? null,
         scheduledDate: input.scheduledDate,
         storeId: input.store.id,
         createdById: input.createdById,

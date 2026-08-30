@@ -43,6 +43,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
   const [preferredAddressId, setPreferredAddressId] = useState<string | null>(null);
   const [editingSavedAddress, setEditingSavedAddress] = useState(false);
   const [patientInputKey, setPatientInputKey] = useState(0);
+  const [hasFridgeItem, setHasFridgeItem] = useState(false);
+  const [fridgeItemNote, setFridgeItemNote] = useState("");
 
   const selectPatient = useCallback((patient: Patient) => {
     setSelectedPatient(patient);
@@ -102,6 +104,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
         deliveryZoneId: formData.get("deliveryZoneId"),
         assignedDriverId: formData.get("assignedDriverId") || null,
         instructions: formData.get("instructions"),
+        hasFridgeItem,
+        fridgeItemNote: hasFridgeItem ? fridgeItemNote : null,
         activeDays: selectedDays,
         recurrenceIntervalWeeks,
         recurrenceAnchorDate,
@@ -120,6 +124,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
       setPatientNameFreeText("");
       setAddress(EMPTY_ADDRESS);
       setSaveAddress(false);
+      setHasFridgeItem(false);
+      setFridgeItemNote("");
       setPatientInputKey((key) => key + 1);
       router.refresh();
     }
@@ -220,6 +226,32 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
           </div>
         </div>
         <textarea name="instructions" rows={2} placeholder="Instructions (optional)" className={input} />
+
+        {/* Set once here and every delivery this profile generates lands on the
+            daily 10 AM fridge reminder. */}
+        <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={hasFridgeItem}
+              onChange={(e) => setHasFridgeItem(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-[#6f8f72] focus:ring-[#6f8f72]"
+            />
+            <span className="text-sm font-medium text-slate-700">
+              🧊 Fridge item — remind staff every delivery day
+            </span>
+          </label>
+          {hasFridgeItem && (
+            <input
+              type="text"
+              value={fridgeItemNote}
+              onChange={(e) => setFridgeItemNote(e.target.value)}
+              placeholder="Which item? (e.g. Ozempic) — optional"
+              className={`${input} mt-2`}
+            />
+          )}
+        </div>
+
         <button type="submit" disabled={loading || selectedDays.length === 0 || editingSavedAddress} className={primaryButton}>
           {loading ? "Creating..." : "Create Recurring Order"}
         </button>
