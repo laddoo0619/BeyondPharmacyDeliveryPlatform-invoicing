@@ -96,12 +96,12 @@ export default function ReminderList({
             {r.note}
           </span>
           {r.isOverdue && (
-            <span className="rounded-full bg-blush px-2 py-0.5 text-[11px] font-bold text-navy">
+            <span className="rounded-full bg-blush px-2 py-0.5 text-label font-bold text-navy">
               Overdue
             </span>
           )}
           {r.repeatIntervalWeeks && (
-            <span className="rounded-full bg-blue px-2 py-0.5 text-[11px] font-bold text-navy">
+            <span className="rounded-full bg-blue px-2 py-0.5 text-label font-bold text-navy">
               Repeats {repeatLabel(r.repeatIntervalWeeks)}
             </span>
           )}

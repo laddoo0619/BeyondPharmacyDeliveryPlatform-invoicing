@@ -31,6 +31,7 @@ const STATUS_TONES: Record<string, Tone> = {
   FAILED: "blush",
   CANCELLED: "off",
   // Spoke dispatch
+  SCHEDULED: "blue",
   SUBMITTED: "blue",
   PLAN_CREATED: "blue",
   STOP_CREATED: "blue",
@@ -99,6 +100,9 @@ export function notificationStyle(type: string): { badge: string; marker: string
   }
   if (type === "ORDER_PICKED_UP") {
     return { badge: statusBadgeClasses("PICKED_UP"), marker: MARKER_CLASSES.success, unread: "bg-mint" };
+  }
+  if (type === "BATCH_DELIVERED") {
+    return { badge: statusBadgeClasses("DELIVERED"), marker: MARKER_CLASSES.success, unread: "bg-mint" };
   }
   return { badge: statusBadgeClasses("IN_TRANSIT"), marker: MARKER_CLASSES.info, unread: "bg-blue" };
 }

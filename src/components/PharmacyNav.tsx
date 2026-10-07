@@ -61,7 +61,7 @@ export default function PharmacyNav({
   // and at 28px the eight links no longer fit beside it.
   return (
     <nav className="sticky top-0 z-30 pt-2 sm:pt-3">
-      <div className="mx-auto flex w-full max-w-content items-center justify-between gap-x-3 gap-y-1 rounded-full bg-header px-3 py-2 shadow-lift backdrop-blur-[16px] backdrop-saturate-[1.3] sm:px-5 md:flex-wrap md:rounded-mid xl:flex-nowrap xl:rounded-full">
+      <div className="mx-auto flex w-full max-w-content items-center justify-between gap-x-3 gap-y-1 rounded-full header-glass px-3 py-2 sm:px-5 md:flex-wrap md:rounded-mid xl:flex-nowrap xl:rounded-full">
         <div className="flex min-w-0 items-center gap-x-2 sm:gap-x-3">
           <Link
             href={`${base}/dashboard`}
@@ -116,7 +116,7 @@ export default function PharmacyNav({
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="shrink-0 rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-cream transition duration-[220ms] ease-out hover:bg-navy-deep active:scale-[0.97] sm:px-4 sm:py-2 sm:text-sm"
+          className="shrink-0 rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-cream transition duration-(--hover-ms) ease-out hover:bg-navy-deep active:scale-(--press-scale) sm:px-4 sm:py-2 sm:text-sm"
         >
           Sign Out
         </button>

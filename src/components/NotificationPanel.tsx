@@ -93,6 +93,8 @@ export default function NotificationPanel({ storeSlug }: { storeSlug: string }) 
                           ? "Generation Incomplete"
                           : n.type === "ORDER_PICKED_UP"
                           ? "Order Picked Up"
+                          : n.type === "BATCH_DELIVERED"
+                          ? "Batch Delivered"
                         : "Re-attempt Started"}
                       </span>
                     </div>

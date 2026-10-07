@@ -220,7 +220,7 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
                   type="button"
                   onClick={() => merge(duplicate)}
                   disabled={busyId !== null}
-                  className="rounded-full border-[1.5px] border-control bg-white px-3 py-1.5 text-xs font-bold text-navy shadow-soft transition duration-[220ms] hover:border-control-hover active:scale-[0.97] disabled:opacity-50"
+                  className="rounded-full border-(length:--line-strong) border-control bg-white px-3 py-1.5 text-xs font-bold text-navy shadow-soft transition duration-(--hover-ms) hover:border-control-hover active:scale-(--press-scale) disabled:opacity-50"
                 >
                   {busyId === duplicate.id ? "Merging..." : "Merge into this patient"}
                 </button>

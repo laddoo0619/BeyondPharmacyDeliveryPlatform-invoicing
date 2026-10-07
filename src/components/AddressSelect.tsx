@@ -422,7 +422,7 @@ function AddressSelectInner({
 
       {isEditing && matchingSavedAddresses.length > 0 && (
         <div className="rounded-row border border-hairline bg-white shadow-soft overflow-hidden">
-          <div className="px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-navy bg-blue">
+          <div className="px-3 py-2 text-xs font-bold uppercase tracking-label text-navy bg-blue">
             Saved matches
           </div>
           {matchingSavedAddresses.map((address) => (
@@ -445,7 +445,7 @@ function AddressSelectInner({
 
       {isEditing && (googleSuggestions.length > 0 || googleLoading || googleError) && (
         <div className="rounded-row border border-hairline bg-white shadow-soft overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-navy bg-mint">
+          <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-label text-navy bg-mint">
             <span>Google suggestions</span>
             <span className="normal-case tracking-normal font-semibold text-navy">
               Powered by Google

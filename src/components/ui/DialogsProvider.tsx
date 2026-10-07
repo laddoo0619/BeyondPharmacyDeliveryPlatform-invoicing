@@ -140,16 +140,19 @@ function ConfirmDialog({
       describedBy={request.title ? messageId : undefined}
       initialFocusRef={initialFocusRef}
     >
-      <div className="px-6 pb-6 pt-3 sm:pt-6">
-        {request.title && (
-          <h3 id={titleId} className={`${sectionTitle} mb-2`}>
-            {request.title}
-          </h3>
-        )}
-        <p id={messageId} className="whitespace-pre-line text-sm font-medium text-ink">
-          {request.message}
-        </p>
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
+      {/* On a short screen the message scrolls; the answers stay in view. */}
+      <div className="flex min-h-0 flex-col px-6 pb-6 pt-3 sm:pt-6">
+        <div className="min-h-0 overflow-y-auto">
+          {request.title && (
+            <h3 id={titleId} className={`${sectionTitle} mb-2`}>
+              {request.title}
+            </h3>
+          )}
+          <p id={messageId} className="whitespace-pre-line text-sm font-medium text-ink">
+            {request.message}
+          </p>
+        </div>
+        <div className="mt-6 flex shrink-0 flex-wrap justify-end gap-3">
           <button ref={cancelRef} type="button" onClick={() => onSettle(false)} className={secondaryButton}>
             {request.cancelLabel ?? "Cancel"}
           </button>
@@ -194,43 +197,46 @@ function DateRangeDialog({
       ariaLabel={request.title ? undefined : "Choose dates"}
       initialFocusRef={startRef}
     >
-      <form onSubmit={submit} className="px-6 pb-6 pt-3 sm:pt-6">
-        {request.title && (
-          <h3 id={titleId} className={`${sectionTitle} mb-4`}>
-            {request.title}
-          </h3>
-        )}
-        <div className="space-y-4">
-          <div>
-            <label htmlFor={startId} className={label}>
-              {request.startLabel}
-            </label>
-            <input
-              ref={startRef}
-              id={startId}
-              type="date"
-              required
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className={input}
-            />
-          </div>
-          <div>
-            <label htmlFor={endId} className={label}>
-              {request.endLabel}
-            </label>
-            <input
-              id={endId}
-              type="date"
-              required
-              min={start || undefined}
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className={input}
-            />
+      <form onSubmit={submit} className="flex min-h-0 flex-col px-6 pb-6 pt-3 sm:pt-6">
+        {/* Scrolls on a short screen; the padding keeps focus rings unclipped. */}
+        <div className="-m-1 min-h-0 overflow-y-auto p-1">
+          {request.title && (
+            <h3 id={titleId} className={`${sectionTitle} mb-4`}>
+              {request.title}
+            </h3>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label htmlFor={startId} className={label}>
+                {request.startLabel}
+              </label>
+              <input
+                ref={startRef}
+                id={startId}
+                type="date"
+                required
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className={input}
+              />
+            </div>
+            <div>
+              <label htmlFor={endId} className={label}>
+                {request.endLabel}
+              </label>
+              <input
+                id={endId}
+                type="date"
+                required
+                min={start || undefined}
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className={input}
+              />
+            </div>
           </div>
         </div>
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
+        <div className="mt-6 flex shrink-0 flex-wrap justify-end gap-3">
           <button type="button" onClick={() => onSettle(null)} className={secondaryButton}>
             Cancel
           </button>

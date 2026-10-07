@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 
 // The reskin's leftover check: outside src/styles (the one theme file and its
 // TypeScript mirror), no component may carry its own colours — no old palette
-// utilities, gradients, arbitrary shadows, hex codes or rgb() values.
+// utilities, gradients, arbitrary shadows, hex codes or rgb() values — nor
+// one-off type sizes, tracking, leading, strokes, radii or durations.
 
 const srcDir = fileURLToPath(new URL("../../", import.meta.url));
 const stylesDir = path.join(srcDir, "styles");
@@ -29,6 +30,10 @@ const RULES: Array<[string, RegExp]> = [
   ["arbitrary shadow", /\bshadow-\[/],
   ["hex colour", /(?<!&)#[0-9a-fA-F]{3,8}\b/],
   ["rgb()/rgba() colour", /\brgba?\(/],
+  [
+    "one-off type, stroke or motion value (use the theme tokens)",
+    /\b(?:duration|text|tracking|leading|scale|backdrop-blur|backdrop-saturate|rounded)-\[|\bborder-\[\d/,
+  ],
 ];
 
 describe("no colours outside the theme", () => {

@@ -493,7 +493,7 @@ export default function RecurringOrderList({
                                       type="button"
                                       onClick={() => toggleDraftDay(index)}
                                       disabled={loading === order.id}
-                                      className="selectable inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold active:scale-[0.97] disabled:opacity-50"
+                                      className="selectable inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold active:scale-(--press-scale) disabled:opacity-50"
                                       aria-pressed={selected}
                                     >
                                       <span className="select-dot" aria-hidden="true" />
@@ -658,7 +658,7 @@ function DriverTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="selectable inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold active:scale-[0.97]"
+      className="selectable inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold active:scale-(--press-scale)"
     >
       <span className="select-dot" aria-hidden="true" />
       <span>

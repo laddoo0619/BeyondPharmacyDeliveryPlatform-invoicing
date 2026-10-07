@@ -338,7 +338,7 @@ export default function RecurringCalendar({
         {DAY_LABELS.map((day) => (
           <div
             key={day}
-            className="px-2 py-2 text-center text-xs font-bold uppercase tracking-[0.12em] text-cream"
+            className="px-2 py-2 text-center text-xs font-bold uppercase tracking-table text-cream"
           >
             {day}
           </div>
@@ -360,7 +360,7 @@ export default function RecurringCalendar({
                   {formatDayLabel(day)}
                 </span>
                 {dayInstances.length > 0 && (
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-muted tabular-nums ring-1 ring-inset ring-hairline">
+                  <span className="rounded-full bg-white px-2 py-0.5 text-label font-bold text-muted tabular-nums ring-1 ring-inset ring-hairline">
                     {dayInstances.length}
                   </span>
                 )}
@@ -387,10 +387,10 @@ export default function RecurringCalendar({
                         title={
                           instance.isHeld && instance.holdReason
                             ? `On hold: ${instance.holdReason}`
-                            : undefined
+                            : instance.patientName
                         }
                         className={cn(
-                          "block w-full truncate rounded-full px-2.5 py-1 text-left text-[11px] font-semibold transition duration-[220ms] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70",
+                          "block w-full truncate rounded-full px-2.5 py-1 text-left text-label font-semibold transition duration-(--hover-ms) active:scale-(--press-scale) disabled:cursor-not-allowed disabled:opacity-70",
                           instance.isHeld
                             ? cn(TONE_CLASSES[statusTone("HOLD")], "hover:bg-blush-hover")
                             : "row-hover text-navy ring-1 ring-inset ring-hairline hover:ring-control-hover"
@@ -430,7 +430,7 @@ export default function RecurringCalendar({
               <button
                 type="button"
                 onClick={() => setSelectedInstance(null)}
-                className="rounded-full px-3 py-1 text-sm font-semibold text-muted transition duration-[220ms] hover:bg-panel-cream hover:text-navy"
+                className="rounded-full px-3 py-1 text-sm font-semibold text-muted transition duration-(--hover-ms) hover:bg-panel-cream hover:text-navy"
               >
                 Close
               </button>
@@ -527,7 +527,7 @@ export default function RecurringCalendar({
 function QuickViewRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-label font-bold uppercase tracking-[0.16em] text-muted">
+      <p className="text-label font-bold uppercase tracking-label text-muted">
         {label}
       </p>
       <p className="text-sm font-medium text-ink">{value}</p>
@@ -551,7 +551,7 @@ function CalendarDriverTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="selectable inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold active:scale-[0.97]"
+      className="selectable inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold active:scale-(--press-scale)"
     >
       <span className="select-dot" aria-hidden="true" />
       <span>

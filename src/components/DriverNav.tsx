@@ -22,7 +22,7 @@ export default function DriverNav({
   ];
   return (
     <nav className="sticky top-0 z-30 px-4 pt-3">
-      <div className="max-w-lg mx-auto flex items-center justify-between rounded-full bg-header px-2 py-1.5 shadow-lift backdrop-blur-[16px] backdrop-saturate-[1.3]">
+      <div className="max-w-lg mx-auto flex items-center justify-between rounded-full header-glass px-2 py-1.5">
         <div className="flex items-center space-x-1">
           {links.map((link) => (
             <Link
@@ -40,7 +40,7 @@ export default function DriverNav({
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="shrink-0 rounded-full bg-navy px-4 py-2 text-sm font-bold text-cream transition duration-[220ms] ease-out hover:bg-navy-deep active:scale-[0.97]"
+          className="shrink-0 rounded-full bg-navy px-4 py-2 text-sm font-bold text-cream transition duration-(--hover-ms) ease-out hover:bg-navy-deep active:scale-(--press-scale)"
         >
           Sign Out
         </button>
