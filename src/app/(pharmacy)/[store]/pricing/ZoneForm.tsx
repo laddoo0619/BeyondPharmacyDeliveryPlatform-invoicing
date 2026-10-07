@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { card, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { card, cn, ctaShadow, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 
 export default function ZoneForm({ storeSlug }: { storeSlug: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const fieldId = useId();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,16 +40,16 @@ export default function ZoneForm({ storeSlug }: { storeSlug: string }) {
     <div className={`${card} p-6`}>
       <h2 className={`${sectionTitle} mb-4`}>Add New Zone</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
+        {error && <div role="alert" className={cn("px-3 py-2 rounded-row text-sm", BANNER_CLASSES.error)}>{error}</div>}
         <div>
-          <label className={label}>Zone Name</label>
-          <input name="name" required placeholder="e.g., Surrey" className={input} />
+          <label htmlFor={`${fieldId}-name`} className={label}>Zone Name</label>
+          <input id={`${fieldId}-name`} name="name" required placeholder="e.g., Surrey" className={input} />
         </div>
         <div>
-          <label className={label}>Delivery Price ($)</label>
-          <input name="price" type="number" step="0.01" min="0" required placeholder="4.25" className={input} />
+          <label htmlFor={`${fieldId}-price`} className={label}>Delivery Price ($)</label>
+          <input id={`${fieldId}-price`} name="price" type="number" step="0.01" min="0" required placeholder="4.25" className={input} />
         </div>
-        <button type="submit" disabled={loading} className={primaryButton}>
+        <button type="submit" disabled={loading} className={cn(primaryButton, ctaShadow)}>
           {loading ? "Adding..." : "Add Zone"}
         </button>
       </form>

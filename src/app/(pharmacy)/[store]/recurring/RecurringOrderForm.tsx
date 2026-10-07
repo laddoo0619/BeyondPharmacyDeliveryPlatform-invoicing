@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useId, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PatientAutocomplete } from "@/components/PatientAutocomplete";
 import { AddressSelect, type AddressValue } from "@/components/AddressSelect";
 import type { Patient } from "@/hooks/usePatientSearch";
-import { card, cn, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { card, cn, ctaShadow, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 import { vancouverTodayKey } from "@/lib/vancouverDate";
 import {
@@ -174,11 +175,13 @@ export default function RecurringOrderForm({
     setLoading(false);
   };
 
+  const fieldId = useId();
+
   return (
     <div className={`${card} p-6`}>
       <h2 className={`${sectionTitle} mb-4`}>New Recurring Order</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
-        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
+        {error && <div role="alert" className={cn("px-3 py-2 rounded-row text-sm", BANNER_CLASSES.error)}>{error}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <PatientAutocomplete
@@ -190,8 +193,9 @@ export default function RecurringOrderForm({
             onFreeTextChange={handleFreeTextName}
           />
           <div>
-            <label className={label}>Patient Phone</label>
+            <label htmlFor={`${fieldId}-phone`} className={label}>Patient Phone</label>
             <input
+              id={`${fieldId}-phone`}
               type="tel"
               value={patientPhone}
               onChange={(e) => setPatientPhone(e.target.value)}
@@ -215,6 +219,8 @@ export default function RecurringOrderForm({
           <div>
             <select
               name="deliveryZoneId"
+              aria-label="Delivery Zone"
+              aria-describedby={zoneHint ? `${fieldId}-zone-hint` : undefined}
               required
               value={selectedZoneId}
               onChange={(e) => setManualZoneId(e.target.value)}
@@ -226,12 +232,13 @@ export default function RecurringOrderForm({
               ))}
             </select>
             {zoneHint && (
-              <p className="mt-1 text-xs font-medium text-slate-500">{zoneHint}</p>
+              <p id={`${fieldId}-zone-hint`} className="mt-1 text-xs font-medium text-muted">{zoneHint}</p>
             )}
           </div>
         )}
         <select
           name="assignedDriverId"
+          aria-label="Assign Driver"
           value={selectedDriverId}
           onChange={(e) => setSelectedDriverId(e.target.value)}
           className={input}
@@ -243,8 +250,9 @@ export default function RecurringOrderForm({
         </select>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={label}>Frequency</label>
+            <label htmlFor={`${fieldId}-frequency`} className={label}>Frequency</label>
             <select
+              id={`${fieldId}-frequency`}
               value={recurrenceIntervalWeeks}
               onChange={(e) => setRecurrenceIntervalWeeks(Number(e.target.value))}
               className={input}
@@ -255,8 +263,9 @@ export default function RecurringOrderForm({
           </div>
           {recurrenceIntervalWeeks === 2 && (
             <div>
-              <label className={label}>Start Week</label>
+              <label htmlFor={`${fieldId}-start-week`} className={label}>Start Week</label>
               <input
+                id={`${fieldId}-start-week`}
                 type="date"
                 value={recurrenceAnchorDate}
                 onChange={(e) => setRecurrenceAnchorDate(e.target.value)}
@@ -266,10 +275,15 @@ export default function RecurringOrderForm({
           )}
         </div>
         <div>
-          <label className={label}>Delivery Days</label>
-          <div className="flex flex-wrap gap-2">
+          <span id={`${fieldId}-days`} className={label}>Delivery Days</span>
+          <div role="group" aria-labelledby={`${fieldId}-days`} className="flex flex-wrap gap-2">
             {DAYS.map((day, i) => (
-              <label key={i} className={cn("flex items-center px-3 py-1.5 border rounded-full text-sm cursor-pointer transition", selectedDays.includes(i) ? "bg-[#6f8f72]/15 border-[#6f8f72]/40 text-[#1e3a8a] font-semibold" : "bg-white border-slate-200 text-slate-500 hover:bg-sky-50")}>
+              <label
+                key={i}
+                data-selected={selectedDays.includes(i) ? "true" : undefined}
+                className="selectable flex items-center gap-1.5 py-1.5 pl-2 pr-3 rounded-full text-sm font-semibold cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-navy"
+              >
+                <span className="select-dot" aria-hidden="true" />
                 <input
                   type="checkbox"
                   className="sr-only"
@@ -287,7 +301,7 @@ export default function RecurringOrderForm({
         </div>
         <textarea name="instructions" rows={2} placeholder="Instructions (optional)" className={input} />
 
-        <button type="submit" disabled={loading || selectedDays.length === 0 || editingSavedAddress} className={primaryButton}>
+        <button type="submit" disabled={loading || selectedDays.length === 0 || editingSavedAddress} className={cn(primaryButton, ctaShadow)}>
           {loading ? "Creating..." : "Create Recurring Order"}
         </button>
       </form>

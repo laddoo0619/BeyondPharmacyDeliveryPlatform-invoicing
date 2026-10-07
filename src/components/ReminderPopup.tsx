@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { primaryButton } from "@/lib/portalStyles";
+import Modal from "@/components/ui/Modal";
+import { BANNER_CLASSES, toneBadgeClasses } from "@/lib/statusTheme";
+import { cn, primaryButton, sectionTitle } from "@/lib/portalStyles";
 import { isReminderDue } from "@/lib/reminderSchedule";
 import { vancouverTodayKey } from "@/lib/vancouverDate";
 
@@ -55,7 +56,7 @@ export default function ReminderPopup({ storeSlug }: { storeSlug: string }) {
   const [error, setError] = useState("");
   const [snoozedUntil, setSnoozedUntil] = useState(0);
   const [now, setNow] = useState(() => new Date());
-  const snoozeRef = useRef(() => {});
+  const titleId = useId();
   // Bumped on every tick so a poll that started earlier can't overwrite the
   // fresher state it doesn't know about.
   const mutationSeq = useRef(0);
@@ -119,100 +120,84 @@ export default function ReminderPopup({ storeSlug }: { storeSlug: string }) {
   // Keyed to today's dateKey, so tomorrow starts fresh regardless.
   const dismissForToday = () => hideUntil(Date.now() + 24 * 60 * 60_000);
 
-  snoozeRef.current = snooze;
-
   const outstanding = due?.outstanding ?? 0;
   const visible =
     outstanding > 0 && isReminderDue(now) && Date.now() >= snoozedUntil;
 
-  // Bound to `visible`: a listener that lives while the popup is hidden turns
-  // every Escape elsewhere in the portal into a silent snooze of a reminder
-  // the user never saw.
-  useEffect(() => {
-    if (!visible) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") snoozeRef.current();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [visible]);
+  if (!visible || !due) return null;
 
-  if (!visible || !due || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={snooze} />
-      <div className="relative mx-4 flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-slate-200/70 bg-white/95 shadow-[0_24px_70px_rgba(30,58,138,0.2)]">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <span aria-hidden className="text-xl">
-              🔔
-            </span>
-            <h3 className="text-lg font-bold text-[#1e3a8a]">Reminders for today</h3>
-          </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {outstanding} {outstanding === 1 ? "reminder" : "reminders"} outstanding.
-            Tick each one off as you handle it.
-          </p>
+  // Escape and the backdrop snooze, as before; the Modal only listens while
+  // the popup is actually showing.
+  return (
+    <Modal open onClose={snooze} size="lg" labelledBy={titleId}>
+      <div className="shrink-0 border-b border-hairline px-6 pb-4 pt-2 sm:pt-4">
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="text-xl">
+            🔔
+          </span>
+          <h3 id={titleId} className={sectionTitle}>Reminders for today</h3>
         </div>
+        <p className="mt-1 text-sm text-muted">
+          {outstanding} {outstanding === 1 ? "reminder" : "reminders"} outstanding.
+          Tick each one off as you handle it.
+        </p>
+      </div>
 
-        <div className="flex-1 divide-y divide-slate-100 overflow-y-auto">
-          {due.items.map((item) => (
-            <div key={item.id} className="flex items-start gap-3 px-6 py-3">
-              <button
-                onClick={() => complete(item)}
-                disabled={saving === item.id}
-                title="Mark done"
-                className="mt-0.5 h-5 w-5 shrink-0 rounded border border-slate-300 transition hover:border-[#6f8f72] hover:bg-[#6f8f72]/10 disabled:opacity-40"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-slate-800">{item.note}</span>
-                  {item.isOverdue && (
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                      Overdue
-                    </span>
-                  )}
-                </div>
-                {item.patientName && (
-                  <span className="mt-0.5 block truncate text-sm text-slate-500">
-                    {item.patientName}
+      <div className="flex-1 divide-y divide-hairline overflow-y-auto">
+        {due.items.map((item) => (
+          <div key={item.id} className="flex items-start gap-3 px-6 py-3">
+            <button
+              onClick={() => complete(item)}
+              disabled={saving === item.id}
+              title="Mark done"
+              className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-[1.5px] border-dot bg-white transition duration-[220ms] hover:border-green hover:bg-mint disabled:opacity-40"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-navy">{item.note}</span>
+                {item.isOverdue && (
+                  <span className={toneBadgeClasses("blush")}>
+                    Overdue
                   </span>
                 )}
               </div>
+              {item.patientName && (
+                <span className="mt-0.5 block truncate text-sm text-muted">
+                  {item.patientName}
+                </span>
+              )}
             </div>
-          ))}
-        </div>
-
-        {error && (
-          <div className="border-t border-rose-100 bg-rose-50 px-6 py-2 text-sm text-rose-700">
-            {error}
           </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={dismissForToday}
-              className="text-xs font-semibold text-slate-500 transition hover:text-[#1e3a8a]"
-              title="Hides these until tomorrow, even if still outstanding."
-            >
-              Not today — dismiss
-            </button>
-            <Link
-              href={`/${storeSlug}/reminders`}
-              onClick={snooze}
-              className="text-xs font-semibold text-slate-500 transition hover:text-[#1e3a8a]"
-            >
-              Manage
-            </Link>
-          </div>
-          <button onClick={snooze} className={primaryButton}>
-            Remind me in {SNOOZE_MINUTES} min
-          </button>
-        </div>
+        ))}
       </div>
-    </div>,
-    document.body
+
+      {error && (
+        <div className={cn("shrink-0 px-6 py-2 text-sm", BANNER_CLASSES.error)}>
+          {error}
+        </div>
+      )}
+
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-hairline px-6 py-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={dismissForToday}
+            className="text-xs font-semibold text-muted transition-colors duration-[220ms] hover:text-navy"
+            title="Hides these until tomorrow, even if still outstanding."
+          >
+            Not today — dismiss
+          </button>
+          <Link
+            href={`/${storeSlug}/reminders`}
+            onClick={snooze}
+            className="text-xs font-semibold text-muted transition-colors duration-[220ms] hover:text-navy"
+          >
+            Manage
+          </Link>
+        </div>
+        <button onClick={snooze} className={primaryButton}>
+          Remind me in {SNOOZE_MINUTES} min
+        </button>
+      </div>
+    </Modal>
   );
 }

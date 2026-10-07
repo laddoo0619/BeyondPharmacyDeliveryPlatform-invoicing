@@ -11,11 +11,11 @@ export default function DriverError({
 }) {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="text-center max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-[0_18px_45px_rgba(30,58,138,0.08)]">
-        <h2 className="text-lg font-bold text-[#1e3a8a] mb-2">
+      <div className="text-center max-w-sm rounded-card border border-hairline bg-white p-6 shadow-soft">
+        <h2 className="text-card-title font-extrabold text-navy mb-2">
           Something went wrong
         </h2>
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-ink mb-4">
           There was a problem loading this page. Please check your connection and try again.
         </p>
         <button
@@ -25,7 +25,7 @@ export default function DriverError({
           Try Again
         </button>
         {error.digest && (
-          <p className="mt-3 text-xs text-slate-400">Error: {error.digest}</p>
+          <p className="mt-3 text-xs text-muted">Error: {error.digest}</p>
         )}
       </div>
     </div>

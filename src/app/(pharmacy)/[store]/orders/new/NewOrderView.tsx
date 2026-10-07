@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import NewOrderForm from "./NewOrderForm";
+import PageHeader from "@/components/ui/PageHeader";
 import { pageTitle } from "@/lib/portalStyles";
 
 // Presentational screen; the page supplies the data. Kept separate so the
@@ -7,9 +8,11 @@ import { pageTitle } from "@/lib/portalStyles";
 export default function NewOrderView(props: ComponentProps<typeof NewOrderForm>) {
   return (
     <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Create New <span className="italic font-semibold">Order</span>
-      </h1>
+      <PageHeader className="mb-8">
+        <h1 className={pageTitle}>
+          Create New <span className="accent">Order</span>
+        </h1>
+      </PageHeader>
       <NewOrderForm {...props} />
     </div>
   );

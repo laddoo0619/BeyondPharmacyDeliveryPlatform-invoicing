@@ -52,7 +52,7 @@ export default function DeliveryPoller() {
   if (!offline) return null;
 
   return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 mb-4 text-sm text-yellow-800">
+    <div role="status" className="bg-butter rounded-row px-4 py-3 mb-4 text-sm text-navy">
       Connection lost. Data may be outdated. Retrying...
     </div>
   );

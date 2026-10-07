@@ -1,9 +1,13 @@
 import Link from "next/link";
 import ExternalDispatchActions from "@/components/ExternalDispatchActions";
 import NotificationPanel from "@/components/NotificationPanel";
+import PageHeader from "@/components/ui/PageHeader";
 import {
   card,
+  cn,
+  ctaShadow,
   emptyState,
+  pageAction,
   pageTitle,
   primaryButton,
   sectionTitle,
@@ -11,6 +15,7 @@ import {
   tableHeader,
   tableRow,
 } from "@/lib/portalStyles";
+import { toneBadgeClasses } from "@/lib/statusTheme";
 
 export type DashboardDelivery = {
   id: string;
@@ -38,27 +43,27 @@ export default function DashboardView({
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <PageHeader className="flex items-center justify-between mb-8">
         <h1 className={pageTitle}>
-          Pharmacy <span className="italic font-semibold">flow</span>
+          Pharmacy <span className="accent">flow</span>
         </h1>
         <Link
           href={`/${storeSlug}/orders/new`}
-          className={primaryButton}
+          className={cn(primaryButton, ctaShadow, pageAction)}
         >
           + New Order
         </Link>
-      </div>
+      </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today's Orders */}
-        <div className={`lg:col-span-2 ${card} overflow-hidden`}>
-          <div className="px-6 py-4 border-b">
+        <div data-reveal="" className={`lg:col-span-2 ${card} overflow-hidden`}>
+          <div className="px-6 py-4 border-b border-hairline">
             <h2 className={sectionTitle}>Today&apos;s Deliveries</h2>
           </div>
           {deliveries.length === 0 ? (
-            <div className={emptyState}>
-              No deliveries <span className="italic text-[#1e3a8a]">scheduled</span> for today.
+            <div className={cn(emptyState, "m-4")}>
+              No deliveries <span className="italic text-navy">scheduled</span> for today.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -85,39 +90,40 @@ export default function DashboardView({
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-hairline">
                   {deliveries.map((order) => (
                     <tr
                       key={order.id}
                       className={`${tableRow} ${
-                        order.status === "FAILED" ? "bg-rose-50/60" : ""
+                        order.status === "FAILED" ? "bg-blush" : ""
                       }`}
                     >
-                      <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">
+                      <td className="px-6 py-4 text-sm font-semibold text-navy">
                         {order.patientName}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
+                      <td className="px-6 py-4 text-sm text-ink">
                         {order.deliveryAddress}, {order.deliveryCity}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
+                      <td className="px-6 py-4 text-sm text-ink">
                         <span>{order.driverName || "Unassigned"}</span>
                         {order.isExternal && (
-                          <span className="ml-2 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                          <span className="ml-2 inline-flex rounded-full bg-blue px-2 py-0.5 text-xs font-bold text-navy">
                             Spoke
                           </span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={statusBadgeClasses(order.status)}>
+                        {/* On the blush failed row, the chip turns white to stay visible. */}
+                        <span className={order.status === "FAILED" ? toneBadgeClasses("white") : statusBadgeClasses(order.status)}>
                           {order.status.replace(/_/g, " ")}
                         </span>
                         {order.status === "FAILED" && order.failedReason && (
-                          <p className="text-xs text-rose-600 mt-1">
+                          <p className="text-xs text-danger mt-1">
                             {order.failedReason}
                           </p>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">
+                      <td className="px-6 py-4 text-sm font-semibold text-navy tabular-nums">
                         ${order.priceAtCreation.toFixed(2)}
                       </td>
                       <td className="px-6 py-4">
@@ -129,7 +135,7 @@ export default function DashboardView({
                             storeSlug={storeSlug}
                           />
                         ) : (
-                          <span className="text-xs text-slate-400">-</span>
+                          <span className="text-xs text-ink">-</span>
                         )}
                       </td>
                     </tr>
@@ -141,7 +147,7 @@ export default function DashboardView({
         </div>
 
         {/* Notifications Panel */}
-        <div className="lg:col-span-1">
+        <div data-reveal="" className="lg:col-span-1">
           <NotificationPanel storeSlug={storeSlug} />
         </div>
       </div>

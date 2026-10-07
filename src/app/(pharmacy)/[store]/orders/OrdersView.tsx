@@ -1,11 +1,17 @@
 import Link from "next/link";
 import OrdersPoller from "./OrdersPoller";
 import OrdersList from "./OrdersList";
+import PageHeader from "@/components/ui/PageHeader";
 import {
+  cn,
+  ctaShadow,
   emptyState,
   input,
+  pageAction,
   pageTitle,
   primaryButton,
+  secondaryButton,
+  selectablePill,
   statusBadgeClasses,
 } from "@/lib/portalStyles";
 
@@ -68,23 +74,23 @@ export default function OrdersView({
   return (
     <div>
       {poll && <OrdersPoller />}
-      <div className="flex items-center justify-between mb-6">
+      <PageHeader className="flex items-center justify-between mb-8">
         <h1 className={pageTitle}>
-          Orders, <span className="italic font-semibold">organized</span>
+          Orders, <span className="accent">organized</span>
         </h1>
         <Link
           href={`/${storeSlug}/orders/new`}
-          className={primaryButton}
+          className={cn(primaryButton, ctaShadow, pageAction)}
         >
           + New Order
         </Link>
-      </div>
+      </PageHeader>
 
       {/* Search Bar */}
       <form method="GET" className="mb-4">
         {status && <input type="hidden" name="status" value={status} />}
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -101,10 +107,10 @@ export default function OrdersView({
       <div className="flex flex-wrap gap-2 mb-4">
         <Link
           href={`/${storeSlug}/orders${search ? `?search=${encodeURIComponent(search)}` : ""}`}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-            !status ? "bg-[#6f8f72]/15 text-[#1e3a8a]" : "bg-white/80 text-slate-500 hover:bg-white hover:text-[#1e3a8a]"
-          }`}
+          aria-current={!status ? "page" : undefined}
+          className={cn(selectablePill, "inline-flex items-center gap-2")}
         >
+          <span className="select-dot" aria-hidden="true" />
           All ({total})
         </Link>
         {ORDER_STATUS_FILTERS.map(
@@ -112,12 +118,10 @@ export default function OrdersView({
             <Link
               key={s}
               href={`/${storeSlug}/orders?status=${s}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                status === s
-                  ? "bg-[#6f8f72]/15 text-[#1e3a8a]"
-                  : "bg-white/80 text-slate-500 hover:bg-white hover:text-[#1e3a8a]"
-              }`}
+              aria-current={status === s ? "page" : undefined}
+              className={cn(selectablePill, "inline-flex items-center gap-2")}
             >
+              <span className="select-dot" aria-hidden="true" />
               {s.replace(/_/g, " ")}
             </Link>
           )
@@ -127,7 +131,7 @@ export default function OrdersView({
       {/* Grouped Orders */}
       {orderCount === 0 ? (
         <div className={emptyState}>
-          {search ? `No orders found for "${search}".` : <>No orders <span className="italic text-[#1e3a8a]">found</span>.</>}
+          {search ? `No orders found for "${search}".` : <>No orders <span className="italic text-navy">found</span>.</>}
         </div>
       ) : (
         <OrdersList
@@ -146,7 +150,7 @@ export default function OrdersView({
         <div className="mt-4 text-center">
           <Link
             href={`/${storeSlug}/orders?limit=${limit + 100}${status ? `&status=${status}` : ""}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-            className="inline-block px-4 py-2 text-sm font-semibold text-[#1e3a8a] border border-[#6f8f72]/40 rounded-xl hover:bg-emerald-50"
+            className={cn(secondaryButton, "inline-block")}
           >
             Load More ({total - limit} remaining)
           </Link>

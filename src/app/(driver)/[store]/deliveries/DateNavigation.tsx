@@ -93,7 +93,7 @@ export default function DateNavigation({
       </div>
 
       {!isToday && (
-        <p className="text-center text-sm text-slate-500 mt-2">{displayDate}</p>
+        <p className="text-center text-sm text-muted mt-2">{displayDate}</p>
       )}
     </div>
   );

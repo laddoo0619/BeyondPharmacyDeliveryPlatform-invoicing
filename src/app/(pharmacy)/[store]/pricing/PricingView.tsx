@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import ZoneForm from "./ZoneForm";
 import ZoneList from "./ZoneList";
+import PageHeader from "@/components/ui/PageHeader";
 import { pageTitle } from "@/lib/portalStyles";
 
 // Presentational screen; the page supplies the data. Kept separate so the
@@ -16,9 +17,11 @@ export default function PricingView({
 }) {
   return (
     <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Delivery Zones, <span className="italic font-semibold">priced</span>
-      </h1>
+      <PageHeader className="mb-8">
+        <h1 className={pageTitle}>
+          Delivery Zones, <span className="accent">priced</span>
+        </h1>
+      </PageHeader>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <ZoneForm storeSlug={storeSlug} />

@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useConfirm } from "@/components/ui/DialogsProvider";
+import { cn } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 
 interface Duplicate {
   id: string;
@@ -59,6 +62,7 @@ function formatDay(iso: string, utc: boolean) {
 }
 
 export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Props) {
+  const confirm = useConfirm();
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -103,9 +107,9 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
       ? `\n\nDefault address stays: ${current.address}, ${current.city}.\n${duplicate.address}, ${duplicate.city} will be added as a saved address.`
       : "";
     if (
-      !confirm(
+      !(await confirm(
         `Merge this record into the patient you selected?\n\n${duplicate.name} — ${duplicate.address}, ${duplicate.city}${defaultLine}\n\nIts ${deliveries} deliver${deliveries === 1 ? "y" : "ies"} and ${duplicate.activeRecurring.length} active recurring profile${duplicate.activeRecurring.length === 1 ? "" : "s"} move to the selected patient, and the duplicate record is removed. This can't be undone.${phoneWarning}`
-      )
+      ))
     ) {
       return;
     }
@@ -139,7 +143,7 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
   return (
     <div className="space-y-3">
       {result && (
-        <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="space-y-1 rounded-row bg-mint px-4 py-3 text-sm text-navy">
           <p className="font-semibold">Records merged.</p>
           <p>
             Moved {result.moved.orders + result.moved.dispatches} deliveries and{" "}
@@ -149,13 +153,13 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
               ` ${mergedAddress} is now a saved address on this patient. If that's where they live now, click “Make default” under Manage saved addresses; if it's an old address, delete it there.`}
           </p>
           {result.recurringNotAtCurrentAddress.map((profile) => (
-            <p key={profile.id} className="font-semibold text-amber-800">
+            <p key={profile.id} className="font-semibold text-navy">
               ⚠ A recurring profile ({profile.days}) still delivers to {profile.deliveryAddress},{" "}
               {profile.deliveryCity}. If they&apos;ve moved, update it on the Recurring page.
             </p>
           ))}
           {result.activeRecurringProfiles > 1 && (
-            <p className="text-amber-800">
+            <p className="text-navy">
               This patient now has {result.activeRecurringProfiles} active recurring profiles — check
               the Recurring page for duplicates.
             </p>
@@ -164,34 +168,34 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
       )}
 
       {duplicates.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 text-sm text-amber-900">
+        <div className="rounded-row bg-butter text-sm text-navy">
           <div className="px-4 pt-3">
             <p className="font-semibold">
               {duplicates.length === 1
                 ? "There is another record under this name"
                 : `There are ${duplicates.length} other records under this name`}
             </p>
-            <p className="mt-0.5 text-xs text-amber-800">
+            <p className="mt-0.5 text-xs text-navy">
               Usually the same person re-entered after a move. Merging moves that record&apos;s
               deliveries, recurring profiles and address onto the patient you selected — nothing
               is lost.
             </p>
           </div>
-          <div className="mt-2 divide-y divide-amber-200/70 border-t border-amber-200/70">
+          <div className="mt-2 divide-y divide-hairline border-t border-hairline">
             {duplicates.map((duplicate) => (
               <div
                 key={duplicate.id}
                 className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-800">{duplicate.name}</p>
-                  <p className="text-slate-600">
+                  <p className="font-semibold text-navy">{duplicate.name}</p>
+                  <p className="text-navy">
                     {duplicate.address}, {duplicate.city} {duplicate.postalCode}
                     {duplicate.sameAddressAsThisPatient && (
-                      <span className="ml-1 text-xs text-slate-500">(same address)</span>
+                      <span className="ml-1 text-xs text-navy">(same address)</span>
                     )}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-navy">
                     {duplicate.phone ? `${duplicate.phone} · ` : ""}added{" "}
                     {formatDay(duplicate.createdAt, false)} ·{" "}
                     {duplicate.orderCount + duplicate.dispatchCount} deliveries
@@ -200,13 +204,13 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
                       : ""}
                   </p>
                   {duplicate.activeRecurring.map((profile) => (
-                    <p key={profile.id} className="text-xs text-slate-600">
+                    <p key={profile.id} className="text-xs text-navy">
                       Active recurring ({profile.days}) to {profile.deliveryAddress},{" "}
                       {profile.deliveryCity}
                     </p>
                   ))}
                   {duplicate.phoneConflict && (
-                    <p className="mt-1 text-xs font-semibold text-rose-700">
+                    <p className="mt-1 text-xs font-semibold text-danger">
                       Different phone number — check this is the same person before merging.
                     </p>
                   )}
@@ -215,7 +219,7 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
                   type="button"
                   onClick={() => merge(duplicate)}
                   disabled={busyId !== null}
-                  className="rounded-full border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-50"
+                  className="rounded-full border-[1.5px] border-control bg-white px-3 py-1.5 text-xs font-bold text-navy shadow-soft transition duration-[220ms] hover:border-control-hover active:scale-[0.97] disabled:opacity-50"
                 >
                   {busyId === duplicate.id ? "Merging..." : "Merge into this patient"}
                 </button>
@@ -226,7 +230,7 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
       )}
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+        <div className={cn("rounded-row px-4 py-2 text-sm", BANNER_CLASSES.error)}>
           {error}
         </div>
       )}

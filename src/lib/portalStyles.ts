@@ -1,85 +1,122 @@
+// Shared class strings for every portal screen. Built only from the design
+// tokens in src/styles/theme.css (through the Tailwind mapping in
+// globals.css) — no colour, radius or shadow values of their own.
+
+export { statusBadgeClasses } from "./statusTheme";
+
 export function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export const portalShell =
-  "min-h-screen bg-gradient-to-br from-white via-sky-50 to-emerald-50 text-slate-700";
+// ---- Page ----
 
-export const portalMain =
-  "max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8";
+// `isolate`: the shell is the stacking context page-header circles paint in
+// (above the page background, beneath every card).
+export const portalShell = "isolate min-h-screen overflow-x-clip bg-white text-navy";
+
+export const portalMain = "mx-auto w-full max-w-content py-6";
 
 export const driverMain = "max-w-lg mx-auto px-4 py-4";
 
-export const card =
-  "rounded-2xl border border-slate-200/70 bg-white/95 shadow-[0_18px_45px_rgba(30,58,138,0.08)]";
+// ---- Surfaces ----
+
+export const card = "rounded-card border border-hairline bg-white shadow-soft";
 
 export const cardInteractive =
-  "rounded-2xl border border-slate-200/70 bg-white/95 shadow-[0_18px_45px_rgba(30,58,138,0.08)] transition-all hover:-translate-y-0.5 hover:border-[#6f8f72]/40 hover:shadow-[0_20px_50px_rgba(30,58,138,0.12)]";
+  "rounded-card border border-hairline bg-white shadow-soft transition duration-[220ms] ease-out hover:-translate-y-0.5 hover:shadow-lift";
 
-export const pageTitle = "text-2xl font-bold tracking-tight text-[#1e3a8a]";
-export const sectionTitle = "text-lg font-bold text-[#1e3a8a]";
-export const mutedText = "text-sm text-slate-500";
-export const label = "block text-sm font-medium text-slate-600 mb-1";
+// A solid panel (no border): neutral cream, or pass a pastel fill instead.
+export const panel = "rounded-card bg-panel-cream";
+
+export const emptyState = "rounded-card bg-panel-cream p-8 text-center text-sm text-muted";
+
+// ---- Type ----
+
+// Page titles drop in on arrival; actions beside them use pageAction.
+export const pageTitle =
+  "drop-in text-h1 font-extrabold leading-[1.03] tracking-[-0.03em] text-navy";
+export const pageAction = "drop-in drop-in--2";
+export const sectionTitle = "text-card-title font-extrabold text-navy";
+export const mutedText = "text-sm text-muted";
+export const label = "block text-sm font-semibold text-navy mb-1";
+export const eyebrow =
+  "inline-flex items-center rounded-full bg-mint px-4 py-2 text-label font-bold uppercase tracking-[0.18em] text-navy";
+export const textLink =
+  "font-semibold text-green-link transition-colors duration-[220ms] hover:text-navy";
+
+// ---- Form controls ----
 
 export const input =
-  "w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm outline-none transition focus:border-[#6f8f72] focus:ring-2 focus:ring-[#6f8f72]/20";
+  "w-full rounded-row border border-hairline bg-white px-3 py-2 text-sm text-navy outline-none transition duration-[220ms] placeholder:text-muted focus:border-navy focus:ring-2 focus:ring-navy";
 
-export const inputReadOnly =
-  "bg-slate-50/90 text-slate-500";
+export const inputReadOnly = "bg-panel-cream text-muted";
 
-export const primaryButton =
-  "rounded-xl bg-[#6f8f72] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5f7d62] disabled:cursor-not-allowed disabled:opacity-50";
+// ---- Buttons (all fully round; press = scale .97) ----
 
-export const primaryButtonFull =
-  "w-full rounded-xl bg-[#6f8f72] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5f7d62] disabled:cursor-not-allowed disabled:opacity-50";
+const BUTTON_BASE =
+  "rounded-full border-[1.5px] font-bold transition duration-[220ms] ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50";
 
-export const secondaryButton =
-  "rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-[#6f8f72]/40 hover:bg-emerald-50/60 hover:text-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-50";
+const BUTTON_TONES = {
+  // Navy pill, cream text.
+  primary: "border-transparent bg-navy text-cream hover:bg-navy-deep",
+  // White, faint navy border; border darkens on hover.
+  secondary: "border-control bg-white text-navy shadow-soft hover:border-control-hover",
+  // Destructive: blush fill, danger text — never a red fill.
+  danger: "border-hairline bg-blush text-danger hover:bg-blush-hover",
+} as const;
+
+const BUTTON_SIZES = {
+  sm: "px-4 py-2 text-xs",
+  md: "px-btn-x py-btn-y text-sm",
+  // Large tap targets (driver screens).
+  lg: "px-btn-x py-3.5 text-sm",
+} as const;
+
+export function button(
+  tone: keyof typeof BUTTON_TONES,
+  size: keyof typeof BUTTON_SIZES = "md"
+) {
+  return `${BUTTON_BASE} ${BUTTON_TONES[tone]} ${BUTTON_SIZES[size]}`;
+}
+
+export const primaryButton = button("primary");
+
+export const primaryButtonFull = `${BUTTON_BASE} ${BUTTON_TONES.primary} w-full px-btn-x py-3 text-sm`;
+
+// The single main call-to-action on a screen also gets the CTA shadow.
+export const ctaShadow = "shadow-cta";
+
+export const secondaryButton = button("secondary");
+
+export const dangerButton = button("danger");
 
 export const softButton =
-  "rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50";
+  "rounded-full bg-panel-cream px-4 py-2 text-sm font-bold text-navy transition duration-[220ms] ease-out hover:bg-blue active:scale-[0.97] disabled:opacity-50";
 
-export const dangerButton =
-  "rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-50";
+// Small inline actions inside rows and tables.
+export const linkButton =
+  "font-semibold text-green-link transition-colors duration-[220ms] hover:text-navy disabled:opacity-50";
+export const dangerLinkButton =
+  "font-semibold text-danger transition-opacity duration-[220ms] hover:opacity-75 disabled:opacity-50";
+
+// ---- Selectable rows / tabs / filters (see .selectable in theme.css) ----
+
+export const selectablePill =
+  "selectable rounded-full px-3 py-1.5 text-sm font-semibold active:scale-[0.97]";
+export const selectableRow = "selectable rounded-row";
+
+// ---- Tables ----
 
 export const tableHeader =
-  "bg-gradient-to-r from-sky-50/80 to-emerald-50/70 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
+  "bg-navy text-left text-xs font-bold uppercase tracking-[0.06em] text-cream";
 
-export const tableRow = "transition-colors hover:bg-sky-50/45";
+// Rows aren't clickable, so no hover tint (it would also drop the green
+// row-action links under 4.5:1).
+export const tableRow = "transition-colors duration-[220ms]";
 
-export const emptyState =
-  "rounded-2xl border border-dashed border-slate-200 bg-white/80 p-8 text-center text-sm text-slate-500 shadow-[0_14px_35px_rgba(30,58,138,0.06)]";
-
-export function statusBadgeClasses(status: string) {
-  const classes: Record<string, string> = {
-    PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
-    ASSIGNED: "bg-sky-50 text-sky-700 ring-sky-200",
-    PICKED_UP: "bg-teal-50 text-teal-700 ring-teal-200",
-    IN_TRANSIT: "bg-violet-50 text-violet-700 ring-violet-200",
-    DELIVERED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    FAILED: "bg-rose-50 text-rose-700 ring-rose-200",
-    SUBMITTED: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-    PLAN_CREATED: "bg-sky-50 text-sky-700 ring-sky-200",
-    STOP_CREATED: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-    ALLOCATED: "bg-sky-50 text-sky-700 ring-sky-200",
-    DEPARTED: "bg-teal-50 text-teal-700 ring-teal-200",
-    TRACKING_LINK_ADDED: "bg-violet-50 text-violet-700 ring-violet-200",
-    DELIVERY_FAILED: "bg-rose-50 text-rose-700 ring-rose-200",
-    DISPATCH_FAILED: "bg-rose-50 text-rose-700 ring-rose-200",
-    WEBHOOK_RECEIVED: "bg-slate-100 text-slate-600 ring-slate-200",
-    CANCELLED: "bg-slate-100 text-slate-600 ring-slate-200",
-    ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    INACTIVE: "bg-slate-100 text-slate-600 ring-slate-200",
-    DRAFT: "bg-amber-50 text-amber-700 ring-amber-200",
-    FINALIZED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    ADMIN: "bg-sky-50 text-sky-700 ring-sky-200",
-    DRIVER: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    HOLD: "bg-violet-50 text-violet-700 ring-violet-200",
-    SKIPPED: "bg-orange-50 text-orange-700 ring-orange-200",
-  };
-
-  return cn(
-    "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
-    classes[status] ?? "bg-slate-100 text-slate-600 ring-slate-200"
-  );
-}
+// Totals: blue = regular, butter = highlighted, mint = total.
+export const totalPill = {
+  regular: "inline-flex rounded-full bg-blue px-3 py-1 font-bold text-navy tabular-nums",
+  highlight: "inline-flex rounded-full bg-butter px-3 py-1 font-bold text-navy tabular-nums",
+  total: "inline-flex rounded-full bg-mint px-3 py-1 font-bold text-navy tabular-nums",
+} as const;

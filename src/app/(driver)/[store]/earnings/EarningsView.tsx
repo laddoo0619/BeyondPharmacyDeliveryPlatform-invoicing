@@ -1,6 +1,11 @@
 import Link from "next/link";
 import EarningsExport from "./EarningsExport";
-import { card, emptyState, pageTitle } from "@/lib/portalStyles";
+import Circles from "@/components/ui/Circles";
+import PageHeader from "@/components/ui/PageHeader";
+import { card, cn, emptyState, pageTitle, totalPill } from "@/lib/portalStyles";
+
+const rangeToggle =
+  "selectable inline-flex items-center gap-2 px-4 py-3 rounded-full text-sm font-semibold active:scale-[0.97]";
 
 export interface EarningsDelivery {
   id: string;
@@ -31,46 +36,45 @@ export default function EarningsView({
 }) {
   return (
     <div>
-      <h1 className={`${pageTitle} mb-4`}>
-        My Earnings, <span className="italic font-semibold">tracked</span>
-      </h1>
+      <PageHeader className="mb-4">
+        <h1 className={pageTitle}>
+          My Earnings, <span className="accent">tracked</span>
+        </h1>
+      </PageHeader>
 
       {/* Range Toggle */}
       <div className="flex space-x-2 mb-4">
         <Link
           href={`/${storeSlug}/earnings?range=week`}
-          className={`px-4 py-3 rounded-full text-sm font-medium ${
-            range === "week"
-              ? "bg-[#6f8f72]/15 text-[#1e3a8a]"
-              : "bg-white/80 text-slate-500 hover:bg-white"
-          }`}
+          aria-current={range === "week" ? "page" : undefined}
+          className={rangeToggle}
         >
+          <span className="select-dot" aria-hidden="true" />
           This Week
         </Link>
         <Link
           href={`/${storeSlug}/earnings?range=month`}
-          className={`px-4 py-3 rounded-full text-sm font-medium ${
-            range === "month"
-              ? "bg-[#6f8f72]/15 text-[#1e3a8a]"
-              : "bg-white/80 text-slate-500 hover:bg-white"
-          }`}
+          aria-current={range === "month" ? "page" : undefined}
+          className={rangeToggle}
         >
+          <span className="select-dot" aria-hidden="true" />
           This Month
         </Link>
       </div>
 
       {/* Summary Card */}
-      <div className={`${card} p-5 mb-4`}>
+      <div className="circle-host overflow-hidden rounded-card bg-mint p-5 mb-4">
+        <Circles variant="mintPanel" />
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-slate-500">Completed Deliveries</p>
-            <p className="text-2xl font-bold text-[#1e3a8a]">
+            <p className="text-sm font-medium text-navy">Completed Deliveries</p>
+            <p className="text-2xl font-extrabold text-navy tabular-nums">
               {totalCount}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-slate-500">Total Earnings</p>
-            <p className="text-2xl font-bold text-[#6f8f72]">
+            <p className="text-sm font-medium text-navy">Total Earnings</p>
+            <p className="text-2xl font-extrabold text-navy tabular-nums">
               ${totalEarnings.toFixed(2)}
             </p>
           </div>
@@ -87,25 +91,25 @@ export default function EarningsView({
       {/* Deliveries List */}
       {deliveries.length === 0 ? (
         <div className={`${emptyState} mt-4`}>
-          No completed deliveries in this <span className="italic text-[#1e3a8a]">period</span>.
+          No completed deliveries in this <span className="italic text-navy">period</span>.
         </div>
       ) : (
-        <div className="space-y-2 mt-4">
+        <div data-reveal="" className="space-y-2 mt-4">
           {deliveries.map((d) => (
             <div
               key={d.id}
               className={`${card} p-3 flex justify-between items-center`}
             >
               <div>
-                <p className="text-sm font-semibold text-[#1e3a8a]">
+                <p className="text-sm font-semibold text-navy">
                   {d.patientName}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                   {d.deliveryZoneName} &middot;{" "}
                   {new Date(d.scheduledDate).toLocaleDateString()}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-[#6f8f72]">
+              <p className={cn(totalPill.regular, "text-sm")}>
                 ${d.priceAtCreation.toFixed(2)}
               </p>
             </div>

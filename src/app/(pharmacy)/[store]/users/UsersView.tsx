@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import UserForm from "./UserForm";
 import UserTable from "./UserTable";
+import PageHeader from "@/components/ui/PageHeader";
 import { pageTitle } from "@/lib/portalStyles";
 
 // Presentational screen; the page supplies the data. Kept separate so the
@@ -14,9 +15,11 @@ export default function UsersView({
 }) {
   return (
     <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        User Management, <span className="italic font-semibold">clear</span>
-      </h1>
+      <PageHeader className="mb-8">
+        <h1 className={pageTitle}>
+          User Management, <span className="accent">clear</span>
+        </h1>
+      </PageHeader>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <UserForm storeSlug={storeSlug} />

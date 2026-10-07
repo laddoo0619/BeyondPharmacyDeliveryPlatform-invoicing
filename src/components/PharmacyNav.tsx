@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { cn } from "@/lib/portalStyles";
+import logo from "@/assets/beyond-pharmacy-logo.png";
 
 const sections = [
   { path: "dashboard", label: "Dashboard" },
@@ -17,6 +18,8 @@ const sections = [
 
 const SPOKE_DASHBOARD_URL =
   "https://connect.spoke.com/orders?sortField=createdAt&sortDirection=descending";
+
+const BRAND_NAME = "Beyond Pharmacy";
 
 const stores = [
   { slug: "surrey", label: "Surrey" },
@@ -44,59 +47,76 @@ export default function PharmacyNav({
 
   const otherStores = stores.filter((s) => s.slug !== storeSlug);
 
+  // The logo spells "Beyond Pharmacy", so next to it only the rest of the
+  // store's name is written out; the link's accessible name stays the full
+  // store name. Phones keep today's text-only header.
+  const brandSuffix = storeName.startsWith(BRAND_NAME)
+    ? storeName.slice(BRAND_NAME.length).trim()
+    : storeName;
+
+  // Below xl the links take their own row inside the bar (same md
+  // breakpoint as before) — with the logo, one row can't hold them at tablet
+  // widths, and they must never run under Sign Out or off the screen.
+  // The logo is 24px from xl: the bar is capped at the 1200px content width,
+  // and at 28px the eight links no longer fit beside it.
   return (
-    <nav className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center space-x-8">
-          <div className="flex items-center space-x-3">
-            <Link href={`${base}/dashboard`} className="text-xl font-bold tracking-tight text-[#1e3a8a]">
-              {storeName}
-            </Link>
-            {/* Store Switcher */}
-            {otherStores.length > 0 && (
-              <div className="flex items-center space-x-1">
-                <span className="text-slate-300">|</span>
-                {otherStores.map((s) => (
-                  <Link
-                    key={s.slug}
-                    href={`/${s.slug}/dashboard`}
-                    className="text-xs text-slate-400 hover:text-[#1e3a8a] font-medium px-2 py-1 rounded-full hover:bg-sky-50 transition-colors"
-                  >
-                    Switch to {s.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="hidden md:flex space-x-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "px-3 py-2 rounded-full text-sm font-semibold transition-colors",
-                  pathname.startsWith(item.href)
-                    ? "bg-[#6f8f72]/12 text-[#1e3a8a]"
-                    : "text-slate-500 hover:text-[#1e3a8a] hover:bg-white"
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <a
-              href={SPOKE_DASHBOARD_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open the Spoke orders dashboard (opens in a new tab)"
-              className="px-3 py-2 rounded-full text-sm font-semibold transition-colors text-slate-500 hover:text-[#1e3a8a] hover:bg-white"
+    <nav className="sticky top-0 z-30 pt-2 sm:pt-3">
+      <div className="mx-auto flex w-full max-w-content items-center justify-between gap-x-3 gap-y-1 rounded-full bg-header px-3 py-2 shadow-lift backdrop-blur-[16px] backdrop-saturate-[1.3] sm:px-5 md:flex-wrap md:rounded-mid xl:flex-nowrap xl:rounded-full">
+        <div className="flex min-w-0 items-center gap-x-2 sm:gap-x-3">
+          <Link
+            href={`${base}/dashboard`}
+            aria-label={storeName}
+            className="flex min-w-0 items-center gap-2 text-sm font-extrabold leading-tight tracking-tight text-navy sm:shrink-0 sm:text-base"
+          >
+            <Image
+              src={logo}
+              alt=""
+              priority
+              className="hidden h-5 w-auto shrink-0 sm:block xl:h-6"
+            />
+            <span className="sm:hidden">{storeName}</span>
+            {brandSuffix && <span className="hidden whitespace-nowrap sm:inline">{brandSuffix}</span>}
+          </Link>
+          {/* Store Switcher */}
+          {otherStores.length > 0 && (
+            <div className="flex items-center space-x-1">
+              <span className="text-ghost">|</span>
+              {otherStores.map((s) => (
+                <Link
+                  key={s.slug}
+                  href={`/${s.slug}/dashboard`}
+                  className="nav-link px-2 py-1 text-xs font-semibold text-muted transition-colors hover:text-navy sm:whitespace-nowrap"
+                >
+                  Switch to {s.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="hidden md:flex order-last basis-full gap-1 xl:order-none xl:mr-auto xl:ml-3 xl:basis-auto">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={pathname.startsWith(item.href) ? "page" : undefined}
+              className="nav-link whitespace-nowrap px-2 py-2 text-nav font-semibold text-navy xl:px-1.5"
             >
-              Spoke
-            </a>
-          </div>
+              {item.label}
+            </Link>
+          ))}
+          <a
+            href={SPOKE_DASHBOARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open the Spoke orders dashboard (opens in a new tab)"
+            className="nav-link whitespace-nowrap px-2 py-2 text-nav font-semibold text-navy xl:px-1.5"
+          >
+            Spoke
+          </a>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="text-sm text-slate-500 hover:text-rose-600 font-semibold"
+          className="shrink-0 rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-cream transition duration-[220ms] ease-out hover:bg-navy-deep active:scale-[0.97] sm:px-4 sm:py-2 sm:text-sm"
         >
           Sign Out
         </button>

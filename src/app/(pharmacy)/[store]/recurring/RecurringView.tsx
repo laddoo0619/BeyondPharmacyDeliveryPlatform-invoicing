@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import RecurringCalendar from "./RecurringCalendar";
 import RecurringOrderForm from "./RecurringOrderForm";
 import RecurringOrderList from "./RecurringOrderList";
+import PageHeader from "@/components/ui/PageHeader";
 import { pageTitle } from "@/lib/portalStyles";
 
 // Presentational screen; the page supplies the data. Kept separate so the
@@ -23,9 +24,11 @@ export default function RecurringView({
 }) {
   return (
     <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Recurring Deliveries, <span className="italic font-semibold">simplified</span>
-      </h1>
+      <PageHeader className="mb-8">
+        <h1 className={pageTitle}>
+          Recurring Deliveries, <span className="accent">simplified</span>
+        </h1>
+      </PageHeader>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <RecurringOrderForm
@@ -38,13 +41,15 @@ export default function RecurringView({
         </div>
         <div className="space-y-6 lg:col-span-2">
           <RecurringCalendar storeSlug={storeSlug} drivers={drivers} />
-          <RecurringOrderList
-            storeSlug={storeSlug}
-            drivers={drivers}
-            zones={zones}
-            zoneHistory={zoneHistory}
-            orders={orders}
-          />
+          <div data-reveal="">
+            <RecurringOrderList
+              storeSlug={storeSlug}
+              drivers={drivers}
+              zones={zones}
+              zoneHistory={zoneHistory}
+              orders={orders}
+            />
+          </div>
         </div>
       </div>
     </div>

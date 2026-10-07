@@ -23,10 +23,10 @@ export default async function Home() {
     }
     // Driver without store assignment — show error
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">No Store Assigned</h1>
-          <p className="text-gray-600">Please contact your administrator to assign you to a store.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-navy mb-2">No Store Assigned</h1>
+          <p className="text-ink">Please contact your administrator to assign you to a store.</p>
         </div>
       </div>
     );
@@ -42,10 +42,10 @@ export default async function Home() {
   } catch (error) {
     console.error("[Home] Database error:", error);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Service Unavailable</h1>
-          <p className="text-gray-600">Unable to load stores. Please try again later.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-navy mb-2">Service Unavailable</h1>
+          <p className="text-ink">Unable to load stores. Please try again later.</p>
         </div>
       </div>
     );

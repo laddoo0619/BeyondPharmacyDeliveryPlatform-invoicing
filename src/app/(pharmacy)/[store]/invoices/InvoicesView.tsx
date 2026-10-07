@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import InvoiceGenerator from "./InvoiceGenerator";
 import InvoiceList from "./InvoiceList";
+import PageHeader from "@/components/ui/PageHeader";
 import { pageTitle } from "@/lib/portalStyles";
 
 // Presentational screen; the page supplies the data. Kept separate so the
@@ -16,9 +17,11 @@ export default function InvoicesView({
 }) {
   return (
     <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Invoices &amp; <span className="italic font-semibold">Reporting</span>
-      </h1>
+      <PageHeader className="mb-8">
+        <h1 className={pageTitle}>
+          Invoices &amp; <span className="accent">Reporting</span>
+        </h1>
+      </PageHeader>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <InvoiceGenerator storeSlug={storeSlug} drivers={drivers} />

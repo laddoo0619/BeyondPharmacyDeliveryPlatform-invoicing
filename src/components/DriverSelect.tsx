@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useId } from "react";
 import { input, label } from "@/lib/portalStyles";
 
 interface Driver {
@@ -17,10 +17,13 @@ interface Props {
 }
 
 function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone, required }: Props) {
+  const selectId = useId();
   return (
     <div>
-      <label className={label}>Assign Driver{required ? " *" : ""}</label>
+      <label htmlFor={selectId} className={label}>Assign Driver{required ? " *" : ""}</label>
       <select
+        id={selectId}
+        aria-describedby={autoFilledFromZone ? `${selectId}-hint` : undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={input}
@@ -36,7 +39,7 @@ function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone, requi
         ))}
       </select>
       {autoFilledFromZone && (
-        <p className="mt-1 text-xs font-medium text-[#6f8f72]">Auto-filled from zone default</p>
+        <p id={`${selectId}-hint`} className="mt-1 text-xs font-medium text-muted">Auto-filled from zone default</p>
       )}
     </div>
   );

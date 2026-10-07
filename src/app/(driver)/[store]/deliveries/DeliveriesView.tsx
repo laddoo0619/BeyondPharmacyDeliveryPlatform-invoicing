@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import DeliveryPoller from "./DeliveryPoller";
 import DateNavigation from "./DateNavigation";
 import DeliveryList from "./DeliveryList";
+import PageHeader from "@/components/ui/PageHeader";
 import { pageTitle } from "@/lib/portalStyles";
 
 // Presentational driver deliveries screen; the page supplies the data. Kept
@@ -33,18 +34,20 @@ export default function DeliveriesView({
     <div>
       {poll && <DeliveryPoller />}
       <DateNavigation storeSlug={storeSlug} currentDate={currentDateStr} />
-      <h1 className={`${pageTitle} mb-4`}>
-        {isToday
-          ? <>Your Deliveries, <span className="italic font-semibold">sorted</span></>
-          : `Deliveries for ${selectedDateLabel}`}
-      </h1>
+      <PageHeader className="mb-4">
+        <h1 className={`${pageTitle} mb-4`}>
+          {isToday
+            ? <>Your Deliveries, <span className="accent">sorted</span></>
+            : `Deliveries for ${selectedDateLabel}`}
+        </h1>
 
-      <p className="text-sm text-slate-500 mb-4">
-        {pendingCount} pending • {completedCount} completed
-        {failedCount > 0 && (
-          <span className="text-rose-600"> • {failedCount} need re-attempt</span>
-        )}
-      </p>
+        <p className="drop-in drop-in--2 text-sm font-medium text-muted tabular-nums">
+          {pendingCount} pending • {completedCount} completed
+          {failedCount > 0 && (
+            <span className="text-danger"> • {failedCount} need re-attempt</span>
+          )}
+        </p>
+      </PageHeader>
 
       <DeliveryList
         deliveries={deliveries}

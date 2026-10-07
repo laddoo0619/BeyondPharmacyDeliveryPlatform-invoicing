@@ -1,0 +1,382 @@
+/*
+ * Beyond Pharmacy design tokens — the single source of truth for colour,
+ * type, shape, shadow and motion. Components read these (through the Tailwind
+ * mapping in globals.css or var()); no component carries its own hex codes.
+ * src/styles/tokens.ts mirrors the colours for non-CSS contexts (invoice PDF,
+ * the global error screen) and a test keeps the two in sync.
+ */
+
+/* Fix the cascade-layer order before anything else declares a layer, so the
+   component classes below sit under Tailwind's utilities and above its base. */
+@layer theme, base, components, utilities;
+
+:root {
+  /* ---- Core colours (hex + space-separated RGB for alpha) ---- */
+  --navy: #21387c;
+  --navy-rgb: 33 56 124;
+  --navy-deep: #15234e;
+  --navy-deep-rgb: 21 35 78;
+  --ink: #33447a;
+  --ink-rgb: 51 68 122;
+  --muted: #5d6a92;
+  --muted-rgb: 93 106 146;
+  --green: #85c043;
+  --green-rgb: 133 192 67;
+  --green-link: #557f2a;
+  --green-link-rgb: 85 127 42;
+  --cream: #faf1e3;
+  --cream-rgb: 250 241 227;
+  --panel-cream: #f6f1e8;
+  --panel-cream-rgb: 246 241 232;
+  --danger: #b3261e;
+  --danger-rgb: 179 38 30;
+  --white: #ffffff;
+  --white-rgb: 255 255 255;
+
+  /* ---- Pastels: fills, chips, circles, hover states only ---- */
+  --blush: #fbe5e5;
+  --blush-rgb: 251 229 229;
+  --blue: #dee8f7;
+  --blue-rgb: 222 232 247;
+  --mint: #e3f1e6;
+  --mint-rgb: 227 241 230;
+  --butter: #fff3c8;
+  --butter-rgb: 255 243 200;
+  --lilac: #ece3f2;
+  --lilac-rgb: 236 227 242;
+  /* Destructive button hover: blush, slightly darker. */
+  --blush-hover: #f6d8d7;
+  --blush-hover-rgb: 246 216 215;
+
+  /* ---- Lines (navy-tinted, never grey) ---- */
+  --hairline: rgba(33, 56, 124, 0.12);
+  --hairline-soft: rgba(33, 56, 124, 0.1);
+  --ghost-border: rgba(33, 56, 124, 0.28);
+  --border-control: rgba(33, 56, 124, 0.16);
+  --border-control-hover: rgba(33, 56, 124, 0.4);
+  --border-selectable: rgba(33, 56, 124, 0.14);
+  --border-dot: rgba(33, 56, 124, 0.22);
+  --placeholder-fill: rgba(33, 56, 124, 0.05);
+  --track: rgba(33, 56, 124, 0.08);
+
+  /* ---- Shadows (navy-tinted, never black) ---- */
+  --shadow-soft: 0 6px 18px rgba(31, 61, 143, 0.08);
+  --shadow-lift: 0 16px 40px rgba(31, 61, 143, 0.12);
+  --shadow-photo: 0 24px 60px rgba(31, 61, 143, 0.1);
+  --shadow-cta: 0 16px 40px rgba(31, 61, 143, 0.28);
+
+  /* ---- Overlays ---- */
+  --backdrop: rgba(21, 35, 78, 0.4);
+  --header-fill: rgba(255, 252, 246, 0.92);
+  --on-dark-chip: rgba(21, 35, 78, 0.35);
+
+  /* ---- Signature pastel gradient (100deg, 4 stops) ----
+     Resting states are 4 identical stops so hover/selected animate. */
+  --gradient-strong: linear-gradient(100deg, #fbe5e5 0%, #dee8f7 32%, #e3f1e6 66%, #fff3c8 100%);
+  --gradient-light: linear-gradient(100deg, #fdf2f2 0%, #eff4fb 32%, #f1f8f3 66%, #fffae8 100%);
+  --gradient-rest-white: linear-gradient(100deg, #ffffff 0%, #ffffff 32%, #ffffff 66%, #ffffff 100%);
+  --gradient-rest-cream: linear-gradient(100deg, #faf1e3 0%, #faf1e3 32%, #faf1e3 66%, #faf1e3 100%);
+  --gradient-rest-clear: linear-gradient(100deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, 0) 66%, rgba(255, 255, 255, 0) 100%);
+  --gradient-feature: linear-gradient(165deg, #2a4491 0%, #21387c 55%, #15234e 100%);
+  --gradient-scrim: linear-gradient(to top, rgba(21, 35, 78, 0.72), rgba(21, 35, 78, 0.5) 34%, rgba(21, 35, 78, 0.12) 72%, transparent);
+
+  /* ---- Type ---- */
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-serif: var(--font-dm-serif), Georgia, serif;
+  --text-h1: clamp(28px, 4.833vw, 58px);
+  --text-h2: clamp(22px, 3.833vw, 46px);
+  --text-card-title: 20px;
+  --text-lead: 17px;
+  --text-body: 15px;
+  --text-small: 14px;
+  --text-label: 11px;
+  --text-nav: 14.5px;
+
+  /* ---- Shape ---- */
+  --r-card: clamp(16px, 3.667vw, 44px);
+  --r-mid: clamp(12px, 2.333vw, 28px);
+  --r-row: clamp(9px, 1.5vw, 18px);
+  --r-pill: 999px;
+
+  /* ---- Layout ---- */
+  --content-width: min(1200px, 92vw);
+  --section-gap: clamp(44px, 9.167vw, 110px);
+  --card-pad: clamp(14px, 3.333vw, 40px);
+  --btn-pad-y: clamp(9px, 1.042vw, 15px);
+  --btn-pad-x: clamp(16px, 1.806vw, 26px);
+
+  /* ---- Motion ---- */
+  --ease-drop: cubic-bezier(0.2, 0.85, 0.25, 1);
+  --ease-reveal: cubic-bezier(0.16, 1, 0.3, 1);
+  --hover-ms: 220ms;
+}
+
+/* ---- Keyframes (prefixed so they never collide with Tailwind's own) ---- */
+@keyframes bp-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+@keyframes bp-floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+@keyframes bp-drop {
+  from { transform: translateY(-34px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+/* Panels enter with transform only — never from opacity 0, so a paused
+   animation can't leave a dialog invisible. */
+@keyframes bp-dialog-in {
+  from { transform: translateY(14px) scale(0.985); }
+  to { transform: none; }
+}
+@keyframes bp-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes bp-toast-in {
+  from { transform: translateY(18px); }
+  to { transform: none; }
+}
+@keyframes bp-ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@layer components {
+  /* ---- Decorative pastel circles (always aria-hidden, never interactive) ----
+     .circle-host: a panel or full-screen page with its own background — its
+     own stacking context, so circles sit above its fill and below its content.
+     .circle-anchor: a page header inside the portal shell. The shell is the
+     stacking context (isolate), so the header's circles paint above the page
+     background but beneath everything in flow — including the cards below the
+     header, which they can never cover. */
+  .circle-host {
+    position: relative;
+    z-index: 0;
+  }
+  .circle-anchor {
+    position: relative;
+  }
+  .circle {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: -1;
+    filter: blur(0.5px);
+  }
+  .circle--blush { background: var(--blush); opacity: 0.6; animation: bp-pulse 11s ease-in-out infinite; }
+  .circle--mint { background: var(--mint); opacity: 0.6; animation: bp-floaty 13s ease-in-out infinite; }
+  .circle--blue { background: var(--blue); opacity: 0.7; animation: bp-pulse 11s ease-in-out infinite; }
+  .circle--butter { background: var(--butter); opacity: 0.6; animation: bp-floaty 12s ease-in-out infinite; }
+  .circle--lilac { background: var(--lilac); opacity: 0.55; animation: bp-floaty 14s ease-in-out infinite; }
+
+  /* Placement pattern (sizes are fluid; colour varies section to section). */
+  .circle--hero-tl { width: clamp(70px, 15vw, 180px); aspect-ratio: 1; top: 8px; left: 6px; }
+  .circle--hero-br { width: clamp(56px, 11.667vw, 140px); aspect-ratio: 1; bottom: 30px; right: 10px; }
+  /* Page headers are a single title row, so the second circle hangs from the
+     top-right instead of rising out of the bottom into the header bar. */
+  .circle--header-tr { width: clamp(56px, 11.667vw, 140px); aspect-ratio: 1; top: -6px; right: 10px; }
+  .circle--s2-tl { width: clamp(80px, 16.667vw, 200px); aspect-ratio: 1; top: -40px; left: -70px; }
+  .circle--s3-tr { width: clamp(74px, 15.333vw, 184px); aspect-ratio: 1; top: -30px; right: -70px; opacity: 0.55; animation-duration: 13s; }
+  .circle--s4-bl { width: clamp(60px, 12.5vw, 150px); aspect-ratio: 1; bottom: 20px; left: -64px; }
+  .circle--s5-tl { width: clamp(53px, 11vw, 132px); aspect-ratio: 1; top: 0; left: -58px; }
+
+  /* Circles inside coloured panels (the panel clips them: overflow hidden). */
+  .circle--panel-tr { width: clamp(90px, 20vw, 240px); aspect-ratio: 1; top: -80px; right: -60px; opacity: 0.65; animation: bp-pulse 12s ease-in-out infinite; }
+  .circle--cta-tr { width: clamp(100px, 21.667vw, 260px); aspect-ratio: 1; top: -90px; right: -70px; opacity: 0.75; animation: bp-pulse 12s ease-in-out infinite; }
+  .circle--cta-br { width: clamp(70px, 15vw, 180px); aspect-ratio: 1; bottom: -60px; right: -40px; opacity: 0.7; animation: bp-floaty 14s ease-in-out infinite; }
+
+  /* ---- Serif-italic accent word (one per heading at most) ---- */
+  .accent {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  /* ---- Selectable rows / tabs / filters / toggles ---- */
+  .selectable {
+    background-color: var(--white);
+    background-image: var(--gradient-rest-white);
+    border: 1px solid var(--border-selectable);
+    color: var(--navy);
+    transition:
+      background-image 320ms ease,
+      box-shadow var(--hover-ms) ease,
+      border-color var(--hover-ms) ease;
+  }
+  .selectable:hover {
+    background-image: var(--gradient-light);
+  }
+  .selectable[aria-current="page"],
+  .selectable[aria-selected="true"],
+  .selectable[aria-pressed="true"],
+  .selectable[data-selected="true"] {
+    background-image: var(--gradient-strong);
+    border-color: transparent;
+    box-shadow: 0 0 0 1.5px var(--navy), var(--shadow-lift);
+  }
+  /* Clickable rows that aren't selectable (accordion headers, list rows):
+     light pastel gradient on hover. */
+  .row-hover {
+    background-image: var(--gradient-rest-white);
+    transition: background-image 320ms ease;
+  }
+  .row-hover:hover {
+    background-image: var(--gradient-light);
+  }
+
+  /* Header nav links (pills on the tinted header bar). */
+  .nav-link {
+    border-radius: 999px;
+    background-image: var(--gradient-rest-clear);
+    transition: background-image 320ms ease, color var(--hover-ms) ease;
+  }
+  .nav-link:hover {
+    background-image: var(--gradient-light);
+  }
+  .nav-link[aria-current="page"] {
+    background-image: var(--gradient-strong);
+  }
+
+  /* The small selection dot inside a selectable row. */
+  .select-dot {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    border-radius: 999px;
+    border: 1.5px solid var(--border-dot);
+    background: var(--white);
+    transition: background-color var(--hover-ms) ease, border-color var(--hover-ms) ease;
+  }
+  [aria-current="page"] > .select-dot,
+  [aria-selected="true"] > .select-dot,
+  [aria-pressed="true"] > .select-dot,
+  [data-selected="true"] > .select-dot {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  /* ---- Entrance + scroll reveal ---- */
+  .drop-in { animation: bp-drop 1.1s var(--ease-drop) both; }
+  .drop-in--2 { animation-delay: 0.2s; }
+  .drop-in--3 { animation-delay: 0.38s; }
+  .drop-in--4 { animation-delay: 0.56s; }
+  .drop-in--5 { animation-delay: 0.72s; }
+  /* Scroll reveal. Server-rendered content is always visible: only script
+     (RevealObserver) marks an off-screen element "pending", and it reveals
+     it on scroll — or after ~900ms if the observer never reports. */
+  [data-reveal] {
+    transition:
+      transform 0.85s var(--ease-reveal),
+      opacity 0.85s var(--ease-reveal);
+  }
+  [data-reveal="pending"] {
+    transform: translateY(42px) scale(0.96);
+    opacity: 0;
+  }
+
+  /* ---- Dialogs, sheets, toasts: transform-only entrances ----
+     No fill mode: once finished, the animation must not pin the transform
+     (the sheet's drag handle moves it with an inline transform). */
+  .modal-panel {
+    animation: bp-sheet-up 360ms var(--ease-reveal);
+  }
+  @media (min-width: 640px) {
+    .modal-panel {
+      animation: bp-dialog-in 260ms var(--ease-reveal);
+    }
+  }
+  .toast {
+    animation: bp-toast-in 260ms var(--ease-reveal);
+  }
+
+  /* ---- Scroll progress (fixed 3px bar at the very top) ---- */
+  .scroll-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 3px;
+    z-index: 70;
+    background: var(--track);
+    pointer-events: none;
+  }
+  .scroll-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--green);
+    transform-origin: left;
+  }
+
+  /* ---- Dark feature card (hero): navy gradient, cream text ---- */
+  .feature-card {
+    position: relative;
+    overflow: hidden;
+    background-image: var(--gradient-feature);
+    color: var(--cream);
+  }
+  /* Bottom scrim over the lower 52% (for text over an image or video). */
+  .feature-card__scrim {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 52%;
+    background-image: var(--gradient-scrim);
+    pointer-events: none;
+  }
+  .on-dark-chip {
+    background-color: var(--on-dark-chip);
+    color: var(--cream);
+    transition: background-color var(--hover-ms) ease, color var(--hover-ms) ease;
+  }
+  .on-dark-chip:hover {
+    background-color: var(--mint);
+    color: var(--navy);
+  }
+  /* Button on dark/photo backgrounds: cream fill, navy text; hover → the
+     strong pastel gradient. */
+  .on-dark-button {
+    background-image: var(--gradient-rest-cream);
+    color: var(--navy);
+    transition: background-image 320ms ease, transform var(--hover-ms) ease;
+  }
+  .on-dark-button:hover {
+    background-image: var(--gradient-strong);
+  }
+
+  /* ---- Horizontally scrolling pill ticker ---- */
+  .ticker-track { animation: bp-ticker 114s linear infinite; }
+  .ticker:hover .ticker-track,
+  .ticker:focus-within .ticker-track { animation-play-state: paused; }
+}
+
+/* Reduced motion: no circles moving, no drops, no reveals, no ticker —
+   everything simply visible. */
+@media (prefers-reduced-motion: reduce) {
+  .circle,
+  .drop-in,
+  .ticker-track {
+    animation: none !important;
+  }
+  .drop-in {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  [data-reveal],
+  [data-reveal="pending"] {
+    transform: none !important;
+    opacity: 1 !important;
+    transition: none !important;
+  }
+  .modal-panel,
+  .toast {
+    animation: none !important;
+  }
+  .selectable,
+  .nav-link,
+  .row-hover,
+  .on-dark-chip,
+  .on-dark-button {
+    transition: none;
+  }
+}

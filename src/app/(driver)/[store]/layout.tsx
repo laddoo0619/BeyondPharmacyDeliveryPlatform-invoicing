@@ -18,10 +18,10 @@ export default async function DriverLayout({
   } catch (error) {
     console.error("[DriverLayout] Store resolution error:", error);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-sky-50 to-emerald-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#1e3a8a] mb-2">Service Unavailable</h1>
-          <p className="text-slate-500">Unable to load store information. Please try again later.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-navy mb-2">Service Unavailable</h1>
+          <p className="text-ink">Unable to load store information. Please try again later.</p>
         </div>
       </div>
     );

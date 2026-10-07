@@ -5,6 +5,7 @@
 //
 //   TZ=America/Vancouver AUTH_SECRET=dev-only npx next dev -p 3100   (separately)
 //   node scripts/screenshots.mjs <outDir> [baseUrl]
+//   SHOTS=/dev/dashboard,/login node scripts/screenshots.mjs <outDir>   (subset)
 //
 // Uses the project's Playwright if installed, else the machine-wide one.
 import { createRequire } from "node:module";
@@ -29,7 +30,10 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const screens = [...readFileSync(path.join(root, "src/app/dev/_screens.ts"), "utf8").matchAll(/path: "([^"]+)"/g)].map(
   (m) => `/dev/${m[1]}`
 );
-const ROUTES = ["/dev/style-guide", "/login", ...screens];
+// SHOTS=/dev/dashboard,/login limits the run to those routes.
+const ROUTES = ["/dev/style-guide", "/login", ...screens].filter(
+  (route) => !process.env.SHOTS || process.env.SHOTS.split(",").includes(route)
+);
 const VIEWPORTS = [
   { name: "390", width: 390, height: 844 },
   { name: "1440", width: 1440, height: 900 },
@@ -79,7 +83,16 @@ try {
       const res = await page.goto(base + route, { waitUntil: "networkidle" });
       await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
       await page.evaluate(() => document.fonts.ready);
-      // Let entrance animations finish (they are ~2s at most).
+      // Scroll the whole page once so scroll-reveal content has come into view
+      // (a full-page capture doesn't scroll), then return to the top.
+      await page.evaluate(async () => {
+        for (let y = 0; y < document.documentElement.scrollHeight; y += 300) {
+          window.scrollTo(0, y);
+          await new Promise((resolve) => setTimeout(resolve, 60));
+        }
+        window.scrollTo(0, 0);
+      });
+      // Let entrance and reveal animations finish (they are ~2s at most).
       await page.waitForTimeout(2500);
       const file = path.join(outDir, `${route.replace(/^\//, "").replace(/\//g, "_") || "root"}-${vp.name}.png`);
       await page.screenshot({ path: file, fullPage: true });

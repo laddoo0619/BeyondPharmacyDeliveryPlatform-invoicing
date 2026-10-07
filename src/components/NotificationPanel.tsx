@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { card, emptyState, sectionTitle, statusBadgeClasses } from "@/lib/portalStyles";
+import { card, cn, emptyState, sectionTitle } from "@/lib/portalStyles";
+import { notificationStyle, toneBadgeClasses } from "@/lib/statusTheme";
 
 interface Notification {
   id: string;
@@ -51,63 +52,67 @@ export default function NotificationPanel({ storeSlug }: { storeSlug: string }) 
 
   return (
     <div className={card}>
-      <div className="px-6 py-4 border-b flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-hairline flex items-center justify-between">
         <h2 className={sectionTitle}>Notifications</h2>
         {unreadCount > 0 && (
-          <span className="bg-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+          <span className={toneBadgeClasses("blush")}>
             {unreadCount} new
           </span>
         )}
       </div>
       {notifications.length === 0 ? (
-        <div className={emptyState}>
-          No <span className="italic text-[#1e3a8a]">notifications</span>
+        <div className={cn(emptyState, "m-4")}>
+          No <span className="italic text-navy">notifications</span>
         </div>
       ) : (
-        <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-          {notifications.map((n) => (
-            <div
-              key={n.id}
-              className={`px-6 py-3 ${
-                !n.isRead ? "bg-rose-50/70" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`inline-block w-2 h-2 rounded-full ${n.type === "DELIVERY_FAILED" || n.type === "SPOKE_DISPATCH_FAILED" || n.type === "SPOKE_DISPATCH_STALLED" || n.type === "GENERATION_INCOMPLETE" ? "bg-rose-500" : n.type === "ORDER_PICKED_UP" ? "bg-teal-500" : "bg-sky-500"}`}
-                    />
-                    <span className={statusBadgeClasses(n.type === "DELIVERY_FAILED" || n.type === "SPOKE_DISPATCH_FAILED" || n.type === "SPOKE_DISPATCH_STALLED" || n.type === "GENERATION_INCOMPLETE" ? "FAILED" : n.type === "ORDER_PICKED_UP" ? "PICKED_UP" : "IN_TRANSIT")}>
-                      {n.type === "DELIVERY_FAILED"
-                        ? "Delivery Failed"
-                        : n.type === "SPOKE_DISPATCH_FAILED"
-                        ? "Spoke Dispatch Failed"
-                        : n.type === "SPOKE_DISPATCH_STALLED"
-                        ? "Spoke Delivery Stalled"
-                        : n.type === "GENERATION_INCOMPLETE"
-                        ? "Generation Incomplete"
-                        : n.type === "ORDER_PICKED_UP"
-                        ? "Order Picked Up"
-                      : "Re-attempt Started"}
-                    </span>
+        <div className="divide-y divide-hairline max-h-96 overflow-y-auto">
+          {notifications.map((n) => {
+            const style = notificationStyle(n.type);
+            // New notifications sit on a pastel fill, where all text is navy.
+            return (
+              <div
+                key={n.id}
+                className={`px-6 py-3 ${
+                  !n.isRead ? style.unread : ""
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-block w-2 h-2 rounded-full ${style.marker}`}
+                      />
+                      <span className={n.isRead ? style.badge : toneBadgeClasses("white")}>
+                        {n.type === "DELIVERY_FAILED"
+                          ? "Delivery Failed"
+                          : n.type === "SPOKE_DISPATCH_FAILED"
+                          ? "Spoke Dispatch Failed"
+                          : n.type === "SPOKE_DISPATCH_STALLED"
+                          ? "Spoke Delivery Stalled"
+                          : n.type === "GENERATION_INCOMPLETE"
+                          ? "Generation Incomplete"
+                          : n.type === "ORDER_PICKED_UP"
+                          ? "Order Picked Up"
+                        : "Re-attempt Started"}
+                      </span>
+                    </div>
+                    <p className={cn("text-sm mt-2", n.isRead ? "text-ink" : "text-navy")}>{n.message}</p>
+                    <p className={cn("text-xs mt-1 tabular-nums", n.isRead ? "text-muted" : "text-navy")}>
+                      {new Date(n.createdAt).toLocaleString()}
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-600 mt-2">{n.message}</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {new Date(n.createdAt).toLocaleString()}
-                  </p>
+                  {!n.isRead && (
+                    <button
+                      onClick={() => markAsRead(n.id)}
+                      className="text-xs text-navy font-bold underline-offset-2 hover:underline ml-3 whitespace-nowrap"
+                    >
+                      Dismiss
+                    </button>
+                  )}
                 </div>
-                {!n.isRead && (
-                  <button
-                    onClick={() => markAsRead(n.id)}
-                    className="text-xs text-[#6f8f72] hover:text-[#5f7d62] font-semibold ml-3 whitespace-nowrap"
-                  >
-                    Dismiss
-                  </button>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

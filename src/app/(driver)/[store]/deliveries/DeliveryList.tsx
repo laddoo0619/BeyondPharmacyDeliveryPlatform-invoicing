@@ -58,38 +58,36 @@ export default function DeliveryList({
     return (
       <div
         key={delivery.id}
-        className={`${cardInteractive} p-4 ${
-          delivery.status === "FAILED" ? "border-rose-200" : ""
-        }`}
+        className={`${cardInteractive} p-4`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-[#1e3a8a] truncate">
+            <p className="font-semibold text-navy truncate">
               {delivery.patientName}
             </p>
-            <p className="text-sm text-slate-500 mt-1 break-words">
+            <p className="text-sm text-muted mt-1 break-words">
               {delivery.deliveryAddress}
             </p>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               {delivery.deliveryCity}, {delivery.deliveryPostalCode}
             </p>
             {delivery.instructions && (
-              <p className="text-sm text-[#1e3a8a] mt-1">
+              <p className="text-sm text-navy mt-1">
                 Note: {delivery.instructions}
               </p>
             )}
             {delivery.status === "FAILED" && delivery.failedReason && (
-              <p className="text-sm text-rose-600 mt-1 font-semibold">
+              <p className="text-sm text-danger mt-1 font-semibold">
                 Failed: {delivery.failedReason}
               </p>
             )}
             {isFromPreviousDay && (
-              <p className="text-xs text-orange-600 mt-1">
+              <p className="text-xs text-navy mt-1">
                 From {new Date(delivery.scheduledDate).toLocaleDateString()}
               </p>
             )}
             {delivery.attemptCount > 1 && (
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted mt-1">
                 Attempt #{delivery.attemptCount}
               </p>
             )}
@@ -104,7 +102,7 @@ export default function DeliveryList({
         {delivery.status === "FAILED" && (
           <Link
             href={`/${storeSlug}/deliver/${delivery.id}`}
-            className="mt-3 block w-full text-center bg-orange-500 text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-orange-600"
+            className="mt-3 block w-full rounded-full border-[1.5px] border-control bg-butter py-3.5 text-center text-sm font-bold text-navy transition duration-[220ms] ease-out hover:border-control-hover active:scale-[0.97]"
           >
             Re-attempt Delivery
           </Link>
@@ -127,7 +125,7 @@ export default function DeliveryList({
         )}
 
         {delivery.status === "DELIVERED" && delivery.completedAt && (
-          <p className="mt-2 text-xs text-emerald-600 font-semibold">
+          <p className="mt-2 text-xs text-navy font-semibold">
             Delivered at{" "}
             {new Date(delivery.completedAt).toLocaleTimeString()}
           </p>
@@ -152,12 +150,14 @@ export default function DeliveryList({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, address..."
+          aria-label="Search deliveries"
           className={`${input} pr-10`}
         />
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg"
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors duration-[220ms] hover:text-navy text-lg"
           >
             &times;
           </button>
@@ -166,7 +166,7 @@ export default function DeliveryList({
 
       {filtered.length === 0 ? (
         <div className={emptyState}>
-          {search ? "No matching deliveries found." : <>No orders <span className="italic text-[#1e3a8a]">scheduled</span> for this date.</>}
+          {search ? "No matching deliveries found." : <>No orders <span className="italic text-navy">scheduled</span> for this date.</>}
         </div>
       ) : (
         <>
@@ -179,7 +179,7 @@ export default function DeliveryList({
 
           {active.length === 0 && delivered.length > 0 && !search && (
             <div className={`${emptyState} mb-4`}>
-              All deliveries <span className="italic text-[#1e3a8a]">completed</span>!
+              All deliveries <span className="italic text-navy">completed</span>!
             </div>
           )}
 
@@ -194,13 +194,14 @@ export default function DeliveryList({
             <div className={active.length > 0 ? "mt-6" : ""}>
               <button
                 onClick={() => setShowDelivered(!showDelivered)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-sm font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                aria-expanded={showDelivered}
+                className="w-full flex items-center justify-between px-4 py-3 bg-mint rounded-row text-sm font-bold text-navy transition duration-[220ms] active:scale-[0.99]"
               >
                 <span className="flex items-center gap-2">
-                  <span className="text-emerald-600">&#10003;</span>
+                  <span className="text-navy">&#10003;</span>
                   Delivered ({delivered.length})
                 </span>
-                <span className="text-emerald-600">
+                <span className="text-navy">
                   {showDelivered ? "\u25B2" : "\u25BC"}
                 </span>
               </button>
