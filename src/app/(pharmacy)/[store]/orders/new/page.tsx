@@ -3,6 +3,8 @@ import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
 import NewOrderForm from "./NewOrderForm";
 import { pageTitle } from "@/lib/portalStyles";
+import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
+import { getZoneSuggestionData } from "@/lib/zoneHistory";
 
 export default async function NewOrderPage({
   params,
@@ -24,6 +26,14 @@ export default async function NewOrderPage({
     }),
   ]);
 
+  const zoneOptions = zones.map((z) => ({
+    id: z.id,
+    name: z.name,
+    price: z.price,
+    defaultDriverId: z.defaultDriverId,
+  }));
+  const { history, fallbackZoneId } = await getZoneSuggestionData(store.id, zoneOptions);
+
   return (
     <div>
       <h1 className={`${pageTitle} mb-6`}>
@@ -31,8 +41,16 @@ export default async function NewOrderPage({
       </h1>
       <NewOrderForm
         storeSlug={storeSlug}
-        zones={zones.map((z) => ({ id: z.id, name: z.name, price: z.price, defaultDriverId: z.defaultDriverId }))}
-        drivers={drivers.map((d) => ({ id: d.id, name: d.name }))}
+        zones={zoneOptions}
+        drivers={drivers.map((d) => ({
+          id: d.id,
+          name: d.name,
+          // Anchor (Spoke) deliveries don't use the zone price, so the form
+          // hides the zone selector for them.
+          isExternal: isSelectedSpokeProvider(d.id),
+        }))}
+        zoneHistory={history}
+        fallbackZoneId={fallbackZoneId}
       />
     </div>
   );

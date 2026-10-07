@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PatientAutocomplete } from "@/components/PatientAutocomplete";
 import { AddressSelect, type AddressValue } from "@/components/AddressSelect";
@@ -8,6 +8,11 @@ import type { Patient } from "@/hooks/usePatientSearch";
 import { card, cn, input, label, primaryButton, sectionTitle } from "@/lib/portalStyles";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 import { vancouverTodayKey } from "@/lib/vancouverDate";
+import {
+  describeZoneSuggestion,
+  suggestZone,
+  type ZoneHistory,
+} from "@/lib/zoneSuggestion";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -20,6 +25,8 @@ interface Zone {
 interface Driver {
   id: string;
   name: string;
+  // Anchor / Spoke courier: its deliveries aren't invoiced, so no zone price.
+  isExternal?: boolean;
 }
 
 function todayInputValue() {
@@ -27,7 +34,19 @@ function todayInputValue() {
   return vancouverTodayKey();
 }
 
-export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zones: Zone[]; drivers: Driver[]; storeSlug: string }) {
+export default function RecurringOrderForm({
+  zones,
+  drivers,
+  storeSlug,
+  zoneHistory,
+  fallbackZoneId,
+}: {
+  zones: Zone[];
+  drivers: Driver[];
+  storeSlug: string;
+  zoneHistory: ZoneHistory;
+  fallbackZoneId: string | null;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,9 +62,34 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
   const [preferredAddressId, setPreferredAddressId] = useState<string | null>(null);
   const [editingSavedAddress, setEditingSavedAddress] = useState(false);
   const [patientInputKey, setPatientInputKey] = useState(0);
+  // null = follow the suggestion from the address; a string = picked by hand.
+  const [manualZoneId, setManualZoneId] = useState<string | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+
+  const zoneSuggestion = useMemo(
+    () => suggestZone({ city: address.city, zones, history: zoneHistory }),
+    [address.city, zones, zoneHistory]
+  );
+  const isExternalDriver = !!drivers.find((d) => d.id === selectedDriverId)?.isExternal;
+  // Anchor: assigned automatically (price never invoiced). In-house: pre-filled
+  // from the address for staff to confirm — it sets the invoiced price.
+  const anchorZoneId = manualZoneId || zoneSuggestion?.zoneId || fallbackZoneId || "";
+  const selectedZoneId = isExternalDriver
+    ? anchorZoneId
+    : manualZoneId !== null
+      ? manualZoneId
+      : (zoneSuggestion?.zoneId ?? "");
+  const showZoneSelect = !isExternalDriver || !anchorZoneId;
+  const selectedZone = zones.find((z) => z.id === selectedZoneId) ?? null;
+  const zoneHint =
+    !isExternalDriver && manualZoneId === null && zoneSuggestion && selectedZone
+      ? describeZoneSuggestion(zoneSuggestion, address.city, selectedZone.name)
+      : null;
 
   const selectPatient = useCallback((patient: Patient) => {
     setSelectedPatient(patient);
+    // A new patient means a new address: follow its suggestion again.
+    setManualZoneId(null);
     setPatientPhone(patient.phone || "");
     setAddress(addressFromPatient(patient));
     setSaveAddress(false);
@@ -55,6 +99,7 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
 
   const clearPatient = useCallback(() => {
     setSelectedPatient(null);
+    setManualZoneId(null);
     setPatientNameFreeText("");
     setPatientPhone("");
     setAddress(EMPTY_ADDRESS);
@@ -99,8 +144,8 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
         deliveryPostalCode: address.postalCode,
         deliveryAddressId: address.addressId,
         saveAddressToPatient: saveAddress,
-        deliveryZoneId: formData.get("deliveryZoneId"),
-        assignedDriverId: formData.get("assignedDriverId") || null,
+        deliveryZoneId: selectedZoneId,
+        assignedDriverId: selectedDriverId || null,
         instructions: formData.get("instructions"),
         activeDays: selectedDays,
         recurrenceIntervalWeeks,
@@ -120,6 +165,9 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
       setPatientNameFreeText("");
       setAddress(EMPTY_ADDRESS);
       setSaveAddress(false);
+      // Controlled selects aren't cleared by form.reset().
+      setManualZoneId(null);
+      setSelectedDriverId("");
       setPatientInputKey((key) => key + 1);
       router.refresh();
     }
@@ -163,13 +211,31 @@ export default function RecurringOrderForm({ zones, drivers, storeSlug }: { zone
           preferredAddressId={preferredAddressId}
           onEditingSavedAddressChange={setEditingSavedAddress}
         />
-        <select name="deliveryZoneId" required className={input}>
-          <option value="">Select zone...</option>
-          {zones.map((z) => (
-            <option key={z.id} value={z.id}>{z.name} — ${z.price.toFixed(2)}</option>
-          ))}
-        </select>
-        <select name="assignedDriverId" className={input}>
+        {showZoneSelect && (
+          <div>
+            <select
+              name="deliveryZoneId"
+              required
+              value={selectedZoneId}
+              onChange={(e) => setManualZoneId(e.target.value)}
+              className={input}
+            >
+              <option value="">Select zone...</option>
+              {zones.map((z) => (
+                <option key={z.id} value={z.id}>{z.name} — ${z.price.toFixed(2)}</option>
+              ))}
+            </select>
+            {zoneHint && (
+              <p className="mt-1 text-xs font-medium text-slate-500">{zoneHint}</p>
+            )}
+          </div>
+        )}
+        <select
+          name="assignedDriverId"
+          value={selectedDriverId}
+          onChange={(e) => setSelectedDriverId(e.target.value)}
+          className={input}
+        >
           <option value="">Assign Driver (optional — uses zone default)</option>
           {drivers.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>

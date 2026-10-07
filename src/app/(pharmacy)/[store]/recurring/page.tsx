@@ -6,6 +6,8 @@ import RecurringOrderForm from "./RecurringOrderForm";
 import RecurringOrderList from "./RecurringOrderList";
 import { pageTitle } from "@/lib/portalStyles";
 import { buildRecurringDuplicateCleanupPlan } from "@/lib/recurringDuplicateGuard";
+import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
+import { getZoneSuggestionData } from "@/lib/zoneHistory";
 
 export default async function RecurringPage({
   params,
@@ -43,6 +45,17 @@ export default async function RecurringPage({
       orderBy: { name: "asc" },
     }),
   ]);
+  const zoneOptions = zones.map((z) => ({ id: z.id, name: z.name, price: z.price }));
+  const { history: zoneHistory, fallbackZoneId } = await getZoneSuggestionData(
+    store.id,
+    zoneOptions
+  );
+  // Anchor (Spoke) deliveries don't use the zone price, so the forms hide the
+  // zone selector for them.
+  const driverOptions = drivers.map((d) => ({
+    ...d,
+    isExternal: isSelectedSpokeProvider(d.id),
+  }));
   const duplicateCleanupPlan = buildRecurringDuplicateCleanupPlan(recurringOrders);
   const hiddenRecurringIds = new Set(
     duplicateCleanupPlan
@@ -62,15 +75,19 @@ export default async function RecurringPage({
         <div className="lg:col-span-1">
           <RecurringOrderForm
             storeSlug={storeSlug}
-            zones={zones.map((z) => ({ id: z.id, name: z.name, price: z.price }))}
-            drivers={drivers}
+            zones={zoneOptions}
+            drivers={driverOptions}
+            zoneHistory={zoneHistory}
+            fallbackZoneId={fallbackZoneId}
           />
         </div>
         <div className="space-y-6 lg:col-span-2">
           <RecurringCalendar storeSlug={storeSlug} drivers={drivers} />
           <RecurringOrderList
             storeSlug={storeSlug}
-            drivers={drivers}
+            drivers={driverOptions}
+            zones={zoneOptions}
+            zoneHistory={zoneHistory}
             orders={recurringOrders
               .filter((o) => !hiddenRecurringIds.has(o.id))
               .map((o) => ({
@@ -78,6 +95,7 @@ export default async function RecurringPage({
                 patientName: o.patientName,
                 deliveryAddress: o.deliveryAddress,
                 deliveryCity: o.deliveryCity,
+                deliveryZoneId: o.deliveryZoneId,
                 zoneName: o.deliveryZone.name,
                 zonePrice: o.deliveryZone.price,
                 activeDays:

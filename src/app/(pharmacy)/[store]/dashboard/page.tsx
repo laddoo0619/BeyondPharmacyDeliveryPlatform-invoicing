@@ -163,12 +163,6 @@ export default async function DashboardPage({
     ...todayExternalDispatches.map(toExternalDashboardDelivery),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-  const totalToday = todayOrders.length;
-  const statusCounts = todayOrders.reduce<Record<string, number>>((counts, order) => {
-    counts[order.status] = (counts[order.status] ?? 0) + 1;
-    return counts;
-  }, {});
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -181,39 +175,6 @@ export default async function DashboardPage({
         >
           + New Order
         </Link>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
-        <div className={`${card} p-4`}>
-          <p className="text-sm text-slate-500">Today&apos;s Total</p>
-          <p className="text-2xl font-bold text-[#1e3a8a]">{totalToday}</p>
-        </div>
-        {["PENDING", "ASSIGNED", "SUBMITTED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED", "DELIVERY_FAILED", "CANCELLED"].map(
-          (status) => (
-            <div
-              key={status}
-              className={`${card} p-4 ${
-                status === "FAILED" && (statusCounts[status] || 0) > 0
-                  ? "border-rose-200"
-                  : ""
-              }`}
-            >
-              <p className="text-sm text-slate-500">
-                {status.replace(/_/g, " ")}
-              </p>
-              <p
-                className={`text-2xl font-bold ${
-                  status === "FAILED" && (statusCounts[status] || 0) > 0
-                    ? "text-rose-600"
-                    : "text-[#1e3a8a]"
-                }`}
-              >
-                {statusCounts[status] || 0}
-              </p>
-            </div>
-          )
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

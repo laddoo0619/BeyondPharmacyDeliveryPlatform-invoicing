@@ -16,6 +16,11 @@ import {
 } from "@/lib/portalStyles";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 import { vancouverTodayKey } from "@/lib/vancouverDate";
+import {
+  describeZoneSuggestion,
+  suggestZone,
+  type ZoneHistory,
+} from "@/lib/zoneSuggestion";
 
 interface Zone {
   id: string;
@@ -27,16 +32,22 @@ interface Zone {
 interface Driver {
   id: string;
   name: string;
+  // Anchor / Spoke courier: its deliveries aren't invoiced, so no zone price.
+  isExternal?: boolean;
 }
 
 export default function NewOrderForm({
   zones,
   drivers,
   storeSlug,
+  zoneHistory,
+  fallbackZoneId,
 }: {
   zones: Zone[];
   drivers: Driver[];
   storeSlug: string;
+  zoneHistory: ZoneHistory;
+  fallbackZoneId: string | null;
 }) {
   const router = useRouter();
   const { submit, loading, error, duplicate } = useCreateOrder(storeSlug);
@@ -48,7 +59,9 @@ export default function NewOrderForm({
   const [saveAddress, setSaveAddress] = useState(false);
   const [preferredAddressId, setPreferredAddressId] = useState<string | null>(null);
   const [editingSavedAddress, setEditingSavedAddress] = useState(false);
-  const [selectedZoneId, setSelectedZoneId] = useState("");
+  // null = follow the suggestion from the address; a string = staff picked
+  // a zone by hand, which is never overwritten.
+  const [manualZoneId, setManualZoneId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
   const [scheduledDate, setScheduledDate] = useState(
@@ -56,17 +69,41 @@ export default function NewOrderForm({
     () => vancouverTodayKey()
   );
 
+  const zoneSuggestion = useMemo(
+    () => suggestZone({ city: address.city, zones, history: zoneHistory }),
+    [address.city, zones, zoneHistory]
+  );
+
+  const isExternalDriver = !!drivers.find((d) => d.id === selectedDriverId)?.isExternal;
+
+  // Anchor: the zone is assigned automatically (its price is never invoiced).
+  // In-house (Derek): pre-filled from the address, but staff confirm it —
+  // it sets the price on his invoice.
+  const anchorZoneId = manualZoneId || zoneSuggestion?.zoneId || fallbackZoneId || "";
+  const selectedZoneId = isExternalDriver
+    ? anchorZoneId
+    : manualZoneId !== null
+      ? manualZoneId
+      : (zoneSuggestion?.zoneId ?? "");
+  // Shown for Anchor only if no zone could be worked out at all, so a
+  // delivery can never be blocked by a field staff can't see.
+  const showZoneSelect = !isExternalDriver || !anchorZoneId;
+
   const selectedZone = useMemo(
     () => zones.find((z) => z.id === selectedZoneId) ?? null,
     [zones, selectedZoneId]
   );
+  const zoneHint =
+    !isExternalDriver && manualZoneId === null && zoneSuggestion && selectedZone
+      ? describeZoneSuggestion(zoneSuggestion, address.city, selectedZone.name)
+      : null;
 
   const zoneDefaultDriverId = selectedZone?.defaultDriverId ?? null;
 
   const handleZoneChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const id = e.target.value;
-      setSelectedZoneId(id);
+      setManualZoneId(id);
       const zone = zones.find((z) => z.id === id);
       setSelectedDriverId(zone?.defaultDriverId ?? "");
     },
@@ -75,6 +112,8 @@ export default function NewOrderForm({
 
   const handleSelectPatient = useCallback((p: Patient) => {
     setSelectedPatient(p);
+    // A new patient means a new address: follow its suggestion again.
+    setManualZoneId(null);
     setPatientPhone(p.phone ?? "");
     setAddress(addressFromPatient(p));
     setSaveAddress(false);
@@ -84,6 +123,7 @@ export default function NewOrderForm({
 
   const handleClearPatient = useCallback(() => {
     setSelectedPatient(null);
+    setManualZoneId(null);
     setPatientNameFreeText("");
     setPatientPhone("");
     setAddress(EMPTY_ADDRESS);
@@ -197,27 +237,32 @@ export default function NewOrderForm({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={label}>Delivery Zone *</label>
-          <select
-            required
-            value={selectedZoneId}
-            onChange={handleZoneChange}
-            className={input}
-          >
-            <option value="">Select zone...</option>
-            {zones.map((zone) => (
-              <option key={zone.id} value={zone.id}>
-                {zone.name} — ${zone.price.toFixed(2)}
-              </option>
-            ))}
-          </select>
-          {selectedZone && (
-            <p className="mt-1 text-sm text-[#6f8f72] font-semibold">
-              Delivery price: ${selectedZone.price.toFixed(2)}
-            </p>
-          )}
-        </div>
+        {showZoneSelect && (
+          <div>
+            <label className={label}>Delivery Zone *</label>
+            <select
+              required
+              value={selectedZoneId}
+              onChange={handleZoneChange}
+              className={input}
+            >
+              <option value="">Select zone...</option>
+              {zones.map((zone) => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.name} — ${zone.price.toFixed(2)}
+                </option>
+              ))}
+            </select>
+            {selectedZone && (
+              <p className="mt-1 text-sm text-[#6f8f72] font-semibold">
+                Delivery price: ${selectedZone.price.toFixed(2)}
+              </p>
+            )}
+            {zoneHint && (
+              <p className="mt-1 text-xs font-medium text-slate-500">{zoneHint}</p>
+            )}
+          </div>
+        )}
         <div>
           <label className={label}>Scheduled Date *</label>
           <input
