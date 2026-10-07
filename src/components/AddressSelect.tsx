@@ -2,6 +2,8 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { usePatientAddresses, type SavedAddress } from "@/hooks/usePatientAddresses";
+import { SavedAddressManager } from "@/components/SavedAddressManager";
+import { DuplicatePatientsNotice } from "@/components/DuplicatePatientsNotice";
 import {
   cn,
   input,
@@ -85,6 +87,15 @@ function AddressSelectInner({
   onEditingSavedAddressChange,
 }: Props) {
   const { addresses, loading, refresh } = usePatientAddresses(storeSlug, patientId);
+
+  const handleSavedAddressesChanged = async (deletedAddressId?: string) => {
+    // Reload first, so the auto-select below picks from the updated list and
+    // can never re-select the address that was just deleted.
+    await refresh();
+    if (deletedAddressId && value.addressId === deletedAddressId) {
+      onChange(EMPTY_ADDRESS);
+    }
+  };
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AddressValue>(EMPTY_ADDRESS);
   const [saving, setSaving] = useState(false);
@@ -358,6 +369,13 @@ function AddressSelectInner({
 
   return (
     <div className="space-y-3">
+      {patientId && (
+        <DuplicatePatientsNotice
+          storeSlug={storeSlug}
+          patientId={patientId}
+          onMerged={() => refresh()}
+        />
+      )}
       {showPicker && (
         <div>
           <label className={label}>Saved Address</label>
@@ -375,6 +393,14 @@ function AddressSelectInner({
             <option value={NEW_ADDRESS}>+ New address…</option>
           </select>
         </div>
+      )}
+      {showPicker && patientId && !editingAddressId && (
+        <SavedAddressManager
+          storeSlug={storeSlug}
+          patientId={patientId}
+          addresses={addresses}
+          onChanged={handleSavedAddressesChanged}
+        />
       )}
       {loading && patientId && (
         <p className="text-xs text-slate-500">Loading saved addresses...</p>
