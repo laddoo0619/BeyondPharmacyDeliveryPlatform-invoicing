@@ -114,7 +114,7 @@ export default function DeliveryList({
         {delivery.status === "FAILED" && (
           <Link
             href={`/${storeSlug}/deliver/${delivery.id}`}
-            className="mt-3 block w-full rounded-full border-[1.5px] border-control bg-butter py-3.5 text-center text-sm font-bold text-navy transition duration-[220ms] ease-out hover:border-control-hover active:scale-[0.97]"
+            className="mt-3 block w-full rounded-full border-(length:--line-strong) border-control bg-butter py-3.5 text-center text-sm font-bold text-navy transition duration-(--hover-ms) ease-out hover:border-control-hover active:scale-(--press-scale)"
           >
             Re-attempt Delivery
           </Link>
@@ -169,7 +169,7 @@ export default function DeliveryList({
           <button
             onClick={() => setSearch("")}
             aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors duration-[220ms] hover:text-navy text-lg"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors duration-(--hover-ms) hover:text-navy text-lg"
           >
             &times;
           </button>
@@ -207,7 +207,7 @@ export default function DeliveryList({
               <button
                 onClick={() => setShowDelivered(!showDelivered)}
                 aria-expanded={showDelivered}
-                className="w-full flex items-center justify-between px-4 py-3 bg-mint rounded-row text-sm font-bold text-navy transition duration-[220ms] active:scale-[0.99]"
+                className="w-full flex items-center justify-between px-4 py-3 bg-mint rounded-row text-sm font-bold text-navy transition duration-(--hover-ms) active:scale-(--press-scale)"
               >
                 <span className="flex items-center gap-2">
                   <span className="text-navy">&#10003;</span>

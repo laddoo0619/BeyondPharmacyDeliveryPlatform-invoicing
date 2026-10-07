@@ -23,12 +23,12 @@ export const driverMain = "max-w-lg mx-auto px-4 py-4";
 export const card = "rounded-card border border-hairline bg-white shadow-soft";
 
 export const cardInteractive =
-  "rounded-card border border-hairline bg-white shadow-soft transition duration-[220ms] ease-out hover:-translate-y-0.5 hover:shadow-lift";
+  "rounded-card border border-hairline bg-white shadow-soft transition duration-(--hover-ms) ease-out hover:-translate-y-0.5 hover:shadow-lift";
 
 // An interactive card flagged for attention (a failed delivery): blush fill,
 // no border. Text on it is navy (muted fails contrast on blush).
 export const cardAttention =
-  "rounded-card bg-blush shadow-soft transition duration-[220ms] ease-out hover:-translate-y-0.5 hover:shadow-lift";
+  "rounded-card bg-blush shadow-soft transition duration-(--hover-ms) ease-out hover:-translate-y-0.5 hover:shadow-lift";
 
 // A solid panel (no border): neutral cream, or pass a pastel fill instead.
 export const panel = "rounded-card bg-panel-cream";
@@ -39,27 +39,27 @@ export const emptyState = "rounded-card bg-panel-cream p-8 text-center text-sm t
 
 // Page titles drop in on arrival; actions beside them use pageAction.
 export const pageTitle =
-  "drop-in text-h1 font-extrabold leading-[1.03] tracking-[-0.03em] text-navy";
+  "drop-in text-h1 font-extrabold leading-h1 tracking-h1 text-navy";
 export const pageAction = "drop-in drop-in--2";
 export const sectionTitle = "text-card-title font-extrabold text-navy";
 export const mutedText = "text-sm text-muted";
 export const label = "block text-sm font-semibold text-navy mb-1";
 export const eyebrow =
-  "inline-flex items-center rounded-full bg-mint px-4 py-2 text-label font-bold uppercase tracking-[0.18em] text-navy";
+  "inline-flex items-center rounded-full bg-mint px-4 py-2 text-label font-bold uppercase tracking-eyebrow text-navy";
 export const textLink =
-  "font-semibold text-green-link transition-colors duration-[220ms] hover:text-navy";
+  "font-semibold text-green-link transition-colors duration-(--hover-ms) hover:text-navy";
 
 // ---- Form controls ----
 
 export const input =
-  "w-full rounded-row border border-hairline bg-white px-3 py-2 text-sm text-navy outline-none transition duration-[220ms] placeholder:text-muted focus:border-navy focus:ring-2 focus:ring-navy";
+  "w-full rounded-row border border-hairline bg-white px-3 py-2 text-sm text-navy outline-none transition duration-(--hover-ms) placeholder:text-muted focus:border-navy focus:ring-2 focus:ring-navy";
 
 export const inputReadOnly = "bg-panel-cream text-muted";
 
 // ---- Buttons (all fully round; press = scale .97) ----
 
 const BUTTON_BASE =
-  "rounded-full border-[1.5px] font-bold transition duration-[220ms] ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-full border-(length:--line-strong) font-bold transition duration-(--hover-ms) ease-out active:scale-(--press-scale) disabled:cursor-not-allowed disabled:opacity-50";
 
 const BUTTON_TONES = {
   // Navy pill, cream text.
@@ -96,28 +96,28 @@ export const secondaryButton = button("secondary");
 export const dangerButton = button("danger");
 
 export const softButton =
-  "rounded-full bg-panel-cream px-4 py-2 text-sm font-bold text-navy transition duration-[220ms] ease-out hover:bg-blue active:scale-[0.97] disabled:opacity-50";
+  "rounded-full bg-panel-cream px-4 py-2 text-sm font-bold text-navy transition duration-(--hover-ms) ease-out hover:bg-blue active:scale-(--press-scale) disabled:opacity-50";
 
 // Small inline actions inside rows and tables.
 export const linkButton =
-  "font-semibold text-green-link transition-colors duration-[220ms] hover:text-navy disabled:opacity-50";
+  "font-semibold text-green-link transition-colors duration-(--hover-ms) hover:text-navy disabled:opacity-50";
 export const dangerLinkButton =
-  "font-semibold text-danger transition-opacity duration-[220ms] hover:opacity-75 disabled:opacity-50";
+  "font-semibold text-danger transition-opacity duration-(--hover-ms) hover:opacity-75 disabled:opacity-50";
 
 // ---- Selectable rows / tabs / filters (see .selectable in theme.css) ----
 
 export const selectablePill =
-  "selectable rounded-full px-3 py-1.5 text-sm font-semibold active:scale-[0.97]";
+  "selectable rounded-full px-3 py-1.5 text-sm font-semibold active:scale-(--press-scale)";
 export const selectableRow = "selectable rounded-row";
 
 // ---- Tables ----
 
 export const tableHeader =
-  "bg-navy text-left text-xs font-bold uppercase tracking-[0.06em] text-cream";
+  "bg-navy text-left text-xs font-bold uppercase tracking-table text-cream";
 
 // Rows aren't clickable, so no hover tint (it would also drop the green
 // row-action links under 4.5:1).
-export const tableRow = "transition-colors duration-[220ms]";
+export const tableRow = "transition-colors duration-(--hover-ms)";
 
 // Totals: blue = regular, butter = highlighted, mint = total.
 export const totalPill = {

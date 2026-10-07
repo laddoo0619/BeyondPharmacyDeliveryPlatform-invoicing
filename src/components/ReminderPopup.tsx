@@ -150,7 +150,8 @@ export default function ReminderPopup({ storeSlug }: { storeSlug: string }) {
               onClick={() => complete(item)}
               disabled={saving === item.id}
               title="Mark done"
-              className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-[1.5px] border-dot bg-white transition duration-[220ms] hover:border-green hover:bg-mint disabled:opacity-40"
+              aria-label={`Mark done: ${item.note}`}
+              className="mt-0.5 h-6 w-6 shrink-0 rounded-full border-(length:--line-strong) border-dot bg-white transition duration-(--hover-ms) hover:border-green hover:bg-mint disabled:opacity-40"
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -181,7 +182,7 @@ export default function ReminderPopup({ storeSlug }: { storeSlug: string }) {
         <div className="flex items-center gap-4">
           <button
             onClick={dismissForToday}
-            className="text-xs font-semibold text-muted transition-colors duration-[220ms] hover:text-navy"
+            className="text-xs font-semibold text-muted transition-colors duration-(--hover-ms) hover:text-navy"
             title="Hides these until tomorrow, even if still outstanding."
           >
             Not today — dismiss
@@ -189,7 +190,7 @@ export default function ReminderPopup({ storeSlug }: { storeSlug: string }) {
           <Link
             href={`/${storeSlug}/reminders`}
             onClick={snooze}
-            className="text-xs font-semibold text-muted transition-colors duration-[220ms] hover:text-navy"
+            className="text-xs font-semibold text-muted transition-colors duration-(--hover-ms) hover:text-navy"
           >
             Manage
           </Link>

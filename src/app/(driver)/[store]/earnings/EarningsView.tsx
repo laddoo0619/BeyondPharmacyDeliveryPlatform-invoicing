@@ -5,7 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { card, cn, emptyState, pageTitle, totalPill } from "@/lib/portalStyles";
 
 const rangeToggle =
-  "selectable inline-flex items-center gap-2 px-4 py-3 rounded-full text-sm font-semibold active:scale-[0.97]";
+  "selectable inline-flex items-center gap-2 px-4 py-3 rounded-full text-sm font-semibold active:scale-(--press-scale)";
 
 export interface EarningsDelivery {
   id: string;

@@ -116,7 +116,7 @@ export function SavedAddressManager({ storeSlug, patientId, addresses, onChanged
                 <div className="min-w-0 flex-1 text-sm">
                   <span className="font-semibold text-ink">{address.label}</span>
                   {address.isDefault && (
-                    <span className="ml-2 rounded-full bg-mint px-2 py-0.5 text-[11px] font-bold text-navy">
+                    <span className="ml-2 rounded-full bg-mint px-2 py-0.5 text-label font-bold text-navy">
                       Default
                     </span>
                   )}
@@ -158,7 +158,7 @@ export function SavedAddressManager({ storeSlug, patientId, addresses, onChanged
                   type="button"
                   onClick={() => remove(inUse.address, true)}
                   disabled={busyId !== null}
-                  className="rounded-full border border-hairline bg-blush px-3 py-1.5 text-xs font-bold text-danger transition duration-[220ms] hover:bg-blush-hover active:scale-[0.97] disabled:opacity-50"
+                  className="rounded-full border border-hairline bg-blush px-3 py-1.5 text-xs font-bold text-danger transition duration-(--hover-ms) hover:bg-blush-hover active:scale-(--press-scale) disabled:opacity-50"
                 >
                   Delete anyway
                 </button>

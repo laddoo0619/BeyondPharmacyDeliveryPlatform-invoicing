@@ -59,6 +59,14 @@
   --text-small: var(--text-small);
   --text-label: var(--text-label);
   --text-nav: var(--text-nav);
+  --leading-h1: var(--leading-h1);
+  --leading-h2: var(--leading-h2);
+  --leading-body: var(--leading-body);
+  --tracking-h1: var(--tracking-h1);
+  --tracking-h2: var(--tracking-h2);
+  --tracking-label: var(--tracking-label);
+  --tracking-eyebrow: var(--tracking-eyebrow);
+  --tracking-table: var(--tracking-table);
   --spacing-section: var(--section-gap);
   --spacing-card: var(--card-pad);
   --spacing-btn-x: var(--btn-pad-x);
@@ -243,6 +251,14 @@
     color: var(--navy);
     font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Outlines are navy before focus too, so transitions on a control can't
+     fade the focus ring in from its text colour. */
+  *,
+  ::before,
+  ::after {
+    outline-color: var(--navy);
   }
 
   /* A visible focus ring everywhere (the reset removes the browser's). */

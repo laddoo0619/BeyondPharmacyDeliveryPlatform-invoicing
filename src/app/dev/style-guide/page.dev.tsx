@@ -269,8 +269,8 @@ export default function StyleGuide() {
             <div className="feature-card max-w-xl rounded-card p-8 shadow-photo">
               <div className="feature-card__scrim" aria-hidden="true" />
               <div className="relative space-y-4">
-                <p className="text-label font-bold uppercase tracking-[0.16em]">Dark feature card</p>
-                <h3 className="text-h2 font-extrabold leading-[1.08] tracking-[-0.02em]">
+                <p className="text-label font-bold uppercase tracking-label">Dark feature card</p>
+                <h3 className="text-h2 font-extrabold leading-h2 tracking-h2">
                   Deliveries, <span className="accent">sorted</span>
                 </h3>
                 <div className="flex flex-wrap gap-2">
@@ -278,7 +278,7 @@ export default function StyleGuide() {
                     <span key={chip} className="on-dark-chip rounded-full px-3 py-1 text-small font-bold">{chip}</span>
                   ))}
                 </div>
-                <button className="on-dark-button rounded-full px-btn-x py-btn-y text-sm font-bold active:scale-[0.97]">
+                <button className="on-dark-button rounded-full px-btn-x py-btn-y text-sm font-bold active:scale-(--press-scale)">
                   View today
                 </button>
               </div>
@@ -289,7 +289,7 @@ export default function StyleGuide() {
             <div className="max-w-md space-y-2">
               {STEPS.map(([tone, text], i) => (
                 <div key={text} className={cn("flex items-center gap-4 rounded-row p-4", TONE_CLASSES[tone])}>
-                  <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white font-extrabold text-navy">
+                  <span className="flex size-(--step-dot) shrink-0 items-center justify-center rounded-full bg-white font-extrabold text-navy">
                     {i + 1}
                   </span>
                   <span className="font-semibold">{text}</span>
@@ -350,6 +350,20 @@ export default function StyleGuide() {
                 }}
               >
                 In-app confirm
+              </button>
+              <button
+                className={secondaryButton}
+                data-testid="open-long-confirm"
+                onClick={async () => {
+                  const ok = await confirm({
+                    tone: "danger",
+                    message:
+                      "Merge this record into the patient you selected?\n\nJordan Kaur — 6620 King George Blvd, Surrey\n\nDefault address stays: 14250 88 Ave, Surrey.\n6620 King George Blvd, Surrey will be added as a saved address.\n\nIts 12 deliveries and 1 active recurring profile move to the selected patient, and the duplicate record is removed. This can't be undone.\n\n⚠ The phone numbers are different — make sure this is the same person.",
+                  });
+                  setLastAnswer(ok ? "Confirmed" : "Cancelled");
+                }}
+              >
+                Long confirm
               </button>
               <button
                 className={secondaryButton}

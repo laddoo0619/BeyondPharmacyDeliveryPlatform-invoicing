@@ -19,7 +19,7 @@ export default function RemindersView({
     <div className="space-y-6">
       <PageHeader className="mb-2">
         <h1 className={pageTitle}>Reminders</h1>
-        <p className="drop-in drop-in--2 mt-3 max-w-3xl text-body font-medium leading-[1.55] text-ink">
+        <p className="drop-in drop-in--2 mt-3 max-w-3xl text-body font-medium leading-body text-ink">
           Pop up on the day you choose, from 10 AM onward — fridge items, callbacks,
           anything the team needs to catch before a delivery goes out.
         </p>

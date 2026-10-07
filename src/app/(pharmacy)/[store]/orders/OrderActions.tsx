@@ -109,7 +109,7 @@ export default function OrderActions({
           <button
             onClick={deleteOrder}
             disabled={loading}
-            className="text-xs rounded-full border border-hairline bg-blush px-2.5 py-1 font-bold text-danger transition duration-[220ms] hover:bg-blush-hover active:scale-[0.97] disabled:opacity-50"
+            className="text-xs rounded-full border border-hairline bg-blush px-2.5 py-1 font-bold text-danger transition duration-(--hover-ms) hover:bg-blush-hover active:scale-(--press-scale) disabled:opacity-50"
           >
             {loading ? "Deleting..." : "Permanent Delete"}
           </button>

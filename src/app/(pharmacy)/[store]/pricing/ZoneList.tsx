@@ -75,7 +75,7 @@ export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[];
                     <div className="flex items-center space-x-2">
                       <input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} aria-label={`Price for ${zone.name}`} className={`${input} w-24 py-1 tabular-nums`} />
                       <button onClick={() => updateZone(zone.id, { price: parseFloat(editPrice) })} disabled={loading} className={cn(linkButton, "text-xs")}>Save</button>
-                      <button onClick={() => setEditingId(null)} className="text-xs font-semibold text-muted transition-colors duration-[220ms] hover:text-navy">Cancel</button>
+                      <button onClick={() => setEditingId(null)} className="text-xs font-semibold text-muted transition-colors duration-(--hover-ms) hover:text-navy">Cancel</button>
                     </div>
                   ) : (
                     <span className="font-semibold text-navy tabular-nums">${zone.price.toFixed(2)}</span>
@@ -102,7 +102,7 @@ export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[];
                 </td>
                 <td className="px-6 py-4 text-sm space-x-2">
                   <button onClick={() => { setEditingId(zone.id); setEditPrice(zone.price.toString()); }} className={cn(linkButton, "text-xs")}>Edit Price</button>
-                  <button onClick={() => updateZone(zone.id, { isActive: !zone.isActive })} disabled={loading} className="text-muted transition-colors duration-[220ms] hover:text-navy text-xs font-semibold disabled:opacity-50">
+                  <button onClick={() => updateZone(zone.id, { isActive: !zone.isActive })} disabled={loading} className="text-muted transition-colors duration-(--hover-ms) hover:text-navy text-xs font-semibold disabled:opacity-50">
                     {zone.isActive ? "Deactivate" : "Activate"}
                   </button>
                 </td>

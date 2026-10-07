@@ -179,7 +179,7 @@ export default function UserTable({
                         <button
                           onClick={() => { setChangingPasswordId(null); setNewPassword(""); }}
                           disabled={savingPassword}
-                          className="text-sm text-muted transition-colors duration-[220ms] hover:text-navy font-semibold disabled:opacity-50"
+                          className="text-sm text-muted transition-colors duration-(--hover-ms) hover:text-navy font-semibold disabled:opacity-50"
                         >
                           Cancel
                         </button>

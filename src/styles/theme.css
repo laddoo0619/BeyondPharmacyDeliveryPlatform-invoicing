@@ -91,8 +91,20 @@
   --text-small: 14px;
   --text-label: 11px;
   --text-nav: 14.5px;
+  --leading-h1: 1.03;
+  --leading-h2: 1.08;
+  --leading-body: 1.55;
+  --tracking-h1: -0.03em;
+  --tracking-h2: -0.02em;
+  /* Small uppercase labels, eyebrow pills and table header rows. */
+  --tracking-label: 0.16em;
+  --tracking-eyebrow: 0.18em;
+  --tracking-table: 0.06em;
 
   /* ---- Shape ---- */
+  /* Stroke for controls that need more than a hairline (secondary buttons,
+     selection rings and dots). */
+  --line-strong: 1.5px;
   --r-card: clamp(16px, 3.667vw, 44px);
   --r-mid: clamp(12px, 2.333vw, 28px);
   --r-row: clamp(9px, 1.5vw, 18px);
@@ -104,11 +116,17 @@
   --card-pad: clamp(14px, 3.333vw, 40px);
   --btn-pad-y: clamp(9px, 1.042vw, 15px);
   --btn-pad-x: clamp(16px, 1.806vw, 26px);
+  /* Numbered circle in a step row. */
+  --step-dot: 34px;
 
   /* ---- Motion ---- */
   --ease-drop: cubic-bezier(0.2, 0.85, 0.25, 1);
   --ease-reveal: cubic-bezier(0.16, 1, 0.3, 1);
   --hover-ms: 220ms;
+  /* Pressed buttons and pills shrink slightly. */
+  --press-scale: 0.97;
+  /* Frosted header bar. */
+  --header-blur: blur(16px) saturate(1.3);
 }
 
 /* ---- Keyframes (prefixed so they never collide with Tailwind's own) ---- */
@@ -215,7 +233,7 @@
   .selectable[data-selected="true"] {
     background-image: var(--gradient-strong);
     border-color: transparent;
-    box-shadow: 0 0 0 1.5px var(--navy), var(--shadow-lift);
+    box-shadow: 0 0 0 var(--line-strong) var(--navy), var(--shadow-lift);
   }
   /* Clickable rows that aren't selectable (accordion headers, list rows):
      light pastel gradient on hover. */
@@ -225,6 +243,14 @@
   }
   .row-hover:hover {
     background-image: var(--gradient-light);
+  }
+
+  /* The floating header bar: tinted, frosted, lifted. */
+  .header-glass {
+    background-color: var(--header-fill);
+    -webkit-backdrop-filter: var(--header-blur);
+    backdrop-filter: var(--header-blur);
+    box-shadow: var(--shadow-lift);
   }
 
   /* Header nav links (pills on the tinted header bar). */
@@ -247,7 +273,7 @@
     height: 18px;
     flex: none;
     border-radius: 999px;
-    border: 1.5px solid var(--border-dot);
+    border: var(--line-strong) solid var(--border-dot);
     background: var(--white);
     transition: background-color var(--hover-ms) ease, border-color var(--hover-ms) ease;
   }

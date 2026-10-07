@@ -46,10 +46,13 @@ export default function ConfirmModal({
       describedBy={messageId}
       initialFocusRef={cancelRef}
     >
-      <div className="px-6 pb-6 pt-3 sm:pt-6">
-        <h3 id={titleId} className={sectionTitle}>{title}</h3>
-        <p id={messageId} className="mt-2 text-sm font-medium text-ink">{message}</p>
-        <div className="mt-6 flex flex-wrap gap-3 justify-end">
+      {/* On a short screen the message scrolls; the buttons stay in view. */}
+      <div className="flex min-h-0 flex-col px-6 pb-6 pt-3 sm:pt-6">
+        <div className="min-h-0 overflow-y-auto">
+          <h3 id={titleId} className={sectionTitle}>{title}</h3>
+          <p id={messageId} className="mt-2 text-sm font-medium text-ink">{message}</p>
+        </div>
+        <div className="mt-6 flex shrink-0 flex-wrap gap-3 justify-end">
           <button
             ref={cancelRef}
             onClick={onCancel}

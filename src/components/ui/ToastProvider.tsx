@@ -90,7 +90,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => dismiss(toast.id)}
               aria-label="Dismiss"
-              className="-my-1 -mr-1 shrink-0 rounded-full px-2 py-1 text-base leading-none text-navy transition-colors duration-[220ms] hover:bg-panel-cream"
+              className="-my-1 -mr-1 shrink-0 rounded-full px-2 py-1 text-base leading-none text-navy transition-colors duration-(--hover-ms) hover:bg-panel-cream"
             >
               &times;
             </button>

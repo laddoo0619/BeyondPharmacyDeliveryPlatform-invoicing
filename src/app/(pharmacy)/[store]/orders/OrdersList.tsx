@@ -102,7 +102,7 @@ export default function OrdersList({
                   {formatDateHeading(dateKey)}
                 </span>
               </div>
-              <span className={toneBadgeClasses("mint")}>
+              <span className={`${toneBadgeClasses("mint")} whitespace-nowrap`}>
                 {orders.length} {orders.length === 1 ? "order" : "orders"}
               </span>
             </button>

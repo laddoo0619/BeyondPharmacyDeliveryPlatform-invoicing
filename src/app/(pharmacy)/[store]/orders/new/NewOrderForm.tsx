@@ -200,7 +200,7 @@ export default function NewOrderForm({
             type="button"
             onClick={() => submit(buildInput(true))}
             disabled={loading || editingSavedAddress || !selectedDriverId}
-            className="rounded-full border-[1.5px] border-control bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft transition duration-[220ms] hover:border-control-hover active:scale-[0.97] disabled:opacity-50"
+            className="rounded-full border-(length:--line-strong) border-control bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft transition duration-(--hover-ms) hover:border-control-hover active:scale-(--press-scale) disabled:opacity-50"
           >
             {loading ? "Creating..." : "Create second delivery anyway"}
           </button>

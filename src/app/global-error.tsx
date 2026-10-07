@@ -1,6 +1,7 @@
 "use client";
 
 import { colors, fontStacks, radii } from "@/styles/tokens";
+import { dmSans } from "./fonts";
 
 export default function GlobalError({
   error,
@@ -10,8 +11,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang="en">
-      <body className="antialiased" style={{ margin: 0, fontFamily: fontStacks.sans, WebkitFontSmoothing: "antialiased" }}>
+    <html lang="en" className={dmSans.variable}>
+      <body style={{ margin: 0, fontFamily: fontStacks.sans, WebkitFontSmoothing: "antialiased" }}>
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: colors.white }}>
           <div style={{ maxWidth: "28rem", width: "100%", padding: "2rem", textAlign: "center" }}>
             <h1 style={{ fontSize: "1.5rem", fontWeight: 800, letterSpacing: "-0.02em", color: colors.navy, marginBottom: "0.5rem" }}>
