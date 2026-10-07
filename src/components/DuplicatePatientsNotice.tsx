@@ -35,6 +35,12 @@ interface MergeResult {
   }>;
 }
 
+interface CurrentAddress {
+  address: string;
+  city: string;
+  postalCode: string;
+}
+
 interface Props {
   storeSlug: string;
   patientId: string;
@@ -57,6 +63,9 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<MergeResult | null>(null);
+  const [current, setCurrent] = useState<CurrentAddress | null>(null);
+  // The merged record's address, for the result message.
+  const [mergedAddress, setMergedAddress] = useState("");
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -68,6 +77,7 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
         }
         const body = await res.json();
         setDuplicates(Array.isArray(body?.duplicates) ? body.duplicates : []);
+        setCurrent(body?.current ?? null);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setDuplicates([]);
@@ -87,9 +97,14 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
     const phoneWarning = duplicate.phoneConflict
       ? "\n\n⚠ The phone numbers are different — make sure this is the same person."
       : "";
+    // Say which address stays the default: staff can pick either record first,
+    // so the merge direction must never be a surprise.
+    const defaultLine = current
+      ? `\n\nDefault address stays: ${current.address}, ${current.city}.\n${duplicate.address}, ${duplicate.city} will be added as a saved address.`
+      : "";
     if (
       !confirm(
-        `Merge this record into the patient you selected?\n\n${duplicate.name} — ${duplicate.address}, ${duplicate.city}\n\nIts ${deliveries} past deliver${deliveries === 1 ? "y" : "ies"}, ${duplicate.activeRecurring.length} active recurring profile${duplicate.activeRecurring.length === 1 ? "" : "s"} and its address move to the selected patient, and the duplicate record is removed. This can't be undone.${phoneWarning}`
+        `Merge this record into the patient you selected?\n\n${duplicate.name} — ${duplicate.address}, ${duplicate.city}${defaultLine}\n\nIts ${deliveries} deliver${deliveries === 1 ? "y" : "ies"} and ${duplicate.activeRecurring.length} active recurring profile${duplicate.activeRecurring.length === 1 ? "" : "s"} move to the selected patient, and the duplicate record is removed. This can't be undone.${phoneWarning}`
       )
     ) {
       return;
@@ -109,6 +124,7 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
         setError(body?.error || "Merge failed. Please try again.");
         return;
       }
+      setMergedAddress(`${duplicate.address}, ${duplicate.city}`);
       setResult(body as MergeResult);
       await Promise.all([load(), onMerged()]);
     } catch {
@@ -126,11 +142,11 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
         <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <p className="font-semibold">Records merged.</p>
           <p>
-            Moved {result.moved.orders + result.moved.dispatches} past deliveries and{" "}
+            Moved {result.moved.orders + result.moved.dispatches} deliveries and{" "}
             {result.moved.recurringProfiles} recurring profile
             {result.moved.recurringProfiles === 1 ? "" : "s"}.
             {result.moved.addressesMoved > 0 &&
-              " The old address is now a saved address on this patient — delete it under “Manage saved addresses” if it's out of date."}
+              ` ${mergedAddress} is now a saved address on this patient. If that's where they live now, click “Make default” under Manage saved addresses; if it's an old address, delete it there.`}
           </p>
           {result.recurringNotAtCurrentAddress.map((profile) => (
             <p key={profile.id} className="font-semibold text-amber-800">

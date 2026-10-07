@@ -145,6 +145,33 @@ function normalizePersonFallback(input: RecurringPersonInput) {
   };
 }
 
+export interface DeliveryAddressFields {
+  address: string;
+  city: string;
+  postalCode: string;
+}
+
+/**
+ * Same delivery address. The street must match ("144 A St" = "144A Street");
+ * then the postal code OR the city is enough, so one mistyped field doesn't
+ * split a single address in two.
+ */
+export function sameDeliveryAddress(a: DeliveryAddressFields, b: DeliveryAddressFields) {
+  const street = normalizeAddress(a.address);
+  if (!street || street !== normalizeAddress(b.address)) return false;
+
+  const postal = normalizePostalCode(a.postalCode);
+  if (postal && postal === normalizePostalCode(b.postalCode)) return true;
+
+  const city = normalizeText(a.city);
+  return city !== "" && city === normalizeText(b.city);
+}
+
+// Both profiles are linked to the same patient record, wherever they deliver.
+export function sameLinkedPatient(first: RecurringPersonInput, second: RecurringPersonInput) {
+  return !!first.patientId && !!second.patientId && first.patientId === second.patientId;
+}
+
 export function parseRecurringActiveDays(value: unknown) {
   const parsed = typeof value === "string" ? safeParseJson(value) : value;
   if (!Array.isArray(parsed)) return null;
@@ -170,8 +197,24 @@ export function recurringPeopleMatch(
   first: RecurringPersonInput,
   second: RecurringPersonInput
 ) {
-  if (first.patientId && second.patientId) {
-    if (first.patientId === second.patientId) return true;
+  // One patient record can legitimately have profiles at two addresses — and
+  // after duplicate records are merged, one patient can carry a profile at an
+  // old address and one at a new address. Those are two deliveries, not one:
+  // treating them as duplicates made the cron generate the older (old-address)
+  // profile and silently skip the current one.
+  if (sameLinkedPatient(first, second)) {
+    return sameDeliveryAddress(
+      {
+        address: first.deliveryAddress,
+        city: first.deliveryCity,
+        postalCode: first.deliveryPostalCode,
+      },
+      {
+        address: second.deliveryAddress,
+        city: second.deliveryCity,
+        postalCode: second.deliveryPostalCode,
+      }
+    );
   }
 
   const a = normalizePersonFallback(first);
@@ -199,7 +242,8 @@ export function formatRecurringDuplicateMessage(
   match: RecurringDuplicateMatch
 ) {
   const days = formatRecurringDayList(match.overlappingDays);
-  return `${input.patientName} already has an active recurring profile on ${days}.`;
+  const existing = match.recurringOrder;
+  return `${input.patientName} already has an active recurring profile on ${days} at ${existing.deliveryAddress}, ${existing.deliveryCity}. If they've moved, deactivate that profile first.`;
 }
 
 export async function findRecurringDuplicate(
@@ -221,7 +265,16 @@ export async function findRecurringDuplicate(
   })) as RecurringDuplicateRecord[];
 
   for (const recurringOrder of recurringOrders) {
-    if (!recurringPeopleMatch(input, recurringOrder)) continue;
+    // Deliberately broader than recurringPeopleMatch: the same patient record
+    // on overlapping days is flagged at ANY address. When a patient moves,
+    // this is what stops a new-address profile being added while the old one
+    // is still delivering.
+    if (
+      !sameLinkedPatient(input, recurringOrder) &&
+      !recurringPeopleMatch(input, recurringOrder)
+    ) {
+      continue;
+    }
 
     const existingDays = parseRecurringActiveDays(recurringOrder.activeDays);
     if (!existingDays) continue;

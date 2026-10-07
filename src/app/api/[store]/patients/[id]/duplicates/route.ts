@@ -28,7 +28,11 @@ export async function GET(
   }
 
   const tokens = normalizeName(patient.name).split(" ").filter(Boolean);
-  if (tokens.length === 0) return NextResponse.json({ duplicates: [] });
+  // The selected patient's current (default) address: the merge confirmation
+  // states plainly that this is the address that stays the default.
+  const current = { address: patient.address, city: patient.city, postalCode: patient.postalCode };
+
+  if (tokens.length === 0) return NextResponse.json({ current, duplicates: [] });
 
   // Narrow in the database to names containing EVERY token — filtering on a
   // single token would let a common surname (Singh, Kaur, Gill) fill the cap
@@ -58,11 +62,12 @@ export async function GET(
           select: { id: true, deliveryAddress: true, deliveryCity: true, activeDays: true },
         },
       },
+      orderBy: { createdAt: "desc" },
       take: 50,
     })
   ).filter((candidate) => samePersonName(candidate.name, patient.name));
 
-  if (candidates.length === 0) return NextResponse.json({ duplicates: [] });
+  if (candidates.length === 0) return NextResponse.json({ current, duplicates: [] });
 
   // Anchor deliveries have no relation to Patient, so count them separately.
   const dispatchStats = await prisma.externalDispatch.groupBy({
@@ -105,5 +110,5 @@ export async function GET(
     };
   });
 
-  return NextResponse.json({ duplicates });
+  return NextResponse.json({ current, duplicates });
 }
