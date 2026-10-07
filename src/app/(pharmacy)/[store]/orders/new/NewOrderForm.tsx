@@ -18,7 +18,11 @@ import {
 } from "@/lib/portalStyles";
 import { BANNER_CLASSES } from "@/lib/statusTheme";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
-import { vancouverTodayKey } from "@/lib/vancouverDate";
+import {
+  defaultDeliveryDateKey,
+  describeDeliveryDay,
+  isAfterNextDayCutoff,
+} from "@/lib/vancouverDate";
 import {
   resolveZoneSelection,
   suggestZone,
@@ -69,10 +73,14 @@ export default function NewOrderForm({
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
   const fieldId = useId();
-  const [scheduledDate, setScheduledDate] = useState(
-    // Vancouver's today — toISOString() would default to tomorrow after ~5 PM Pacific.
-    () => vancouverTodayKey()
-  );
+  // Before noon (Vancouver time) a new order defaults to today's delivery;
+  // from 12:00 PM, to tomorrow's. Read once, when the form opens.
+  const [dateDefault] = useState(() => {
+    const now = new Date();
+    return { dateKey: defaultDeliveryDateKey(now), nextDay: isAfterNextDayCutoff(now) };
+  });
+  const [scheduledDate, setScheduledDate] = useState(dateDefault.dateKey);
+  const showNextDayHint = dateDefault.nextDay && scheduledDate === dateDefault.dateKey;
 
   const zoneSuggestion = useMemo(
     () => suggestZone({ city: address.city, zones, history: zoneHistory }),
@@ -193,7 +201,7 @@ export default function NewOrderForm({
           <p>
             This client already has a{" "}
             {duplicate.kind === "SPOKE" ? "Spoke/Anchor" : "driver"} delivery
-            today (status: {duplicate.status}). Check the Orders page first —
+            {" "}{describeDeliveryDay(duplicate.scheduledDate)} (status: {duplicate.status}). Check the Orders page first —
             if this is an intentional second delivery, confirm below.
           </p>
           <button
@@ -278,8 +286,14 @@ export default function NewOrderForm({
             required
             value={scheduledDate}
             onChange={(e) => setScheduledDate(e.target.value)}
+            aria-describedby={showNextDayHint ? `${fieldId}-date-hint` : undefined}
             className={input}
           />
+          {showNextDayHint && (
+            <p id={`${fieldId}-date-hint`} className="mt-1 text-xs font-medium text-muted">
+              After 12 PM, new orders default to the next day.
+            </p>
+          )}
         </div>
       </div>
 

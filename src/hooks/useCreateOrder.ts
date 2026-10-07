@@ -22,6 +22,8 @@ export interface CreateOrderInput {
 export interface DuplicateBlockInfo {
   kind: string;
   status: string;
+  // The delivery day that was submitted (YYYY-MM-DD), for the message.
+  scheduledDate: string;
 }
 
 export function useCreateOrder(storeSlug: string) {
@@ -85,6 +87,7 @@ export function useCreateOrder(storeSlug: string) {
           setDuplicate({
             kind: typeof body.existingKind === "string" ? body.existingKind : "IN_HOUSE",
             status: typeof body.existingStatus === "string" ? body.existingStatus : "unknown",
+            scheduledDate: input.scheduledDate,
           });
         }
 
