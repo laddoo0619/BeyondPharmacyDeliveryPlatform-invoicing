@@ -31,3 +31,78 @@ export function vancouverHour(now: Date = new Date()) {
   if (!Number.isFinite(parsed)) return 0;
   return parsed % 24;
 }
+
+// Calendar arithmetic on a YYYY-MM-DD key. Works on the date itself, not on
+// an instant, so daylight-saving changes can't shift the result.
+export function addDaysToDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+// From 12:00 PM Vancouver time, new orders default to the next day's delivery.
+export const NEXT_DAY_CUTOFF_HOUR = 12;
+
+export function isAfterNextDayCutoff(now: Date = new Date()) {
+  return vancouverHour(now) >= NEXT_DAY_CUTOFF_HOUR;
+}
+
+/** The delivery date a new order starts with: today before noon, else tomorrow. */
+export function defaultDeliveryDateKey(now: Date = new Date()) {
+  const today = vancouverTodayKey(now);
+  return isAfterNextDayCutoff(now) ? addDaysToDateKey(today, 1) : today;
+}
+
+export interface DeliveryDateDefault {
+  dateKey: string;
+  // True when the noon rule moved the default to tomorrow.
+  nextDay: boolean;
+}
+
+// Worked out once on the server and handed to the form, so the server render
+// and the browser always agree (a browser clock can be skewed, and a render
+// straddling noon would otherwise disagree with its hydration).
+export function deliveryDateDefault(now: Date = new Date()): DeliveryDateDefault {
+  return { dateKey: defaultDeliveryDateKey(now), nextDay: isAfterNextDayCutoff(now) };
+}
+
+/** "today", "tomorrow" or "on Thu, Oct 8" — for messages about a delivery day. */
+export function describeDeliveryDay(dateKey: string, now: Date = new Date()) {
+  const today = vancouverTodayKey(now);
+  if (dateKey === today) return "today";
+  if (dateKey === addDaysToDateKey(today, 1)) return "tomorrow";
+  const label = new Date(`${dateKey}T00:00:00.000Z`).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    // Only spell out the year when it isn't this one.
+    ...(dateKey.slice(0, 4) !== today.slice(0, 4) && { year: "numeric" }),
+  });
+  return `on ${label}`;
+}
+
+function isDateKey(value: string | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  // Rejects impossible dates like 2026-02-30 rather than rolling them over.
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * The day a delivery list shows: `?date=YYYY-MM-DD` when valid, else
+ * Vancouver's today. Bounds are UTC midnights, which is how scheduledDate is
+ * stored — server-local midnight (UTC on Vercel) would flip "today" to
+ * tomorrow at ~5 PM Pacific.
+ */
+export function deliveryDayRange(dateParam: string | undefined, now: Date = new Date()) {
+  const todayKey = vancouverTodayKey(now);
+  const selectedKey = isDateKey(dateParam) ? dateParam : todayKey;
+  return {
+    todayKey,
+    selectedKey,
+    isToday: selectedKey === todayKey,
+    todayStart: new Date(`${todayKey}T00:00:00.000Z`),
+    dayStart: new Date(`${selectedKey}T00:00:00.000Z`),
+    nextDayStart: new Date(`${addDaysToDateKey(selectedKey, 1)}T00:00:00.000Z`),
+  };
+}

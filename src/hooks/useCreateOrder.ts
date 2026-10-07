@@ -22,6 +22,8 @@ export interface CreateOrderInput {
 export interface DuplicateBlockInfo {
   kind: string;
   status: string;
+  // The delivery day that was submitted (YYYY-MM-DD), for the message.
+  scheduledDate: string;
 }
 
 export function useCreateOrder(storeSlug: string) {
@@ -31,6 +33,10 @@ export function useCreateOrder(storeSlug: string) {
   // Set when the server 409'd because a same-day delivery already exists —
   // the form uses this to offer the explicit "create second delivery" confirm.
   const [duplicate, setDuplicate] = useState<DuplicateBlockInfo | null>(null);
+  // The warning describes what was submitted; once the patient, address or
+  // date change it no longer applies (and "create anyway" must not skip the
+  // duplicate check for details it never covered).
+  const clearDuplicate = useCallback(() => setDuplicate(null), []);
   const inFlight = useRef(false);
   const idempotencyKey = useRef<string>(crypto.randomUUID());
 
@@ -85,6 +91,7 @@ export function useCreateOrder(storeSlug: string) {
           setDuplicate({
             kind: typeof body.existingKind === "string" ? body.existingKind : "IN_HOUSE",
             status: typeof body.existingStatus === "string" ? body.existingStatus : "unknown",
+            scheduledDate: input.scheduledDate,
           });
         }
 
@@ -105,5 +112,5 @@ export function useCreateOrder(storeSlug: string) {
     [storeSlug, router]
   );
 
-  return { submit, loading, error, duplicate };
+  return { submit, loading, error, duplicate, clearDuplicate };
 }

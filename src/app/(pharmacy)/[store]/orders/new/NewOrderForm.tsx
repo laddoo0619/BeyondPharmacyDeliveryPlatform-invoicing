@@ -18,7 +18,7 @@ import {
 } from "@/lib/portalStyles";
 import { BANNER_CLASSES } from "@/lib/statusTheme";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
-import { vancouverTodayKey } from "@/lib/vancouverDate";
+import { describeDeliveryDay, type DeliveryDateDefault } from "@/lib/vancouverDate";
 import {
   resolveZoneSelection,
   suggestZone,
@@ -46,15 +46,18 @@ export default function NewOrderForm({
   storeSlug,
   zoneHistory,
   fallbackZoneId,
+  dateDefault,
 }: {
   zones: Zone[];
   drivers: Driver[];
   storeSlug: string;
   zoneHistory: ZoneHistory;
   fallbackZoneId: string | null;
+  // Today before 12 PM (Vancouver), tomorrow from noon — from the server.
+  dateDefault: DeliveryDateDefault;
 }) {
   const router = useRouter();
-  const { submit, loading, error, duplicate } = useCreateOrder(storeSlug);
+  const { submit, loading, error, duplicate, clearDuplicate } = useCreateOrder(storeSlug);
 
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientNameFreeText, setPatientNameFreeText] = useState("");
@@ -69,10 +72,8 @@ export default function NewOrderForm({
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
   const fieldId = useId();
-  const [scheduledDate, setScheduledDate] = useState(
-    // Vancouver's today — toISOString() would default to tomorrow after ~5 PM Pacific.
-    () => vancouverTodayKey()
-  );
+  const [scheduledDate, setScheduledDate] = useState(dateDefault.dateKey);
+  const showNextDayHint = dateDefault.nextDay && scheduledDate === dateDefault.dateKey;
 
   const zoneSuggestion = useMemo(
     () => suggestZone({ city: address.city, zones, history: zoneHistory }),
@@ -116,15 +117,17 @@ export default function NewOrderForm({
   );
 
   const handleSelectPatient = useCallback((p: Patient) => {
+    clearDuplicate();
     setSelectedPatient(p);
     setPatientPhone(p.phone ?? "");
     setAddress(addressFromPatient(p));
     setSaveAddress(false);
     setPreferredAddressId(p.matchedAddressId ?? null);
     setEditingSavedAddress(false);
-  }, []);
+  }, [clearDuplicate]);
 
   const handleClearPatient = useCallback(() => {
+    clearDuplicate();
     setSelectedPatient(null);
     setPatientNameFreeText("");
     setPatientPhone("");
@@ -132,17 +135,19 @@ export default function NewOrderForm({
     setSaveAddress(false);
     setPreferredAddressId(null);
     setEditingSavedAddress(false);
-  }, []);
+  }, [clearDuplicate]);
 
   const handleFreeTextName = useCallback((name: string) => {
+    clearDuplicate();
     setPatientNameFreeText(name);
     setPreferredAddressId(null);
-  }, []);
+  }, [clearDuplicate]);
 
   const handleAddressChange = useCallback((v: AddressValue) => {
+    clearDuplicate();
     setAddress(v);
     if (v.addressId) setSaveAddress(false);
-  }, []);
+  }, [clearDuplicate]);
 
   const handleSaveAddressChange = useCallback((b: boolean) => {
     setSaveAddress(b);
@@ -193,7 +198,7 @@ export default function NewOrderForm({
           <p>
             This client already has a{" "}
             {duplicate.kind === "SPOKE" ? "Spoke/Anchor" : "driver"} delivery
-            today (status: {duplicate.status}). Check the Orders page first —
+            {" "}{describeDeliveryDay(duplicate.scheduledDate)} (status: {duplicate.status}). Check the Orders page first —
             if this is an intentional second delivery, confirm below.
           </p>
           <button
@@ -277,9 +282,18 @@ export default function NewOrderForm({
             type="date"
             required
             value={scheduledDate}
-            onChange={(e) => setScheduledDate(e.target.value)}
+            onChange={(e) => {
+              setScheduledDate(e.target.value);
+              clearDuplicate();
+            }}
+            aria-describedby={showNextDayHint ? `${fieldId}-date-hint` : undefined}
             className={input}
           />
+          {showNextDayHint && (
+            <p id={`${fieldId}-date-hint`} className="mt-1 text-xs font-medium text-muted">
+              After 12 PM, new orders default to the next day.
+            </p>
+          )}
         </div>
       </div>
 

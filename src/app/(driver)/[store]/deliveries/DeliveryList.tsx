@@ -45,8 +45,6 @@ export default function DeliveryList({
   const [search, setSearch] = useState("");
   const [showDelivered, setShowDelivered] = useState(false);
 
-  const selectedDateObj = new Date(selectedDate + "T00:00:00");
-
   const filtered = deliveries.filter((d) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -62,7 +60,13 @@ export default function DeliveryList({
   const delivered = filtered.filter((d) => d.status === "DELIVERED");
 
   const renderCard = (delivery: SerializedDelivery) => {
-    const isFromPreviousDay = new Date(delivery.scheduledDate) < selectedDateObj;
+    // scheduledDate is stored as UTC midnight of its delivery day, so its
+    // first ten characters are that day's YYYY-MM-DD key. Comparing keys (and
+    // formatting in UTC) keeps a Vancouver browser from reading every
+    // delivery as the day before — which flagged today's orders "From
+    // yesterday".
+    const deliveryDay = delivery.scheduledDate.slice(0, 10);
+    const isFromPreviousDay = deliveryDay < selectedDate;
     // Failed deliveries stand out on a blush card (where all text is navy).
     const failed = delivery.status === "FAILED";
     const secondaryText = failed ? "text-navy" : "text-muted";
@@ -95,7 +99,7 @@ export default function DeliveryList({
             )}
             {isFromPreviousDay && (
               <p className="text-xs text-navy mt-1">
-                From {new Date(delivery.scheduledDate).toLocaleDateString()}
+                From {new Date(delivery.scheduledDate).toLocaleDateString(undefined, { timeZone: "UTC" })}
               </p>
             )}
             {delivery.attemptCount > 1 && (
