@@ -1,9 +1,7 @@
-import PharmacyNav from "@/components/PharmacyNav";
-import ReminderPopup from "@/components/ReminderPopup";
+import PharmacyShell from "@/components/PharmacyShell";
 import { resolveStore } from "@/lib/store";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
-import { portalMain, portalShell } from "@/lib/portalStyles";
 
 export default async function PharmacyLayout({
   children,
@@ -50,12 +48,8 @@ export default async function PharmacyLayout({
   }
 
   return (
-    <div className={portalShell}>
-      <PharmacyNav storeSlug={store.slug} storeName={store.name} />
-      <main className={portalMain}>{children}</main>
-      {/* Staff reminders for the day — renders itself only from 10 AM, and
-          only when something is actually outstanding. */}
-      <ReminderPopup storeSlug={store.slug} />
-    </div>
+    <PharmacyShell storeSlug={store.slug} storeName={store.name}>
+      {children}
+    </PharmacyShell>
   );
 }

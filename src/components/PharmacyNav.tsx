@@ -26,14 +26,19 @@ const stores = [
 export default function PharmacyNav({
   storeSlug,
   storeName,
+  basePath,
 }: {
   storeSlug: string;
   storeName: string;
+  // Where section links point. Defaults to the store's own routes; the
+  // dev-only style guide passes "/dev" so its links stay on fixture screens.
+  basePath?: string;
 }) {
   const pathname = usePathname();
+  const base = basePath ?? `/${storeSlug}`;
 
   const navItems = sections.map((s) => ({
-    href: `/${storeSlug}/${s.path}`,
+    href: `${base}/${s.path}`,
     label: s.label,
   }));
 
@@ -44,7 +49,7 @@ export default function PharmacyNav({
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-8">
           <div className="flex items-center space-x-3">
-            <Link href={`/${storeSlug}/dashboard`} className="text-xl font-bold tracking-tight text-[#1e3a8a]">
+            <Link href={`${base}/dashboard`} className="text-xl font-bold tracking-tight text-[#1e3a8a]">
               {storeName}
             </Link>
             {/* Store Switcher */}

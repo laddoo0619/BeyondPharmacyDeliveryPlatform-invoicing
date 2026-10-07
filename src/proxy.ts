@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 const VALID_STORE_SLUGS = ["surrey", "abbotsford"];
 const ADMIN_SECTIONS = ["dashboard", "orders", "recurring", "pricing", "invoices", "users"];
 const DRIVER_SECTIONS = ["deliveries", "deliver"];
 
-export const proxy = auth((req) => {
+const authProxy = auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
@@ -88,6 +88,24 @@ export const proxy = auth((req) => {
 
   return NextResponse.next();
 });
+
+// The dev-only style guide (src/app/dev, *.dev.tsx) renders fixtures, never
+// real data, and only exists under `next dev`. It is let through before any
+// session handling — and never in production.
+function isDevStyleGuide(pathname: string) {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    (pathname === "/dev" || pathname.startsWith("/dev/"))
+  );
+}
+
+export function proxy(...args: Parameters<typeof authProxy>) {
+  const [req] = args;
+  if (isDevStyleGuide((req as NextRequest).nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+  return authProxy(...args);
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads).*)"],

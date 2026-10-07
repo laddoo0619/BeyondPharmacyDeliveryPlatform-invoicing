@@ -2,10 +2,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
-import DeliveryPoller from "./DeliveryPoller";
-import DateNavigation from "./DateNavigation";
-import DeliveryList from "./DeliveryList";
-import { pageTitle } from "@/lib/portalStyles";
+import DeliveriesView from "./DeliveriesView";
 
 export default async function DeliveriesPage({
   params,
@@ -79,29 +76,20 @@ export default async function DeliveriesPage({
   ).length;
 
   return (
-    <div>
-      <DeliveryPoller />
-      <DateNavigation storeSlug={store.slug} currentDate={currentDateStr} />
-      <h1 className={`${pageTitle} mb-4`}>
-        {isToday
-          ? <>Your Deliveries, <span className="italic font-semibold">sorted</span></>
-          : `Deliveries for ${selectedDate.toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}`}
-      </h1>
-
-      <p className="text-sm text-slate-500 mb-4">
-        {pending.length} pending • {completed.length} completed
-        {failed.length > 0 && (
-          <span className="text-rose-600"> • {failed.length} need re-attempt</span>
-        )}
-      </p>
-
-      <DeliveryList
-        deliveries={allDeliveries.map((d) => ({
+    <DeliveriesView
+      storeSlug={store.slug}
+      currentDateStr={currentDateStr}
+      isToday={isToday}
+      selectedDateLabel={selectedDate.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })}
+      pendingCount={pending.length}
+      completedCount={completed.length}
+      failedCount={failed.length}
+      deliveries={allDeliveries.map((d) => ({
           id: d.id,
           patientName: d.patientName,
           deliveryAddress: d.deliveryAddress,
@@ -114,11 +102,7 @@ export default async function DeliveriesPage({
           scheduledDate: d.scheduledDate.toISOString(),
           completedAt: d.completedAt ? d.completedAt.toISOString() : null,
         }))}
-        storeSlug={store.slug}
-        selectedDate={currentDateStr}
-        isToday={isToday}
-        eligibleForBatchDeliver={eligibleForBatchDeliver}
-      />
-    </div>
+      eligibleForBatchDeliver={eligibleForBatchDeliver}
+    />
   );
 }

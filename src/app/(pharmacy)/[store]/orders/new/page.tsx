@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/db";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
-import NewOrderForm from "./NewOrderForm";
-import { pageTitle } from "@/lib/portalStyles";
+import NewOrderView from "./NewOrderView";
 import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
 import { getZoneSuggestionData } from "@/lib/zoneHistory";
 
@@ -35,23 +34,18 @@ export default async function NewOrderPage({
   const { history, fallbackZoneId } = await getZoneSuggestionData(store.id, zoneOptions);
 
   return (
-    <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Create New <span className="italic font-semibold">Order</span>
-      </h1>
-      <NewOrderForm
-        storeSlug={storeSlug}
-        zones={zoneOptions}
-        drivers={drivers.map((d) => ({
-          id: d.id,
-          name: d.name,
-          // Anchor (Spoke) deliveries don't use the zone price, so the form
-          // hides the zone selector for them.
-          isExternal: isSelectedSpokeProvider(d.id),
-        }))}
-        zoneHistory={history}
-        fallbackZoneId={fallbackZoneId}
-      />
-    </div>
+    <NewOrderView
+      storeSlug={storeSlug}
+      zones={zoneOptions}
+      drivers={drivers.map((d) => ({
+        id: d.id,
+        name: d.name,
+        // Anchor (Spoke) deliveries don't use the zone price, so the form
+        // hides the zone selector for them.
+        isExternal: isSelectedSpokeProvider(d.id),
+      }))}
+      zoneHistory={history}
+      fallbackZoneId={fallbackZoneId}
+    />
   );
 }

@@ -1,8 +1,7 @@
-import DriverNav from "@/components/DriverNav";
+import DriverShell from "@/components/DriverShell";
 import { resolveStore } from "@/lib/store";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
-import { driverMain, portalShell } from "@/lib/portalStyles";
 
 export default async function DriverLayout({
   children,
@@ -41,10 +40,5 @@ export default async function DriverLayout({
     redirect("/");
   }
 
-  return (
-    <div className={portalShell}>
-      <DriverNav storeSlug={store.slug} />
-      <main className={driverMain}>{children}</main>
-    </div>
-  );
+  return <DriverShell storeSlug={store.slug}>{children}</DriverShell>;
 }
