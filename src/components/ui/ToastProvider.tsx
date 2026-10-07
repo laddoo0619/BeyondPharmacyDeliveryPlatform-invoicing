@@ -42,7 +42,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (kind: MarkerKind, message: string) => {
       const id = nextId.current++;
-      setToasts((current) => [...current, { id, kind, message }].slice(-MAX_TOASTS));
+      setToasts((current) => {
+        const next = [...current, { id, kind, message }];
+        if (next.length <= MAX_TOASTS) return next;
+        // Over the cap: drop the oldest confirmation first; errors wait to
+        // be dismissed, so one only goes when nothing else can.
+        const drop = next.findIndex((toast) => toast.kind !== "error");
+        next.splice(drop === -1 ? 0 : drop, 1);
+        return next;
+      });
       if (kind !== "error") setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
     },
     [dismiss]

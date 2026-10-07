@@ -127,6 +127,10 @@ function ConfirmDialog({
   const titleId = useId();
   const messageId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  // Like the browser's confirm(), Enter answers OK — except for destructive
+  // questions, where focus starts on Cancel so a stray Enter is harmless.
+  const initialFocusRef = request.tone === "danger" ? cancelRef : confirmRef;
 
   return (
     <Modal
@@ -134,7 +138,7 @@ function ConfirmDialog({
       onClose={() => onSettle(false)}
       labelledBy={request.title ? titleId : messageId}
       describedBy={request.title ? messageId : undefined}
-      initialFocusRef={cancelRef}
+      initialFocusRef={initialFocusRef}
     >
       <div className="px-6 pb-6 pt-3 sm:pt-6">
         {request.title && (
@@ -150,6 +154,7 @@ function ConfirmDialog({
             {request.cancelLabel ?? "Cancel"}
           </button>
           <button
+            ref={confirmRef}
             type="button"
             onClick={() => onSettle(true)}
             className={request.tone === "danger" ? dangerButton : primaryButton}
@@ -185,7 +190,8 @@ function DateRangeDialog({
     <Modal
       open
       onClose={() => onSettle(null)}
-      labelledBy={request.title ? titleId : startId}
+      labelledBy={request.title ? titleId : undefined}
+      ariaLabel={request.title ? undefined : "Choose dates"}
       initialFocusRef={startRef}
     >
       <form onSubmit={submit} className="px-6 pb-6 pt-3 sm:pt-6">

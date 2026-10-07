@@ -25,6 +25,11 @@ export const card = "rounded-card border border-hairline bg-white shadow-soft";
 export const cardInteractive =
   "rounded-card border border-hairline bg-white shadow-soft transition duration-[220ms] ease-out hover:-translate-y-0.5 hover:shadow-lift";
 
+// An interactive card flagged for attention (a failed delivery): blush fill,
+// no border. Text on it is navy (muted fails contrast on blush).
+export const cardAttention =
+  "rounded-card bg-blush shadow-soft transition duration-[220ms] ease-out hover:-translate-y-0.5 hover:shadow-lift";
+
 // A solid panel (no border): neutral cream, or pass a pastel fill instead.
 export const panel = "rounded-card bg-panel-cream";
 

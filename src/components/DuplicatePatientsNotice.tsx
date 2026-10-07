@@ -107,9 +107,10 @@ export function DuplicatePatientsNotice({ storeSlug, patientId, onMerged }: Prop
       ? `\n\nDefault address stays: ${current.address}, ${current.city}.\n${duplicate.address}, ${duplicate.city} will be added as a saved address.`
       : "";
     if (
-      !(await confirm(
-        `Merge this record into the patient you selected?\n\n${duplicate.name} — ${duplicate.address}, ${duplicate.city}${defaultLine}\n\nIts ${deliveries} deliver${deliveries === 1 ? "y" : "ies"} and ${duplicate.activeRecurring.length} active recurring profile${duplicate.activeRecurring.length === 1 ? "" : "s"} move to the selected patient, and the duplicate record is removed. This can't be undone.${phoneWarning}`
-      ))
+      !(await confirm({
+        tone: "danger",
+        message: `Merge this record into the patient you selected?\n\n${duplicate.name} — ${duplicate.address}, ${duplicate.city}${defaultLine}\n\nIts ${deliveries} deliver${deliveries === 1 ? "y" : "ies"} and ${duplicate.activeRecurring.length} active recurring profile${duplicate.activeRecurring.length === 1 ? "" : "s"} move to the selected patient, and the duplicate record is removed. This can't be undone.${phoneWarning}`,
+      }))
     ) {
       return;
     }

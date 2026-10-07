@@ -13,6 +13,7 @@ import UsersView from "@/app/(pharmacy)/[store]/users/UsersView";
 import DeliveriesView from "@/app/(driver)/[store]/deliveries/DeliveriesView";
 import DeliveryDetailView from "@/app/(driver)/[store]/deliver/[id]/DeliveryDetailView";
 import EarningsView from "@/app/(driver)/[store]/earnings/EarningsView";
+import DevFrame from "../_DevFrame";
 import * as fx from "../_fixtures";
 
 function Pharmacy({ children }: { children: React.ReactNode }) {
@@ -39,7 +40,10 @@ export default async function DevScreen({
   params: Promise<{ screen: string[] }>;
 }) {
   const { screen } = await params;
-  const path = screen.join("/");
+  return <DevFrame>{renderScreen(screen.join("/"))}</DevFrame>;
+}
+
+function renderScreen(path: string) {
 
   switch (path) {
     case "home":

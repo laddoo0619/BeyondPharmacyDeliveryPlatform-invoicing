@@ -4,7 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import PickUpButton from "./PickUpButton";
 import BatchDeliverButton from "./BatchDeliverButton";
-import { cardInteractive, emptyState, input, primaryButtonFull, statusBadgeClasses } from "@/lib/portalStyles";
+import {
+  cardAttention,
+  cardInteractive,
+  cn,
+  emptyState,
+  input,
+  primaryButtonFull,
+  statusBadgeClasses,
+} from "@/lib/portalStyles";
+import { toneBadgeClasses } from "@/lib/statusTheme";
 
 interface SerializedDelivery {
   id: string;
@@ -54,21 +63,24 @@ export default function DeliveryList({
 
   const renderCard = (delivery: SerializedDelivery) => {
     const isFromPreviousDay = new Date(delivery.scheduledDate) < selectedDateObj;
+    // Failed deliveries stand out on a blush card (where all text is navy).
+    const failed = delivery.status === "FAILED";
+    const secondaryText = failed ? "text-navy" : "text-muted";
 
     return (
       <div
         key={delivery.id}
-        className={`${cardInteractive} p-4`}
+        className={cn(failed ? cardAttention : cardInteractive, "p-4")}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-navy truncate">
               {delivery.patientName}
             </p>
-            <p className="text-sm text-muted mt-1 break-words">
+            <p className={cn("text-sm mt-1 break-words", secondaryText)}>
               {delivery.deliveryAddress}
             </p>
-            <p className="text-sm text-muted">
+            <p className={cn("text-sm", secondaryText)}>
               {delivery.deliveryCity}, {delivery.deliveryPostalCode}
             </p>
             {delivery.instructions && (
@@ -87,12 +99,12 @@ export default function DeliveryList({
               </p>
             )}
             {delivery.attemptCount > 1 && (
-              <p className="text-xs text-muted mt-1">
+              <p className={cn("text-xs mt-1", secondaryText)}>
                 Attempt #{delivery.attemptCount}
               </p>
             )}
           </div>
-          <span className={statusBadgeClasses(delivery.status)}>
+          <span className={failed ? toneBadgeClasses("white") : statusBadgeClasses(delivery.status)}>
             {delivery.status === "FAILED"
               ? "FAILED"
               : delivery.status.replace("_", " ")}

@@ -202,6 +202,7 @@ export default function RecurringOrderList({
     if (!isOnHold) {
       // Ask for both dates in one dialog; cancelling leaves the profile as is.
       const range = await promptDateRange({
+        title: "Vacation Hold",
         startLabel: "Hold start date",
         endLabel: "Hold end date",
       });

@@ -353,6 +353,15 @@
 /* Reduced motion: no circles moving, no drops, no reveals, no ticker —
    everything simply visible. */
 @media (prefers-reduced-motion: reduce) {
+  /* Utilities too (hover lifts, press scales, spinners): end states only. */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
   .circle,
   .drop-in,
   .ticker-track {
