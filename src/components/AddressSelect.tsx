@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import { usePatientAddresses, type SavedAddress } from "@/hooks/usePatientAddresses";
 import { SavedAddressManager } from "@/components/SavedAddressManager";
 import { DuplicatePatientsNotice } from "@/components/DuplicatePatientsNotice";
@@ -86,6 +86,7 @@ function AddressSelectInner({
   preferredAddressId = null,
   onEditingSavedAddressChange,
 }: Props) {
+  const fieldId = useId();
   const { addresses, loading, refresh } = usePatientAddresses(storeSlug, patientId);
 
   const handleSavedAddressesChanged = async (deletedAddressId?: string) => {
@@ -378,8 +379,9 @@ function AddressSelectInner({
       )}
       {showPicker && (
         <div>
-          <label className={label}>Saved Address</label>
+          <label htmlFor={`${fieldId}-saved`} className={label}>Saved Address</label>
           <select
+            id={`${fieldId}-saved`}
             value={value.addressId ?? NEW_ADDRESS}
             onChange={handleSelect}
             className={input}
@@ -403,12 +405,13 @@ function AddressSelectInner({
         />
       )}
       {loading && patientId && (
-        <p className="text-xs text-slate-500">Loading saved addresses...</p>
+        <p className="text-xs text-muted">Loading saved addresses...</p>
       )}
 
       <div>
-        <label className={label}>Delivery Address *</label>
+        <label htmlFor={`${fieldId}-address`} className={label}>Delivery Address *</label>
         <input
+          id={`${fieldId}-address`}
           required
           value={displayValue.address}
           readOnly={!isEditing}
@@ -418,8 +421,8 @@ function AddressSelectInner({
       </div>
 
       {isEditing && matchingSavedAddresses.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white/95 shadow-[0_18px_45px_rgba(30,58,138,0.08)] overflow-hidden">
-          <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-sky-50/70">
+        <div className="rounded-row border border-hairline bg-white shadow-soft overflow-hidden">
+          <div className="px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-navy bg-blue">
             Saved matches
           </div>
           {matchingSavedAddresses.map((address) => (
@@ -427,12 +430,12 @@ function AddressSelectInner({
               key={address.id}
               type="button"
               onClick={() => selectSavedAddress(address)}
-              className="block w-full border-t border-slate-100 px-3 py-2 text-left hover:bg-sky-50/70"
+              className="row-hover block w-full border-t border-hairline px-3 py-2 text-left"
             >
-              <span className="block text-sm font-semibold text-[#1e3a8a]">
+              <span className="block text-sm font-semibold text-navy">
                 {address.label}
               </span>
-              <span className="block text-xs text-slate-500">
+              <span className="block text-xs text-muted">
                 {address.address}, {address.city} {address.postalCode}
               </span>
             </button>
@@ -441,15 +444,15 @@ function AddressSelectInner({
       )}
 
       {isEditing && (googleSuggestions.length > 0 || googleLoading || googleError) && (
-        <div className="rounded-2xl border border-slate-200 bg-white/95 shadow-[0_18px_45px_rgba(30,58,138,0.08)] overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-emerald-50/70">
+        <div className="rounded-row border border-hairline bg-white shadow-soft overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-navy bg-mint">
             <span>Google suggestions</span>
-            <span className="normal-case tracking-normal text-slate-400">
+            <span className="normal-case tracking-normal font-semibold text-navy">
               Powered by Google
             </span>
           </div>
           {googleLoading && (
-            <div className="border-t border-slate-100 px-3 py-2 text-sm text-slate-500">
+            <div className="border-t border-hairline px-3 py-2 text-sm text-muted">
               Searching addresses...
             </div>
           )}
@@ -459,7 +462,7 @@ function AddressSelectInner({
               type="button"
               onClick={() => selectGoogleSuggestion(suggestion)}
               disabled={detailsLoadingId === suggestion.placeId}
-              className="block w-full border-t border-slate-100 px-3 py-2 text-left text-sm text-[#1e3a8a] hover:bg-emerald-50/70 disabled:cursor-wait disabled:opacity-60"
+              className="row-hover block w-full border-t border-hairline px-3 py-2 text-left text-sm text-navy disabled:cursor-wait disabled:opacity-60"
             >
               {detailsLoadingId === suggestion.placeId
                 ? "Loading address..."
@@ -467,7 +470,7 @@ function AddressSelectInner({
             </button>
           ))}
           {googleError && !googleLoading && (
-            <div className="border-t border-slate-100 px-3 py-2 text-sm text-slate-500">
+            <div className="border-t border-hairline px-3 py-2 text-sm text-muted">
               {googleError}
             </div>
           )}
@@ -476,8 +479,9 @@ function AddressSelectInner({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className={label}>City *</label>
+          <label htmlFor={`${fieldId}-city`} className={label}>City *</label>
           <input
+            id={`${fieldId}-city`}
             required
             value={displayValue.city}
             readOnly={!isEditing}
@@ -486,8 +490,9 @@ function AddressSelectInner({
           />
         </div>
         <div>
-          <label className={label}>Postal Code *</label>
+          <label htmlFor={`${fieldId}-postal`} className={label}>Postal Code *</label>
           <input
+            id={`${fieldId}-postal`}
             required
             value={displayValue.postalCode}
             readOnly={!isEditing}
@@ -521,17 +526,17 @@ function AddressSelectInner({
           >
             Cancel
           </button>
-          {saveError && <span className="text-sm text-rose-700">{saveError}</span>}
+          {saveError && <span className="text-sm text-danger">{saveError}</span>}
         </div>
       )}
 
       {!value.addressId && !editingAddressId && (
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             checked={saveToPatient}
             onChange={(e) => onSaveToPatientChange(e.target.checked)}
-            className="rounded border-slate-300 text-[#6f8f72] focus:ring-[#6f8f72]"
+            className="h-4 w-4 accent-navy"
           />
           <span>Save this address for future orders</span>
         </label>

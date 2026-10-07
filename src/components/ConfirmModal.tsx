@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
-import { createPortal } from "react-dom";
-import { cn, primaryButton, secondaryButton } from "@/lib/portalStyles";
+import { useId, useRef } from "react";
+import Modal from "@/components/ui/Modal";
+import {
+  dangerButton,
+  primaryButton,
+  secondaryButton,
+  sectionTitle,
+} from "@/lib/portalStyles";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -10,7 +15,8 @@ interface ConfirmModalProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  confirmClassName?: string;
+  // "danger" draws the confirm button as a destructive action.
+  tone?: "default" | "danger";
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
@@ -22,33 +28,30 @@ export default function ConfirmModal({
   message,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
-  confirmClassName = primaryButton,
+  tone = "default",
   onConfirm,
   onCancel,
   loading = false,
 }: ConfirmModalProps) {
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !loading) onCancel();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open, loading, onCancel]);
+  const titleId = useId();
+  const messageId = useId();
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
-  if (!open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={loading ? undefined : onCancel}
-      />
-      <div className="relative bg-white/95 rounded-2xl shadow-[0_24px_70px_rgba(30,58,138,0.2)] border border-slate-200/70 max-w-sm w-full mx-4 p-6">
-        <h3 className="text-lg font-bold text-[#1e3a8a]">{title}</h3>
-        <p className="mt-2 text-sm text-slate-500">{message}</p>
-        <div className="mt-6 flex gap-3 justify-end">
+  return (
+    <Modal
+      open={open}
+      onClose={onCancel}
+      dismissible={!loading}
+      labelledBy={titleId}
+      describedBy={messageId}
+      initialFocusRef={cancelRef}
+    >
+      <div className="px-6 pb-6 pt-3 sm:pt-6">
+        <h3 id={titleId} className={sectionTitle}>{title}</h3>
+        <p id={messageId} className="mt-2 text-sm font-medium text-ink">{message}</p>
+        <div className="mt-6 flex flex-wrap gap-3 justify-end">
           <button
+            ref={cancelRef}
             onClick={onCancel}
             disabled={loading}
             className={secondaryButton}
@@ -58,16 +61,12 @@ export default function ConfirmModal({
           <button
             onClick={onConfirm}
             disabled={loading}
-            className={cn(
-              "rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition disabled:opacity-50",
-              confirmClassName
-            )}
+            className={tone === "danger" ? dangerButton : primaryButton}
           >
             {loading ? "Processing..." : confirmLabel}
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }

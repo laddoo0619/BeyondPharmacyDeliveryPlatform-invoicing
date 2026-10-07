@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
+import Circles from "@/components/ui/Circles";
+import logo from "@/assets/beyond-pharmacy-logo.png";
+import { cn, ctaShadow, input, label, primaryButtonFull } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 import { login } from "./actions";
 
 export default function LoginPage() {
@@ -22,27 +27,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+    <div className="circle-host min-h-screen overflow-x-clip flex items-center justify-center bg-white">
+      <Circles variant="hero" />
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-card border border-hairline shadow-lift">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Beyond Pharmacy
+          <h1 className="drop-in">
+            <Image src={logo} alt="Beyond Pharmacy" priority className="mx-auto h-8 w-auto" />
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="drop-in drop-in--2 mt-3 text-sm font-medium text-ink">
             Delivery Platform
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+        <form onSubmit={handleSubmit} className="drop-in drop-in--3 mt-8 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className={cn("px-4 py-3 rounded-row text-sm", BANNER_CLASSES.error)}>
               {error}
             </div>
           )}
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className={label}>
                 Email
               </label>
               <input
@@ -51,13 +57,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={cn(input, "mt-1 block")}
                 placeholder="you@pharmacy.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className={label}>
                 Password
               </label>
               <input
@@ -66,7 +72,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={cn(input, "mt-1 block")}
                 placeholder="••••••••"
               />
             </div>
@@ -75,7 +81,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(primaryButtonFull, ctaShadow)}
           >
             {isPending ? "Signing in..." : "Sign In"}
           </button>

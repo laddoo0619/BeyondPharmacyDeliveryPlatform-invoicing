@@ -10,6 +10,7 @@ import {
   tableHeader,
   tableRow,
 } from "@/lib/portalStyles";
+import { toneBadgeClasses } from "@/lib/statusTheme";
 
 interface SerializedOrder {
   id: string;
@@ -83,11 +84,12 @@ export default function OrdersList({
             {/* Accordion Header */}
             <button
               onClick={() => toggleDay(dateKey)}
-              className="w-full flex items-center justify-between px-6 py-4 hover:bg-sky-50/50 transition-colors"
+              aria-expanded={isExpanded}
+              className="row-hover w-full flex items-center justify-between px-6 py-4"
             >
               <div className="flex items-center space-x-3">
                 <svg
-                  className={`h-5 w-5 text-[#6f8f72] transition-transform duration-200 ${
+                  className={`h-5 w-5 text-navy transition-transform duration-200 ${
                     isExpanded ? "rotate-90" : ""
                   }`}
                   fill="none"
@@ -100,14 +102,14 @@ export default function OrdersList({
                   {formatDateHeading(dateKey)}
                 </span>
               </div>
-              <span className="text-xs font-semibold text-[#1e3a8a] bg-emerald-50 px-2.5 py-1 rounded-full ring-1 ring-emerald-100">
+              <span className={toneBadgeClasses("mint")}>
                 {orders.length} {orders.length === 1 ? "order" : "orders"}
               </span>
             </button>
 
             {/* Accordion Body */}
             {isExpanded && (
-              <div className="border-t overflow-x-auto">
+              <div className="border-t border-hairline overflow-x-auto">
                 <table className="w-full">
                   <thead className={tableHeader}>
                     <tr>
@@ -120,17 +122,17 @@ export default function OrdersList({
                       <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-hairline">
                     {orders.map((order) => (
                       <tr key={order.id} className={tableRow}>
-                        <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">{order.patientName}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{order.deliveryZoneName}</td>
-                        <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">${order.priceAtCreation.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">
+                        <td className="px-6 py-4 text-sm font-semibold text-navy">{order.patientName}</td>
+                        <td className="px-6 py-4 text-sm text-ink">{order.deliveryAddress}, {order.deliveryCity}</td>
+                        <td className="px-6 py-4 text-sm text-ink">{order.deliveryZoneName}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-navy tabular-nums">${order.priceAtCreation.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-sm text-ink">
                           <span>{order.assignedDriverName || "Unassigned"}</span>
                           {order.isExternal && (
-                            <span className="ml-2 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                            <span className="ml-2 inline-flex rounded-full bg-blue px-2 py-0.5 text-xs font-bold text-navy">
                               {order.externalProvider}
                             </span>
                           )}

@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useConfirm } from "@/components/ui/DialogsProvider";
+import { useToast } from "@/components/ui/ToastProvider";
+import { cn, dangerLinkButton, linkButton } from "@/lib/portalStyles";
 
 const CANCELLABLE_EXTERNAL_STATUSES = new Set([
   "PENDING",
@@ -23,11 +26,13 @@ export default function ExternalDispatchActions({
   storeSlug,
 }: ExternalDispatchActionsProps) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   if (currentStatus === "CANCELLED") {
     return (
-      <span className="text-xs font-semibold text-slate-500">
+      <span className="text-xs font-semibold text-ink">
         Cancelled
       </span>
     );
@@ -36,9 +41,9 @@ export default function ExternalDispatchActions({
   if (currentStatus === "DISPATCH_FAILED" && dispatchId) {
     const retryDispatch = async () => {
       if (
-        !confirm(
+        !(await confirm(
           "Retry sending this delivery to Spoke? The original request identity is reused, so this cannot create a duplicate stop."
-        )
+        ))
       ) {
         return;
       }
@@ -52,13 +57,13 @@ export default function ExternalDispatchActions({
 
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          alert(data?.error || "Failed to retry Spoke handoff");
+          toast.error(data?.error || "Failed to retry Spoke handoff");
           return;
         }
 
         router.refresh();
       } catch {
-        alert("Network error — the retry may not have been sent. Refresh and check the handoff status.");
+        toast.error("Network error — the retry may not have been sent. Refresh and check the handoff status.");
       } finally {
         setLoading(false);
       }
@@ -68,7 +73,7 @@ export default function ExternalDispatchActions({
       <button
         onClick={retryDispatch}
         disabled={loading}
-        className="text-xs font-semibold text-[#6f8f72] transition hover:text-[#5f7d62] disabled:opacity-50"
+        className={cn(linkButton, "text-xs")}
       >
         {loading ? "Retrying..." : "Retry Spoke"}
       </button>
@@ -77,7 +82,7 @@ export default function ExternalDispatchActions({
 
   if (!canCancel || !dispatchId || !CANCELLABLE_EXTERNAL_STATUSES.has(currentStatus)) {
     return (
-      <span className="text-xs font-semibold text-slate-500">
+      <span className="text-xs font-semibold text-ink">
         External handoff
       </span>
     );
@@ -85,9 +90,10 @@ export default function ExternalDispatchActions({
 
   const cancelDispatch = async () => {
     if (
-      !confirm(
-        "Cancel this unassigned Spoke handoff? This removes it from Anchor's unassigned queue."
-      )
+      !(await confirm({
+        message: "Cancel this unassigned Spoke handoff? This removes it from Anchor's unassigned queue.",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -100,13 +106,13 @@ export default function ExternalDispatchActions({
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.error || "Failed to cancel Spoke handoff");
+        toast.error(data?.error || "Failed to cancel Spoke handoff");
         return;
       }
 
       router.refresh();
     } catch {
-      alert("Network error — the cancellation may not have been sent. Refresh and check the handoff status.");
+      toast.error("Network error — the cancellation may not have been sent. Refresh and check the handoff status.");
     } finally {
       setLoading(false);
     }
@@ -116,7 +122,7 @@ export default function ExternalDispatchActions({
     <button
       onClick={cancelDispatch}
       disabled={loading}
-      className="text-xs font-semibold text-rose-600 transition hover:text-rose-800 disabled:opacity-50"
+      className={cn(dangerLinkButton, "text-xs")}
     >
       {loading ? "Cancelling..." : "Cancel Spoke"}
     </button>

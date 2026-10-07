@@ -1,9 +1,7 @@
 import { prisma } from "@/lib/db";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
-import UserForm from "./UserForm";
-import UserTable from "./UserTable";
-import { pageTitle } from "@/lib/portalStyles";
+import UsersView from "./UsersView";
 
 export default async function UsersPage({
   params,
@@ -27,17 +25,9 @@ export default async function UsersPage({
   });
 
   return (
-    <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        User Management, <span className="italic font-semibold">clear</span>
-      </h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <UserForm storeSlug={storeSlug} />
-        </div>
-        <div className="lg:col-span-2">
-          <UserTable
-            users={users.map((u) => ({
+    <UsersView
+      storeSlug={storeSlug}
+      users={users.map((u) => ({
               id: u.id,
               name: u.name,
               email: u.email,
@@ -45,10 +35,6 @@ export default async function UsersPage({
               isActive: u.isActive,
               store: u.store ? { name: u.store.name } : null,
             }))}
-            storeSlug={storeSlug}
-          />
-        </div>
-      </div>
-    </div>
+    />
   );
 }

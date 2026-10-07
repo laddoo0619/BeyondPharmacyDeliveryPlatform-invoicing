@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PatientAutocomplete } from "@/components/PatientAutocomplete";
 import { AddressSelect, type AddressValue } from "@/components/AddressSelect";
@@ -9,11 +9,14 @@ import { useCreateOrder } from "@/hooks/useCreateOrder";
 import type { Patient } from "@/hooks/usePatientSearch";
 import {
   card,
+  cn,
+  ctaShadow,
   input,
   label,
   primaryButton,
   secondaryButton,
 } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 import { vancouverTodayKey } from "@/lib/vancouverDate";
 import {
@@ -65,6 +68,7 @@ export default function NewOrderForm({
   const [manualZoneId, setManualZoneId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
+  const fieldId = useId();
   const [scheduledDate, setScheduledDate] = useState(
     // Vancouver's today — toISOString() would default to tomorrow after ~5 PM Pacific.
     () => vancouverTodayKey()
@@ -179,13 +183,13 @@ export default function NewOrderForm({
       className={`max-w-2xl ${card} p-6 space-y-4`}
     >
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm">
+        <div role="alert" className={cn("px-4 py-3 rounded-row text-sm", BANNER_CLASSES.error)}>
           {error}
         </div>
       )}
 
       {duplicate && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm space-y-2">
+        <div className={cn("px-4 py-3 rounded-row text-sm space-y-2", BANNER_CLASSES.warning)}>
           <p>
             This client already has a{" "}
             {duplicate.kind === "SPOKE" ? "Spoke/Anchor" : "driver"} delivery
@@ -196,7 +200,7 @@ export default function NewOrderForm({
             type="button"
             onClick={() => submit(buildInput(true))}
             disabled={loading || editingSavedAddress || !selectedDriverId}
-            className="rounded-full border border-amber-400 bg-white px-4 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+            className="rounded-full border-[1.5px] border-control bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft transition duration-[220ms] hover:border-control-hover active:scale-[0.97] disabled:opacity-50"
           >
             {loading ? "Creating..." : "Create second delivery anyway"}
           </button>
@@ -212,8 +216,9 @@ export default function NewOrderForm({
           onFreeTextChange={handleFreeTextName}
         />
         <div>
-          <label className={label}>Patient Phone</label>
+          <label htmlFor={`${fieldId}-phone`} className={label}>Patient Phone</label>
           <input
+            id={`${fieldId}-phone`}
             type="tel"
             value={patientPhone}
             onChange={(e) => setPatientPhone(e.target.value)}
@@ -237,8 +242,12 @@ export default function NewOrderForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {showZoneSelect && (
           <div>
-            <label className={label}>Delivery Zone *</label>
+            <label htmlFor={`${fieldId}-zone`} className={label}>Delivery Zone *</label>
             <select
+              id={`${fieldId}-zone`}
+              aria-describedby={
+                cn(selectedZone && `${fieldId}-zone-price`, zoneHint && `${fieldId}-zone-hint`) || undefined
+              }
               required
               value={selectedZoneId}
               onChange={handleZoneChange}
@@ -252,18 +261,19 @@ export default function NewOrderForm({
               ))}
             </select>
             {selectedZone && (
-              <p className="mt-1 text-sm text-[#6f8f72] font-semibold">
+              <p id={`${fieldId}-zone-price`} className="mt-2 inline-flex rounded-full bg-mint px-3 py-1 text-sm font-bold text-navy tabular-nums">
                 Delivery price: ${selectedZone.price.toFixed(2)}
               </p>
             )}
             {zoneHint && (
-              <p className="mt-1 text-xs font-medium text-slate-500">{zoneHint}</p>
+              <p id={`${fieldId}-zone-hint`} className="mt-1 text-xs font-medium text-muted">{zoneHint}</p>
             )}
           </div>
         )}
         <div>
-          <label className={label}>Scheduled Date *</label>
+          <label htmlFor={`${fieldId}-date`} className={label}>Scheduled Date *</label>
           <input
+            id={`${fieldId}-date`}
             type="date"
             required
             value={scheduledDate}
@@ -284,8 +294,9 @@ export default function NewOrderForm({
       />
 
       <div>
-        <label className={label}>Delivery Instructions</label>
+        <label htmlFor={`${fieldId}-instructions`} className={label}>Delivery Instructions</label>
         <textarea
+          id={`${fieldId}-instructions`}
           rows={3}
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
@@ -298,7 +309,7 @@ export default function NewOrderForm({
         <button
           type="submit"
           disabled={loading || editingSavedAddress}
-          className={primaryButton}
+          className={cn(primaryButton, ctaShadow)}
         >
           {loading ? "Creating..." : "Create Order"}
         </button>

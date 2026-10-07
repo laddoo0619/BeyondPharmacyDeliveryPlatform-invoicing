@@ -46,10 +46,10 @@ export default function BatchDeliverButton({
   return (
     <div className="mb-4">
       {error && (
-        <p className="mb-2 text-xs text-rose-600 font-semibold">{error}</p>
+        <p className="mb-2 text-xs text-danger font-semibold">{error}</p>
       )}
       {result !== null && (
-        <p className="mb-2 text-xs text-emerald-600 font-semibold">
+        <p className="mb-2 text-xs text-navy font-semibold">
           {result} order(s) marked as delivered.
         </p>
       )}
@@ -67,7 +67,6 @@ export default function BatchDeliverButton({
         title="Batch Deliver All Orders"
         message={`Mark all ${eligibleCount} eligible order(s) as delivered? This cannot be undone.`}
         confirmLabel="Deliver All"
-        confirmClassName="bg-[#6f8f72] hover:bg-[#5f7d62]"
         onConfirm={handleConfirm}
         onCancel={() => setShowModal(false)}
         loading={loading}

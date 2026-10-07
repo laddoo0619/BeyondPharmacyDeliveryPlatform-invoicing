@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  button,
   card,
+  cn,
   input,
   label,
   primaryButtonFull,
-  secondaryButton,
-  dangerButton,
 } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
+
+const errorBanner = cn("px-3 py-2 rounded-row text-sm", BANNER_CLASSES.error);
 
 export default function DeliveryForm({
   orderId,
@@ -23,6 +26,7 @@ export default function DeliveryForm({
   storeSlug: string;
 }) {
   const router = useRouter();
+  const fieldId = useId();
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -82,13 +86,13 @@ export default function DeliveryForm({
     return (
       <div className="space-y-3">
         {error && (
-          <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>
+          <div role="alert" className={errorBanner}>{error}</div>
         )}
-        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-rose-800">
+        <div className="bg-blush rounded-row p-4">
+          <p className="text-sm font-bold text-navy">
             Previous attempt failed
           </p>
-          <p className="text-sm text-rose-600 mt-1">
+          <p className="text-sm text-navy mt-1">
             Attempt #{attemptCount} — tap below to re-attempt delivery
           </p>
         </div>
@@ -108,7 +112,7 @@ export default function DeliveryForm({
     return (
       <div>
         {error && (
-          <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm mb-3">{error}</div>
+          <div role="alert" className={cn(errorBanner, "mb-3")}>{error}</div>
         )}
         <button
           onClick={() => updateStatus("PICKED_UP").catch(() => {})}
@@ -126,7 +130,7 @@ export default function DeliveryForm({
     return (
       <div>
         {error && (
-          <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm mb-3">{error}</div>
+          <div role="alert" className={cn(errorBanner, "mb-3")}>{error}</div>
         )}
         <button
           onClick={() => updateStatus("IN_TRANSIT").catch(() => {})}
@@ -143,14 +147,14 @@ export default function DeliveryForm({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">
+        <div role="alert" className={errorBanner}>
           {error}
         </div>
       )}
 
       {attemptCount > 1 && (
-        <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3">
-          <p className="text-sm text-[#1e3a8a] font-semibold">
+        <div className="bg-blue rounded-row p-3">
+          <p className="text-sm text-navy font-semibold">
             Re-attempt #{attemptCount}
           </p>
         </div>
@@ -159,10 +163,11 @@ export default function DeliveryForm({
       {!showFailForm ? (
         <>
           <div className={`${card} p-4`}>
-            <label className={label}>
+            <label htmlFor={`${fieldId}-notes`} className={label}>
               Delivery Notes (optional)
             </label>
             <textarea
+              id={`${fieldId}-notes`}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
@@ -181,22 +186,23 @@ export default function DeliveryForm({
 
           <button
             onClick={() => setShowFailForm(true)}
-            className="w-full bg-rose-50 text-rose-700 border border-rose-200 py-3.5 rounded-xl text-sm font-semibold hover:bg-rose-100"
+            className={cn(button("danger", "lg"), "w-full")}
           >
             Failed Delivery
           </button>
         </>
       ) : (
-        <div className={`${card} p-4 border-rose-200`}>
-          <h3 className="text-sm font-semibold text-rose-800 mb-3">
+        <div className={`${card} p-4 border-hairline`}>
+          <h3 className="text-card-title font-extrabold text-navy mb-3">
             Report Failed Delivery
           </h3>
           <div className="space-y-3">
             <div>
-              <label className={label}>
+              <label htmlFor={`${fieldId}-reason`} className={label}>
                 Reason *
               </label>
               <select
+                id={`${fieldId}-reason`}
                 value={failReason}
                 onChange={(e) => setFailReason(e.target.value)}
                 className={input}
@@ -215,6 +221,7 @@ export default function DeliveryForm({
                 setFailReason(e.target.value ? `Other: ${e.target.value}` : failReason)
               }
               rows={2}
+              aria-label="Custom reason"
               className={input}
               placeholder="Or type a custom reason..."
             />
@@ -223,7 +230,7 @@ export default function DeliveryForm({
               <button
                 onClick={markFailed}
                 disabled={loading}
-                className={`${dangerButton} flex-1 py-3.5`}
+                className={cn(button("danger", "lg"), "flex-1")}
               >
                 {loading ? "Submitting..." : "Confirm Failed"}
               </button>
@@ -233,7 +240,7 @@ export default function DeliveryForm({
                   setFailReason("");
                   setError("");
                 }}
-                className={`${secondaryButton} flex-1 py-3.5`}
+                className={cn(button("secondary", "lg"), "flex-1")}
               >
                 Cancel
               </button>

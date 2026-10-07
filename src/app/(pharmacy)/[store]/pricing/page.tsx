@@ -1,9 +1,7 @@
 import { prisma } from "@/lib/db";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
-import ZoneForm from "./ZoneForm";
-import ZoneList from "./ZoneList";
-import { pageTitle } from "@/lib/portalStyles";
+import PricingView from "./PricingView";
 
 export default async function PricingPage({
   params,
@@ -27,18 +25,10 @@ export default async function PricingPage({
   ]);
 
   return (
-    <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Delivery Zones, <span className="italic font-semibold">priced</span>
-      </h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <ZoneForm storeSlug={storeSlug} />
-        </div>
-        <div className="lg:col-span-2">
-          <ZoneList storeSlug={storeSlug} zones={zones} drivers={drivers} />
-        </div>
-      </div>
-    </div>
+    <PricingView
+      storeSlug={storeSlug}
+      zones={zones}
+      drivers={drivers}
+    />
   );
 }

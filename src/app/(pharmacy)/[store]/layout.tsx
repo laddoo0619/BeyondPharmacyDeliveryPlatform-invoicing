@@ -1,9 +1,7 @@
-import PharmacyNav from "@/components/PharmacyNav";
-import ReminderPopup from "@/components/ReminderPopup";
+import PharmacyShell from "@/components/PharmacyShell";
 import { resolveStore } from "@/lib/store";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
-import { portalMain, portalShell } from "@/lib/portalStyles";
 
 export default async function PharmacyLayout({
   children,
@@ -20,10 +18,10 @@ export default async function PharmacyLayout({
   } catch (error) {
     console.error("[PharmacyLayout] Store resolution error:", error);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-sky-50 to-emerald-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#1e3a8a] mb-2">Service Unavailable</h1>
-          <p className="text-slate-500">Unable to load store information. Please try again later.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-navy mb-2">Service Unavailable</h1>
+          <p className="text-ink">Unable to load store information. Please try again later.</p>
         </div>
       </div>
     );
@@ -50,12 +48,8 @@ export default async function PharmacyLayout({
   }
 
   return (
-    <div className={portalShell}>
-      <PharmacyNav storeSlug={store.slug} storeName={store.name} />
-      <main className={portalMain}>{children}</main>
-      {/* Staff reminders for the day — renders itself only from 10 AM, and
-          only when something is actually outstanding. */}
-      <ReminderPopup storeSlug={store.slug} />
-    </div>
+    <PharmacyShell storeSlug={store.slug} storeName={store.name}>
+      {children}
+    </PharmacyShell>
   );
 }

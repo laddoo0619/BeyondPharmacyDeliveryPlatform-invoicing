@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { card, emptyState, sectionTitle } from "@/lib/portalStyles";
+import { useConfirm } from "@/components/ui/DialogsProvider";
+import { card, cn, dangerLinkButton, emptyState, linkButton, sectionTitle } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 
 interface ReminderView {
   id: string;
@@ -38,6 +40,7 @@ export default function ReminderList({
   reminders: ReminderView[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -71,8 +74,8 @@ export default function ReminderList({
       })
     );
 
-  const remove = (id: string) => {
-    if (!confirm("Delete this reminder?")) return;
+  const remove = async (id: string) => {
+    if (!(await confirm({ message: "Delete this reminder?", tone: "danger" }))) return;
     return act(id, () =>
       fetch(`/api/${storeSlug}/reminders/${id}`, { method: "DELETE" })
     );
@@ -87,23 +90,23 @@ export default function ReminderList({
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`font-semibold ${
-              r.completedAt ? "text-slate-400 line-through" : "text-slate-800"
+              r.completedAt ? "text-muted line-through" : "text-navy"
             }`}
           >
             {r.note}
           </span>
           {r.isOverdue && (
-            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+            <span className="rounded-full bg-blush px-2 py-0.5 text-[11px] font-bold text-navy">
               Overdue
             </span>
           )}
           {r.repeatIntervalWeeks && (
-            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+            <span className="rounded-full bg-blue px-2 py-0.5 text-[11px] font-bold text-navy">
               Repeats {repeatLabel(r.repeatIntervalWeeks)}
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-sm text-slate-500">
+        <p className="mt-0.5 text-sm text-muted">
           {formatDay(r.remindOn)}
           {r.patientName ? ` — ${r.patientName}` : ""}
         </p>
@@ -112,14 +115,14 @@ export default function ReminderList({
         <button
           onClick={() => setCompleted(r.id, !r.completedAt)}
           disabled={busy === r.id}
-          className="text-xs font-semibold text-[#6f8f72] transition hover:text-[#5f7d62] disabled:opacity-50"
+          className={cn(linkButton, "text-xs")}
         >
           {r.completedAt ? "Reopen" : "Mark done"}
         </button>
         <button
           onClick={() => remove(r.id)}
           disabled={busy === r.id}
-          className="text-xs font-semibold text-rose-600 transition hover:text-rose-800 disabled:opacity-50"
+          className={cn(dangerLinkButton, "text-xs")}
         >
           Delete
         </button>
@@ -130,28 +133,28 @@ export default function ReminderList({
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+        <div role="alert" className={cn("rounded-row px-4 py-3 text-sm", BANNER_CLASSES.error)}>{error}</div>
       )}
 
       <div className={card}>
-        <div className="border-b border-slate-100 px-6 py-4">
+        <div className="border-b border-hairline px-6 py-4">
           <h2 className={sectionTitle}>Upcoming ({open.length})</h2>
         </div>
         {open.length === 0 ? (
-          <div className={emptyState}>
-            No <span className="italic text-[#1e3a8a]">reminders</span> scheduled
+          <div className={cn(emptyState, "m-4")}>
+            No <span className="italic text-navy">reminders</span> scheduled
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">{open.map(row)}</div>
+          <div className="divide-y divide-hairline">{open.map(row)}</div>
         )}
       </div>
 
       {done.length > 0 && (
-        <div className={card}>
-          <div className="border-b border-slate-100 px-6 py-4">
+        <div data-reveal="" className={card}>
+          <div className="border-b border-hairline px-6 py-4">
             <h2 className={sectionTitle}>Recently completed</h2>
           </div>
-          <div className="divide-y divide-slate-100">{done.map(row)}</div>
+          <div className="divide-y divide-hairline">{done.map(row)}</div>
         </div>
       )}
     </div>

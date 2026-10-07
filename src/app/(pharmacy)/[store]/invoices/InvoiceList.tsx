@@ -2,11 +2,14 @@
 
 import {
   card,
+  cn,
   emptyState,
+  linkButton,
   sectionTitle,
   statusBadgeClasses,
   tableHeader,
   tableRow,
+  totalPill,
 } from "@/lib/portalStyles";
 
 interface InvoiceItem {
@@ -44,12 +47,12 @@ export default function InvoiceList({
 
   return (
     <div className={`${card} overflow-hidden`}>
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b border-hairline">
         <h2 className={sectionTitle}>Generated Invoices</h2>
       </div>
       {invoices.length === 0 ? (
-        <div className={emptyState}>
-          No invoices <span className="italic text-[#1e3a8a]">generated</span> yet.
+        <div className={cn(emptyState, "m-4")}>
+          No invoices <span className="italic text-navy">generated</span> yet.
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -65,25 +68,27 @@ export default function InvoiceList({
                 <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-hairline">
               {invoices.map((inv) => (
                 <tr key={inv.id} className={tableRow}>
-                <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">{inv.invoiceNumber}</td>
-                <td className="px-6 py-4 text-sm text-slate-600">
-                  {inv.driverName ?? <span className="text-slate-400 italic">All drivers</span>}
+                <td className="px-6 py-4 text-sm font-semibold text-navy">{inv.invoiceNumber}</td>
+                <td className="px-6 py-4 text-sm text-ink">
+                  {inv.driverName ?? <span className="text-muted italic">All drivers</span>}
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">
+                <td className="px-6 py-4 text-sm text-ink tabular-nums">
                   {new Date(inv.periodStart).toLocaleDateString()} – {new Date(inv.periodEnd).toLocaleDateString()}
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{inv.lineItemCount}</td>
-                <td className="px-6 py-4 text-sm font-semibold text-[#1e3a8a]">${inv.totalAmount.toFixed(2)}</td>
+                <td className="px-6 py-4 text-sm text-ink tabular-nums">{inv.lineItemCount}</td>
+                <td className="px-6 py-4 text-sm">
+                  <span className={totalPill.total}>${inv.totalAmount.toFixed(2)}</span>
+                </td>
                 <td className="px-6 py-4">
                   <span className={statusBadgeClasses(inv.status)}>
                     {inv.status}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <button onClick={() => downloadPdf(inv.id)} className="text-xs text-[#6f8f72] hover:text-[#5f7d62] font-semibold">Download PDF</button>
+                  <button onClick={() => downloadPdf(inv.id)} className={cn(linkButton, "text-xs")}>Download PDF</button>
                 </td>
                 </tr>
               ))}

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { rgbTuple } from "@/styles/tokens";
 
 export async function GET(
   _req: NextRequest,
@@ -33,8 +34,10 @@ export async function GET(
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
-  // Generate PDF
+  // Generate PDF (colours from the design tokens: navy text, navy table
+  // header with cream text, cream stripes, mint total row).
   const doc = new jsPDF();
+  doc.setTextColor(...rgbTuple("navy"));
 
   // Header — include store name
   doc.setFontSize(20);
@@ -69,8 +72,10 @@ export async function GET(
     body: tableData,
     foot: [["", "", "", "Total", `$${invoice.totalAmount.toFixed(2)}`]],
     theme: "striped",
-    headStyles: { fillColor: [37, 99, 235] },
-    footStyles: { fillColor: [243, 244, 246], textColor: [0, 0, 0], fontStyle: "bold" },
+    styles: { textColor: rgbTuple("navy") },
+    headStyles: { fillColor: rgbTuple("navy"), textColor: rgbTuple("cream") },
+    alternateRowStyles: { fillColor: rgbTuple("panelCream") },
+    footStyles: { fillColor: rgbTuple("mint"), textColor: rgbTuple("navy"), fontStyle: "bold" },
   });
 
   const pdfBuffer = Buffer.from(doc.output("arraybuffer"));

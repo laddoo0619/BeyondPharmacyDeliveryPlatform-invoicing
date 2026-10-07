@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -58,4 +59,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// The dev-only style guide lives in src/app/dev as *.dev.tsx files. Only
+// `next dev` treats that extension as a page, so production builds don't
+// contain the route at all. "ts"/"tsx" stay in both lists because this
+// setting also governs proxy.ts and instrumentation.ts.
+export default function config(phase: string): NextConfig {
+  return {
+    ...nextConfig,
+    pageExtensions:
+      phase === PHASE_DEVELOPMENT_SERVER
+        ? ["dev.tsx", "tsx", "ts", "jsx", "js"]
+        : ["tsx", "ts", "jsx", "js"],
+  };
+}

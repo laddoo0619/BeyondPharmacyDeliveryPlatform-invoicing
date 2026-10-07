@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { input } from "@/lib/portalStyles";
+import { useConfirm } from "@/components/ui/DialogsProvider";
+import { useToast } from "@/components/ui/ToastProvider";
+import { cn, dangerLinkButton, input } from "@/lib/portalStyles";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -24,6 +26,8 @@ export default function OrderActions({
   drivers,
 }: OrderActionsProps) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [remaining, setRemaining] = useState("");
   const [canPurge, setCanPurge] = useState(false);
@@ -65,7 +69,7 @@ export default function OrderActions({
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      alert(body.error || "Failed to update order");
+      toast.error(body.error || "Failed to update order");
     }
 
     router.refresh();
@@ -75,7 +79,10 @@ export default function OrderActions({
     if (
       currentStatus === "CANCELLED" &&
       canPurge &&
-      !confirm("This will permanently delete the order. This action cannot be undone. Continue?")
+      !(await confirm({
+        message: "This will permanently delete the order. This action cannot be undone. Continue?",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -88,7 +95,7 @@ export default function OrderActions({
 
     if (!res.ok) {
       const data = await res.json();
-      alert(data.error || "Failed to delete order");
+      toast.error(data.error || "Failed to delete order");
     }
 
     router.refresh();
@@ -102,12 +109,12 @@ export default function OrderActions({
           <button
             onClick={deleteOrder}
             disabled={loading}
-            className="text-xs bg-rose-600 text-white px-2 py-1 rounded-full hover:bg-rose-700 font-semibold disabled:opacity-50"
+            className="text-xs rounded-full border border-hairline bg-blush px-2.5 py-1 font-bold text-danger transition duration-[220ms] hover:bg-blush-hover active:scale-[0.97] disabled:opacity-50"
           >
             {loading ? "Deleting..." : "Permanent Delete"}
           </button>
         ) : (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-muted">
             Delete in {remaining}
           </span>
         )}
@@ -147,7 +154,7 @@ export default function OrderActions({
       <button
         onClick={deleteOrder}
         disabled={loading}
-        className="text-xs text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50"
+        className={cn(dangerLinkButton, "text-xs")}
       >
         Delete
       </button>

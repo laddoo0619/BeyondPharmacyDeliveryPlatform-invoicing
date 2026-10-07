@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { card, input, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { card, cn, input, primaryButton, sectionTitle } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 
 export default function UserForm({ storeSlug }: { storeSlug: string }) {
   const router = useRouter();
@@ -44,13 +45,13 @@ export default function UserForm({ storeSlug }: { storeSlug: string }) {
     <div className={`${card} p-6`}>
       <h2 className={`${sectionTitle} mb-4`}>Create New User</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
-        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
-        {success && <div className="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-xl text-sm">{success}</div>}
-        <input name="name" required placeholder="Full Name" className={input} />
-        <input name="email" type="email" required placeholder="Email" className={input} />
-        <input name="password" type="password" required placeholder="Password" minLength={6} className={input} />
-        <input name="phone" placeholder="Phone (optional)" className={input} />
-        <select name="role" required className={input}>
+        {error && <div role="alert" className={cn("px-3 py-2 rounded-row text-sm", BANNER_CLASSES.error)}>{error}</div>}
+        {success && <div role="status" className={cn("px-3 py-2 rounded-row text-sm", BANNER_CLASSES.success)}>{success}</div>}
+        <input name="name" required placeholder="Full Name" aria-label="Full Name" className={input} />
+        <input name="email" type="email" required placeholder="Email" aria-label="Email" className={input} />
+        <input name="password" type="password" required placeholder="Password" aria-label="Password" minLength={6} className={input} />
+        <input name="phone" placeholder="Phone (optional)" aria-label="Phone (optional)" className={input} />
+        <select name="role" required aria-label="Role" className={input}>
           <option value="DRIVER">Driver</option>
           <option value="PHARMACY_ADMIN">Pharmacy Admin</option>
         </select>

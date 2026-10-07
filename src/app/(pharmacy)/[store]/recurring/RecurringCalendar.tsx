@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Modal from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/DialogsProvider";
 import {
+  button,
   card,
   cn,
   input,
   label,
-  primaryButton,
-  secondaryButton,
   sectionTitle,
 } from "@/lib/portalStyles";
+import { BANNER_CLASSES, TONE_CLASSES, statusTone } from "@/lib/statusTheme";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -99,6 +101,7 @@ export default function RecurringCalendar({
   drivers: Driver[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [visibleWeek, setVisibleWeek] = useState(() => weekStart(new Date()));
   const [instances, setInstances] = useState<CalendarInstance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,9 +241,10 @@ export default function RecurringCalendar({
 
   const deleteRecurringProfile = async (instance: CalendarInstance) => {
     if (
-      !confirm(
-        "Delete this recurring profile? Existing delivery records will be preserved."
-      )
+      !(await confirm({
+        message: "Delete this recurring profile? Existing delivery records will be preserved.",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -268,37 +272,37 @@ export default function RecurringCalendar({
 
   return (
     <section className={`${card} overflow-hidden`}>
-      <div className="flex flex-col gap-3 border-b px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-hairline px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className={sectionTitle}>Recurring Calendar</h2>
-          <p className="text-sm text-slate-500">{formatWeekRange(start, end)}</p>
+          <p className="text-sm text-muted">{formatWeekRange(start, end)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => showWeek(addDays(visibleWeek, -7))}
-            className={`${secondaryButton} px-3 py-1.5 text-xs`}
+            className={button("secondary", "sm")}
           >
             Previous Week
           </button>
           <button
             type="button"
             onClick={() => showWeek(new Date())}
-            className={`${primaryButton} px-3 py-1.5 text-xs`}
+            className={button("primary", "sm")}
           >
             This Week
           </button>
           <button
             type="button"
             onClick={() => showWeek(addDays(visibleWeek, 7))}
-            className={`${secondaryButton} px-3 py-1.5 text-xs`}
+            className={button("secondary", "sm")}
           >
             Next Week
           </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70 px-6 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-hairline px-6 py-3">
         <CalendarDriverTab
           label="All"
           count={driverCounts[ALL]}
@@ -325,16 +329,16 @@ export default function RecurringCalendar({
       </div>
 
       {error && (
-        <div className="border-b bg-rose-50 px-6 py-3 text-sm text-rose-700">
+        <div role="alert" className={cn("border-b border-hairline px-6 py-3 text-sm", BANNER_CLASSES.error)}>
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-7 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70">
+      <div className="grid grid-cols-7 bg-navy">
         {DAY_LABELS.map((day) => (
           <div
             key={day}
-            className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
+            className="px-2 py-2 text-center text-xs font-bold uppercase tracking-[0.12em] text-cream"
           >
             {day}
           </div>
@@ -349,21 +353,21 @@ export default function RecurringCalendar({
           return (
             <div
               key={key}
-              className="min-h-48 border-b border-slate-100 p-2 sm:border-r"
+              className="min-h-48 border-b border-hairline p-2 sm:border-r"
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#1e3a8a]">
+                <span className="text-xs font-semibold text-navy">
                   {formatDayLabel(day)}
                 </span>
                 {dayInstances.length > 0 && (
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-muted tabular-nums ring-1 ring-inset ring-hairline">
                     {dayInstances.length}
                   </span>
                 )}
               </div>
 
               {loading ? (
-                <div className="rounded-xl bg-white/70 px-2 py-2 text-xs text-slate-400">
+                <div className="rounded-row bg-white px-2 py-2 text-xs text-muted">
                   Loading...
                 </div>
               ) : (
@@ -386,10 +390,10 @@ export default function RecurringCalendar({
                             : undefined
                         }
                         className={cn(
-                          "block w-full truncate rounded-full px-2.5 py-1 text-left text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-70",
+                          "block w-full truncate rounded-full px-2.5 py-1 text-left text-[11px] font-semibold transition duration-[220ms] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70",
                           instance.isHeld
-                            ? "bg-red-600 text-white ring-1 ring-inset ring-red-700 hover:bg-red-700"
-                            : "bg-white text-[#1e3a8a] ring-1 ring-inset ring-slate-200 hover:bg-emerald-50 hover:ring-[#6f8f72]/40"
+                            ? cn(TONE_CLASSES[statusTone("HOLD")], "hover:bg-blush-hover")
+                            : "row-hover text-navy ring-1 ring-inset ring-hairline hover:ring-control-hover"
                         )}
                       >
                         {isBusy ? "Updating..." : instance.patientName}
@@ -403,40 +407,36 @@ export default function RecurringCalendar({
         })}
       </div>
 
-      {selectedInstance && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/35 px-4 py-6 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="recurring-quick-view-title"
-          onClick={() => setSelectedInstance(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/20"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <Modal
+        open={!!selectedInstance}
+        onClose={() => setSelectedInstance(null)}
+        size="lg"
+        labelledBy="recurring-quick-view-title"
+      >
+        {selectedInstance && (
+          <div className="overflow-y-auto px-5 pb-5 pt-2 sm:pt-5">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h3
                   id="recurring-quick-view-title"
-                  className="text-lg font-bold text-[#1e3a8a]"
+                  className={sectionTitle}
                 >
                   {selectedInstance.patientName}
                 </h3>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted">
                   {formatDayLabel(new Date(`${selectedInstance.date}T00:00:00.000Z`))}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedInstance(null)}
-                className="rounded-full px-2 py-1 text-sm font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-full px-3 py-1 text-sm font-semibold text-muted transition duration-[220ms] hover:bg-panel-cream hover:text-navy"
               >
                 Close
               </button>
             </div>
 
-            <div className="space-y-3 rounded-2xl bg-slate-50/80 p-4">
+            <div className="space-y-3 rounded-row bg-panel-cream p-4">
               <QuickViewRow
                 label="Address"
                 value={`${selectedInstance.deliveryAddress}, ${selectedInstance.deliveryCity}`}
@@ -488,7 +488,7 @@ export default function RecurringCalendar({
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
               {selectedInstance.holdType === "TEMPLATE" ? (
-                <span className="rounded-full bg-red-600 px-3 py-2 text-center text-xs font-semibold text-white ring-1 ring-red-700">
+                <span className={cn("rounded-full px-3 py-2 text-center text-xs font-bold", TONE_CLASSES[statusTone("HOLD")])}>
                   Vacation hold
                 </span>
               ) : (
@@ -499,7 +499,7 @@ export default function RecurringCalendar({
                     busyInstance === selectedInstance.id ||
                     (!selectedInstance.isHeld && !holdReasonDraft.trim())
                   }
-                  className={`${secondaryButton} justify-center text-xs`}
+                  className={cn(button("secondary", "sm"), "justify-center")}
                 >
                   {busyInstance === selectedInstance.id
                     ? "Updating..."
@@ -512,14 +512,14 @@ export default function RecurringCalendar({
                 type="button"
                 onClick={() => deleteRecurringProfile(selectedInstance)}
                 disabled={busyInstance === selectedInstance.id}
-                className="rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className={button("danger", "sm")}
               >
                 {busyInstance === selectedInstance.id ? "Working..." : "Delete"}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </section>
   );
 }
@@ -527,10 +527,10 @@ export default function RecurringCalendar({
 function QuickViewRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+      <p className="text-label font-bold uppercase tracking-[0.16em] text-muted">
         {label}
       </p>
-      <p className="text-sm font-medium text-slate-700">{value}</p>
+      <p className="text-sm font-medium text-ink">{value}</p>
     </div>
   );
 }
@@ -550,13 +550,13 @@ function CalendarDriverTab({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? "border-[#6f8f72] bg-[#6f8f72] text-white"
-          : "border-slate-200 bg-white text-slate-600 hover:bg-sky-50"
-      }`}
+      aria-pressed={active}
+      className="selectable inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold active:scale-[0.97]"
     >
-      {label} <span className={active ? "opacity-80" : "text-slate-400"}>({count})</span>
+      <span className="select-dot" aria-hidden="true" />
+      <span>
+        {label} <span className="text-ink tabular-nums">({count})</span>
+      </span>
     </button>
   );
 }

@@ -1,19 +1,258 @@
+/* Design tokens first — before Tailwind's base styles. */
+@import "../styles/theme.css";
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Tailwind v4 has no tailwind.config.js: this block is the token mapping.
+ * Colours go through the RGB triplets so opacity modifiers (bg-navy/40) work.
+ * Names shared with theme.css (shadows, fonts, type sizes) resolve to the
+ * theme.css values, which are unlayered and so always win.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Core */
+  --color-navy: rgb(var(--navy-rgb));
+  --color-navy-deep: rgb(var(--navy-deep-rgb));
+  --color-ink: rgb(var(--ink-rgb));
+  --color-muted: rgb(var(--muted-rgb));
+  --color-green: rgb(var(--green-rgb));
+  --color-green-link: rgb(var(--green-link-rgb));
+  --color-cream: rgb(var(--cream-rgb));
+  --color-panel-cream: rgb(var(--panel-cream-rgb));
+  --color-danger: rgb(var(--danger-rgb));
+
+  /* Pastels */
+  --color-blush: rgb(var(--blush-rgb));
+  --color-blue: rgb(var(--blue-rgb));
+  --color-mint: rgb(var(--mint-rgb));
+  --color-butter: rgb(var(--butter-rgb));
+  --color-lilac: rgb(var(--lilac-rgb));
+  --color-blush-hover: rgb(var(--blush-hover-rgb));
+
+  /* Lines and overlays */
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-ghost: var(--ghost-border);
+  --color-control: var(--border-control);
+  --color-control-hover: var(--border-control-hover);
+  --color-selectable: var(--border-selectable);
+  --color-dot: var(--border-dot);
+  --color-placeholder: var(--placeholder-fill);
+  --color-track: var(--track);
+  --color-backdrop: var(--backdrop);
+  --color-header: var(--header-fill);
+
+  /* Shape, depth, type */
+  --radius-card: var(--r-card);
+  --radius-mid: var(--r-mid);
+  --radius-row: var(--r-row);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+  --shadow-photo: var(--shadow-photo);
+  --shadow-cta: var(--shadow-cta);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --text-h1: var(--text-h1);
+  --text-h2: var(--text-h2);
+  --text-card-title: var(--text-card-title);
+  --text-lead: var(--text-lead);
+  --text-body: var(--text-body);
+  --text-small: var(--text-small);
+  --text-label: var(--text-label);
+  --text-nav: var(--text-nav);
+  --spacing-section: var(--section-gap);
+  --spacing-card: var(--card-pad);
+  --spacing-btn-x: var(--btn-pad-x);
+  --spacing-btn-y: var(--btn-pad-y);
+  --container-content: var(--content-width);
+
+  /*
+   * Legacy aliases: the palette names the app used before the reskin now
+   * resolve to tokens, so any class the sweep misses still lands on-brand.
+   * Text shades map to navy/ink/muted (text on pastel is always navy), light
+   * shades to the matching pastel, and border shades to navy-tinted lines.
+   */
+  --color-black: rgb(var(--navy-deep-rgb));
+
+  /* Tailwind's stock shadows, navy-tinted. */
+  --shadow-2xs: var(--shadow-soft);
+  --shadow-xs: var(--shadow-soft);
+  --shadow-sm: var(--shadow-soft);
+  --shadow-md: var(--shadow-soft);
+  --shadow-lg: var(--shadow-lift);
+  --shadow-xl: var(--shadow-lift);
+  --shadow-2xl: var(--shadow-photo);
+
+  --color-slate-50: rgb(var(--panel-cream-rgb));
+  --color-slate-100: rgb(var(--panel-cream-rgb));
+  --color-slate-200: var(--border-selectable);
+  --color-slate-300: var(--ghost-border);
+  --color-slate-400: rgb(var(--muted-rgb));
+  --color-slate-500: rgb(var(--muted-rgb));
+  --color-slate-600: rgb(var(--ink-rgb));
+  --color-slate-700: rgb(var(--ink-rgb));
+  --color-slate-800: rgb(var(--navy-rgb));
+  --color-slate-900: rgb(var(--navy-rgb));
+  --color-slate-950: rgb(var(--navy-deep-rgb));
+  --color-gray-50: rgb(var(--panel-cream-rgb));
+  --color-gray-100: rgb(var(--panel-cream-rgb));
+  --color-gray-200: var(--border-selectable);
+  --color-gray-300: var(--ghost-border);
+  --color-gray-400: rgb(var(--muted-rgb));
+  --color-gray-500: rgb(var(--muted-rgb));
+  --color-gray-600: rgb(var(--ink-rgb));
+  --color-gray-700: rgb(var(--ink-rgb));
+  --color-gray-800: rgb(var(--navy-rgb));
+  --color-gray-900: rgb(var(--navy-rgb));
+  --color-gray-950: rgb(var(--navy-deep-rgb));
+
+  --color-rose-50: rgb(var(--blush-rgb));
+  --color-rose-100: rgb(var(--blush-rgb));
+  --color-rose-200: var(--hairline);
+  --color-rose-300: var(--ghost-border);
+  --color-rose-400: rgb(var(--danger-rgb));
+  --color-rose-500: rgb(var(--danger-rgb));
+  --color-rose-600: rgb(var(--danger-rgb));
+  --color-rose-700: rgb(var(--danger-rgb));
+  --color-rose-800: rgb(var(--danger-rgb));
+  --color-rose-900: rgb(var(--danger-rgb));
+  --color-red-50: rgb(var(--blush-rgb));
+  --color-red-100: rgb(var(--blush-rgb));
+  --color-red-200: var(--hairline);
+  --color-red-300: var(--ghost-border);
+  --color-red-400: rgb(var(--danger-rgb));
+  --color-red-500: rgb(var(--danger-rgb));
+  --color-red-600: rgb(var(--danger-rgb));
+  --color-red-700: rgb(var(--danger-rgb));
+  --color-red-800: rgb(var(--danger-rgb));
+  --color-red-900: rgb(var(--danger-rgb));
+
+  --color-emerald-50: rgb(var(--mint-rgb));
+  --color-emerald-100: rgb(var(--mint-rgb));
+  --color-emerald-200: var(--hairline);
+  --color-emerald-300: var(--ghost-border);
+  --color-emerald-400: rgb(var(--navy-rgb));
+  --color-emerald-500: rgb(var(--navy-rgb));
+  --color-emerald-600: rgb(var(--navy-rgb));
+  --color-emerald-700: rgb(var(--navy-rgb));
+  --color-emerald-800: rgb(var(--navy-rgb));
+  --color-emerald-900: rgb(var(--navy-rgb));
+  --color-teal-50: rgb(var(--mint-rgb));
+  --color-teal-100: rgb(var(--mint-rgb));
+  --color-teal-200: var(--hairline);
+  --color-teal-300: var(--ghost-border);
+  --color-teal-400: rgb(var(--navy-rgb));
+  --color-teal-500: rgb(var(--navy-rgb));
+  --color-teal-600: rgb(var(--navy-rgb));
+  --color-teal-700: rgb(var(--navy-rgb));
+  --color-teal-800: rgb(var(--navy-rgb));
+  --color-teal-900: rgb(var(--navy-rgb));
+  --color-green-50: rgb(var(--mint-rgb));
+  --color-green-100: rgb(var(--mint-rgb));
+  --color-green-200: var(--hairline);
+  --color-green-300: var(--ghost-border);
+  --color-green-400: rgb(var(--navy-rgb));
+  --color-green-500: rgb(var(--navy-rgb));
+  --color-green-600: rgb(var(--navy-rgb));
+  --color-green-700: rgb(var(--navy-rgb));
+  --color-green-800: rgb(var(--navy-rgb));
+  --color-green-900: rgb(var(--navy-rgb));
+
+  --color-sky-50: rgb(var(--blue-rgb));
+  --color-sky-100: rgb(var(--blue-rgb));
+  --color-sky-200: var(--hairline);
+  --color-sky-300: var(--ghost-border);
+  --color-sky-400: rgb(var(--navy-rgb));
+  --color-sky-500: rgb(var(--navy-rgb));
+  --color-sky-600: rgb(var(--navy-rgb));
+  --color-sky-700: rgb(var(--navy-rgb));
+  --color-sky-800: rgb(var(--navy-rgb));
+  --color-sky-900: rgb(var(--navy-rgb));
+  --color-blue-50: rgb(var(--blue-rgb));
+  --color-blue-100: rgb(var(--blue-rgb));
+  --color-blue-200: var(--hairline);
+  --color-blue-300: var(--ghost-border);
+  --color-blue-400: rgb(var(--navy-rgb));
+  --color-blue-500: rgb(var(--navy-rgb));
+  --color-blue-600: rgb(var(--navy-rgb));
+  --color-blue-700: rgb(var(--navy-deep-rgb));
+  --color-blue-800: rgb(var(--navy-deep-rgb));
+  --color-blue-900: rgb(var(--navy-deep-rgb));
+  --color-indigo-50: rgb(var(--blue-rgb));
+  --color-indigo-100: rgb(var(--blue-rgb));
+  --color-indigo-200: var(--hairline);
+  --color-indigo-300: var(--ghost-border);
+  --color-indigo-400: rgb(var(--navy-rgb));
+  --color-indigo-500: rgb(var(--navy-rgb));
+  --color-indigo-600: rgb(var(--navy-rgb));
+  --color-indigo-700: rgb(var(--navy-rgb));
+  --color-indigo-800: rgb(var(--navy-rgb));
+  --color-indigo-900: rgb(var(--navy-rgb));
+
+  --color-amber-50: rgb(var(--butter-rgb));
+  --color-amber-100: rgb(var(--butter-rgb));
+  --color-amber-200: var(--hairline);
+  --color-amber-300: var(--ghost-border);
+  --color-amber-400: var(--ghost-border);
+  --color-amber-500: rgb(var(--navy-rgb));
+  --color-amber-600: rgb(var(--navy-rgb));
+  --color-amber-700: rgb(var(--navy-rgb));
+  --color-amber-800: rgb(var(--navy-rgb));
+  --color-amber-900: rgb(var(--navy-rgb));
+  --color-yellow-50: rgb(var(--butter-rgb));
+  --color-yellow-100: rgb(var(--butter-rgb));
+  --color-yellow-200: var(--hairline);
+  --color-yellow-300: var(--ghost-border);
+  --color-yellow-400: rgb(var(--navy-rgb));
+  --color-yellow-500: rgb(var(--navy-rgb));
+  --color-yellow-600: rgb(var(--navy-rgb));
+  --color-yellow-700: rgb(var(--navy-rgb));
+  --color-yellow-800: rgb(var(--navy-rgb));
+  --color-yellow-900: rgb(var(--navy-rgb));
+  --color-orange-50: rgb(var(--butter-rgb));
+  --color-orange-100: rgb(var(--butter-rgb));
+  --color-orange-200: var(--hairline);
+  --color-orange-300: var(--ghost-border);
+  --color-orange-400: rgb(var(--navy-rgb));
+  --color-orange-500: rgb(var(--navy-rgb));
+  --color-orange-600: rgb(var(--navy-rgb));
+  --color-orange-700: rgb(var(--navy-rgb));
+  --color-orange-800: rgb(var(--navy-rgb));
+  --color-orange-900: rgb(var(--navy-rgb));
+
+  --color-violet-50: rgb(var(--lilac-rgb));
+  --color-violet-100: rgb(var(--lilac-rgb));
+  --color-violet-200: var(--hairline);
+  --color-violet-300: var(--ghost-border);
+  --color-violet-400: rgb(var(--navy-rgb));
+  --color-violet-500: rgb(var(--navy-rgb));
+  --color-violet-600: rgb(var(--navy-rgb));
+  --color-violet-700: rgb(var(--navy-rgb));
+  --color-violet-800: rgb(var(--navy-rgb));
+  --color-violet-900: rgb(var(--navy-rgb));
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  -webkit-text-size-adjust: 100%;
-  -webkit-tap-highlight-color: transparent;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--white);
+    color: var(--navy);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* A visible focus ring everywhere (the reset removes the browser's). */
+  :focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
+
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
 }

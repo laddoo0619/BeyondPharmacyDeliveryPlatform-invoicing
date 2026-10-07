@@ -1,10 +1,7 @@
 import { prisma } from "@/lib/db";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
-import RecurringCalendar from "./RecurringCalendar";
-import RecurringOrderForm from "./RecurringOrderForm";
-import RecurringOrderList from "./RecurringOrderList";
-import { pageTitle } from "@/lib/portalStyles";
+import RecurringView from "./RecurringView";
 import { buildRecurringDuplicateCleanupPlan } from "@/lib/recurringDuplicateGuard";
 import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
 import { getZoneSuggestionData } from "@/lib/zoneHistory";
@@ -66,29 +63,7 @@ export default async function RecurringPage({
     duplicateCleanupPlan.map((change) => [change.order.id, change.remainingDays])
   );
 
-  return (
-    <div>
-      <h1 className={`${pageTitle} mb-6`}>
-        Recurring Deliveries, <span className="italic font-semibold">simplified</span>
-      </h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <RecurringOrderForm
-            storeSlug={storeSlug}
-            zones={zoneOptions}
-            drivers={driverOptions}
-            zoneHistory={zoneHistory}
-            fallbackZoneId={fallbackZoneId}
-          />
-        </div>
-        <div className="space-y-6 lg:col-span-2">
-          <RecurringCalendar storeSlug={storeSlug} drivers={drivers} />
-          <RecurringOrderList
-            storeSlug={storeSlug}
-            drivers={driverOptions}
-            zones={zoneOptions}
-            zoneHistory={zoneHistory}
-            orders={recurringOrders
+  const orderItems = recurringOrders
               .filter((o) => !hiddenRecurringIds.has(o.id))
               .map((o) => ({
                 id: o.id,
@@ -110,11 +85,17 @@ export default async function RecurringPage({
                 isSkippedThisWeek: o.skips.length > 0,
                 assignedDriverId: o.assignedDriverId,
                 assignedDriverName: o.assignedDriver?.name ?? null,
-              }))}
-          />
-        </div>
-      </div>
-    </div>
+              }));
+
+  return (
+    <RecurringView
+      storeSlug={storeSlug}
+      zones={zoneOptions}
+      drivers={driverOptions}
+      zoneHistory={zoneHistory}
+      fallbackZoneId={fallbackZoneId}
+      orders={orderItems}
+    />
   );
 }
 

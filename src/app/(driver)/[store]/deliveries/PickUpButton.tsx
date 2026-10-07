@@ -39,7 +39,7 @@ export default function PickUpButton({
   return (
     <div>
       {error && (
-        <p className="mt-2 text-xs text-rose-600 font-semibold">{error}</p>
+        <p className="mt-2 text-xs text-danger font-semibold">{error}</p>
       )}
       <button
         onClick={handlePickUp}

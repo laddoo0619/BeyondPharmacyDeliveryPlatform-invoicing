@@ -2,15 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useConfirm, usePromptDateRange } from "@/components/ui/DialogsProvider";
 import {
+  button,
   card,
+  cn,
+  dangerLinkButton,
   emptyState,
   input,
-  primaryButton,
-  secondaryButton,
+  linkButton,
   sectionTitle,
   statusBadgeClasses,
 } from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 import {
   describeZoneSuggestion,
   suggestZone,
@@ -79,6 +83,8 @@ export default function RecurringOrderList({
   zoneHistory: ZoneHistory;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const promptDateRange = usePromptDateRange();
   const [loading, setLoading] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateMsg, setGenerateMsg] = useState("");
@@ -194,13 +200,15 @@ export default function RecurringOrderList({
 
   const toggleHold = async (id: string, isOnHold: boolean) => {
     if (!isOnHold) {
-      // Prompt for dates — use simple prompt for now (frontend already has date pickers)
-      const holdStart = prompt("Hold start date (YYYY-MM-DD):");
-      if (!holdStart) return;
-      const holdEnd = prompt("Hold end date (YYYY-MM-DD):");
-      if (!holdEnd) return;
+      // Ask for both dates in one dialog; cancelling leaves the profile as is.
+      const range = await promptDateRange({
+        title: "Vacation Hold",
+        startLabel: "Hold start date",
+        endLabel: "Hold end date",
+      });
+      if (!range) return;
 
-      await patchRecurring(id, { isOnHold: true, holdStart, holdEnd });
+      await patchRecurring(id, { isOnHold: true, holdStart: range.start, holdEnd: range.end });
     } else {
       await patchRecurring(id, { isOnHold: false });
     }
@@ -323,7 +331,13 @@ export default function RecurringOrderList({
   };
 
   const deleteOrder = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this recurring order? This cannot be undone. Existing delivery records will be preserved.")) {
+    if (
+      !(await confirm({
+        message:
+          "Are you sure you want to delete this recurring order? This cannot be undone. Existing delivery records will be preserved.",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
     await runAction(id, () =>
@@ -353,28 +367,28 @@ export default function RecurringOrderList({
 
   return (
     <div className={`${card} overflow-hidden`}>
-      <div className="px-6 py-4 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="px-6 py-4 border-b border-hairline flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className={sectionTitle}>Recurring Profiles</h2>
         <div className="flex flex-wrap items-center gap-3">
           {generateMsg && (
-            <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full ring-1 ring-emerald-100">{generateMsg}</span>
+            <span role="status" className="text-xs font-bold text-navy bg-mint px-2.5 py-1 rounded-full">{generateMsg}</span>
           )}
           <a
             href={`/api/${storeSlug}/recurring/export`}
-            className={`${secondaryButton} text-xs py-1.5`}
+            className={button("secondary", "sm")}
           >
             Export Today&apos;s CSV
           </a>
           <button
             onClick={generateToday}
             disabled={generating}
-            className={`${primaryButton} text-xs py-1.5`}
+            className={button("primary", "sm")}
           >
             {generating ? "Generating..." : "Generate Today\u2019s Orders"}
           </button>
         </div>
       </div>
-      <div className="px-6 py-3 border-b">
+      <div className="px-6 py-3 border-b border-hairline">
         <input
           type="search"
           value={searchQuery}
@@ -384,18 +398,18 @@ export default function RecurringOrderList({
           className={input}
         />
         {isSearching && (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted">
             {displayOrders.length} match{displayOrders.length === 1 ? "" : "es"} across all profiles
             {activeDriverFilter !== ALL ? " (driver filter ignored while searching)" : ""}
           </p>
         )}
       </div>
       {actionError && (
-        <div className="border-b bg-rose-50 px-6 py-3 text-sm text-rose-700">
+        <div role="alert" className={cn("border-b border-hairline px-6 py-3 text-sm", BANNER_CLASSES.error)}>
           {actionError}
         </div>
       )}
-      <div className="px-6 py-3 border-b bg-gradient-to-r from-sky-50/80 to-emerald-50/70 flex flex-wrap gap-2">
+      <div className="px-6 py-3 border-b border-hairline flex flex-wrap gap-2">
         <DriverTab
           label="All"
           count={driverCounts[ALL]}
@@ -419,15 +433,15 @@ export default function RecurringOrderList({
         ))}
       </div>
       {displayOrders.length === 0 ? (
-        <div className={emptyState}>
+        <div className={cn(emptyState, "m-4")}>
           {isSearching
-            ? <>No recurring profiles match <span className="italic text-[#1e3a8a]">&ldquo;{searchQuery.trim()}&rdquo;</span>.</>
+            ? <>No recurring profiles match <span className="italic text-navy">&ldquo;{searchQuery.trim()}&rdquo;</span>.</>
             : orders.length === 0
-              ? <>No recurring orders <span className="italic text-[#1e3a8a]">configured</span>.</>
-              : <>No recurring orders for this <span className="italic text-[#1e3a8a]">driver</span>.</>}
+              ? <>No recurring orders <span className="italic text-navy">configured</span>.</>
+              : <>No recurring orders for this <span className="italic text-navy">driver</span>.</>}
         </div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-hairline">
           {groupedOrders.map(([group, groupOrders]) => {
             const isExpanded = isSearching || expandedGroups.has(group);
             const groupId = `recurring-group-${group
@@ -441,35 +455,35 @@ export default function RecurringOrderList({
                   aria-controls={groupId}
                   aria-expanded={isExpanded}
                   onClick={() => toggleGroup(group)}
-                  className="flex w-full items-center justify-between bg-gradient-to-r from-sky-50/70 to-emerald-50/50 px-6 py-3 text-left transition hover:from-sky-50 hover:to-emerald-50"
+                  className="row-hover flex w-full items-center justify-between px-6 py-3 text-left"
                 >
                   <span className="flex items-center gap-2">
                     <span
-                      className={`text-sm text-[#6f8f72] transition-transform ${
+                      className={`text-sm text-navy transition-transform ${
                         isExpanded ? "rotate-90" : ""
                       }`}
                     >
                       ›
                     </span>
-                    <span className="text-sm font-bold text-[#1e3a8a]">
+                    <span className="text-sm font-bold text-navy">
                       {group}
                     </span>
                   </span>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-muted tabular-nums ring-1 ring-inset ring-hairline">
                     {groupOrders.length}
                   </span>
                 </button>
 
                 {isExpanded && (
-                  <div id={groupId} className="divide-y divide-slate-100">
+                  <div id={groupId} className="divide-y divide-hairline">
                     {groupOrders.map((order) => (
-                      <div key={order.id} className="px-6 py-4 flex flex-col gap-4 hover:bg-sky-50/40 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                      <div key={order.id} className="px-6 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="font-semibold text-[#1e3a8a]">{order.patientName}</p>
-                          <p className="text-sm text-slate-500">{order.deliveryAddress}, {order.deliveryCity}</p>
-                          <p className="text-sm text-slate-500">{order.zoneName} — ${order.zonePrice.toFixed(2)} • {scheduleText(order)}</p>
+                          <p className="font-semibold text-navy">{order.patientName}</p>
+                          <p className="text-sm text-muted">{order.deliveryAddress}, {order.deliveryCity}</p>
+                          <p className="text-sm text-muted">{order.zoneName} — ${order.zonePrice.toFixed(2)} • {scheduleText(order)}</p>
                           {editingDaysId === order.id ? (
-                            <div className="mt-3 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm shadow-slate-200/60">
+                            <div className="mt-3 rounded-row border border-hairline bg-white p-3 shadow-soft">
                               <div className="flex flex-wrap gap-1.5">
                                 {DAYS.map((day, index) => {
                                   const selected = draftActiveDays.includes(index);
@@ -479,27 +493,24 @@ export default function RecurringOrderList({
                                       type="button"
                                       onClick={() => toggleDraftDay(index)}
                                       disabled={loading === order.id}
-                                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition disabled:opacity-50 ${
-                                        selected
-                                          ? "bg-[#6f8f72] text-white ring-[#6f8f72]"
-                                          : "bg-sky-50 text-slate-600 ring-sky-100 hover:bg-sky-100"
-                                      }`}
+                                      className="selectable inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold active:scale-[0.97] disabled:opacity-50"
                                       aria-pressed={selected}
                                     >
+                                      <span className="select-dot" aria-hidden="true" />
                                       {day}
                                     </button>
                                   );
                                 })}
                               </div>
                               {daysError && (
-                                <p className="mt-2 text-xs font-medium text-rose-600">{daysError}</p>
+                                <p className="mt-2 text-xs font-medium text-danger">{daysError}</p>
                               )}
                               <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   onClick={() => saveActiveDays(order.id)}
                                   disabled={loading === order.id || draftActiveDays.length === 0}
-                                  className={`${primaryButton} text-xs py-1.5 disabled:cursor-not-allowed disabled:opacity-50`}
+                                  className={button("primary", "sm")}
                                 >
                                   {loading === order.id ? "Saving..." : "Save Days"}
                                 </button>
@@ -507,7 +518,7 @@ export default function RecurringOrderList({
                                   type="button"
                                   onClick={cancelEditingDays}
                                   disabled={loading === order.id}
-                                  className={`${secondaryButton} text-xs py-1.5`}
+                                  className={button("secondary", "sm")}
                                 >
                                   Cancel
                                 </button>
@@ -517,13 +528,13 @@ export default function RecurringOrderList({
                             <button
                               type="button"
                               onClick={() => startEditingDays(order)}
-                              className="mt-2 text-xs font-semibold text-[#6f8f72] hover:text-[#5f7d62]"
+                              className={cn(linkButton, "mt-2 text-xs")}
                             >
                               Edit Days
                             </button>
                           )}
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-slate-400">Driver:</span>
+                            <span className="text-xs text-muted">Driver:</span>
                             <select
                               value={
                                 zoneConfirm?.orderId === order.id
@@ -541,8 +552,8 @@ export default function RecurringOrderList({
                             </select>
                           </div>
                           {zoneConfirm?.orderId === order.id && (
-                            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                              <span className="text-xs font-semibold text-amber-800">
+                            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-row bg-butter px-3 py-2">
+                              <span className="text-xs font-semibold text-navy">
                                 Confirm the zone for{" "}
                                 {drivers.find((d) => d.id === zoneConfirm.driverId)?.name ??
                                   "the zone default driver"}
@@ -566,18 +577,18 @@ export default function RecurringOrderList({
                                 type="button"
                                 onClick={confirmZoneAndReassign}
                                 disabled={!zoneConfirm.zoneId || loading === order.id}
-                                className="text-xs font-semibold text-[#6f8f72] hover:text-[#5f7d62] disabled:opacity-50"
+                                className="text-xs font-bold text-navy underline-offset-2 hover:underline disabled:opacity-50"
                               >
                                 Confirm
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setZoneConfirm(null)}
-                                className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                                className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
                               >
                                 Cancel
                               </button>
-                              <p className="w-full text-xs text-slate-500">{zoneConfirmHint(order)}</p>
+                              <p className="w-full text-xs text-navy">{zoneConfirmHint(order)}</p>
                             </div>
                           )}
                         </div>
@@ -599,22 +610,22 @@ export default function RecurringOrderList({
                           )}
                           {order.isActive && (
                             <button onClick={() => toggleHold(order.id, order.isOnHold)} disabled={loading === order.id}
-                              className={`${secondaryButton} text-xs py-1.5`}>
+                              className={button("secondary", "sm")}>
                               {order.isOnHold ? "Remove Hold" : "Vacation Hold"}
                             </button>
                           )}
                           {order.isActive && !order.isOnHold && (
                             <button onClick={() => toggleSkip(order.id, order.isSkippedThisWeek)} disabled={loading === order.id}
-                              className={`${secondaryButton} text-xs py-1.5`}>
+                              className={button("secondary", "sm")}>
                               {order.isSkippedThisWeek ? "Unskip" : "Skip This Week"}
                             </button>
                           )}
                           <button onClick={() => toggleActive(order.id, order.isActive)} disabled={loading === order.id}
-                            className="text-xs text-slate-500 hover:text-[#1e3a8a] font-semibold disabled:opacity-50">
+                            className="text-xs text-muted hover:text-navy font-semibold disabled:opacity-50">
                             {order.isActive ? "Deactivate" : "Activate"}
                           </button>
                           <button onClick={() => deleteOrder(order.id)} disabled={loading === order.id}
-                            className="text-xs text-rose-600 hover:text-rose-800 font-semibold disabled:opacity-50">
+                            className={cn(dangerLinkButton, "text-xs")}>
                             Delete
                           </button>
                         </div>
@@ -646,13 +657,13 @@ function DriverTab({
     <button
       type="button"
       onClick={onClick}
-      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${
-        active
-          ? "bg-[#6f8f72] text-white border-[#6f8f72]"
-          : "bg-white text-slate-600 border-slate-200 hover:bg-sky-50"
-      }`}
+      aria-pressed={active}
+      className="selectable inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold active:scale-[0.97]"
     >
-      {label} <span className={active ? "opacity-80" : "text-slate-400"}>({count})</span>
+      <span className="select-dot" aria-hidden="true" />
+      <span>
+        {label} <span className="text-ink tabular-nums">({count})</span>
+      </span>
     </button>
   );
 }

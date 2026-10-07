@@ -1,8 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { card, input, label, primaryButton, secondaryButton, sectionTitle } from "@/lib/portalStyles";
+import {
+  card,
+  cn,
+  input,
+  label,
+  primaryButton,
+  secondaryButton,
+  sectionTitle,
+  totalPill,
+} from "@/lib/portalStyles";
+import { BANNER_CLASSES } from "@/lib/statusTheme";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -97,16 +107,20 @@ export default function InvoiceGenerator({
     setLoading(false);
   };
 
+  const fieldId = useId();
+
   return (
     <div className={`${card} p-6`}>
       <h2 className={`${sectionTitle} mb-4`}>Generate Invoice</h2>
       <form onSubmit={handlePreview} className="space-y-3">
-        {error && <div className="bg-rose-50 text-rose-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
+        {error && <div role="alert" className={cn("px-3 py-2 rounded-row text-sm", BANNER_CLASSES.error)}>{error}</div>}
         <div>
-          <label className={label}>
-            Driver <span className="text-rose-500">*</span>
+          <label htmlFor={`${fieldId}-driver`} className={label}>
+            Driver <span className="text-danger">*</span>
           </label>
           <select
+            id={`${fieldId}-driver`}
+            aria-describedby={`${fieldId}-driver-hint`}
             required
             value={selectedDriver}
             onChange={(e) => {
@@ -123,13 +137,14 @@ export default function InvoiceGenerator({
             ))}
             <option value={UNASSIGNED}>Unassigned</option>
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p id={`${fieldId}-driver-hint`} className="mt-1 text-xs text-muted">
             Invoice will include only this driver&rsquo;s completed deliveries.
           </p>
         </div>
         <div>
-          <label className={label}>Period Start</label>
+          <label htmlFor={`${fieldId}-start`} className={label}>Period Start</label>
           <input
+            id={`${fieldId}-start`}
             type="date"
             required
             value={periodStart}
@@ -141,8 +156,9 @@ export default function InvoiceGenerator({
           />
         </div>
         <div>
-          <label className={label}>Period End</label>
+          <label htmlFor={`${fieldId}-end`} className={label}>Period End</label>
           <input
+            id={`${fieldId}-end`}
             type="date"
             required
             value={periodEnd}
@@ -172,20 +188,20 @@ export default function InvoiceGenerator({
       </a>
 
       {preview && (
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="text-sm font-semibold text-slate-600">
-            Driver: <span className="text-[#1e3a8a]">{preview.driverName}</span>
+        <div className="mt-4 border-t border-hairline pt-4">
+          <p className="text-sm font-semibold text-ink">
+            Driver: <span className="text-navy">{preview.driverName}</span>
           </p>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted mt-1">
             {preview.orders.length} delivered/attempted order
             {preview.orders.length === 1 ? "" : "s"}
           </p>
-          <p className="text-lg font-bold text-[#1e3a8a] mt-1">
+          <p className={cn(totalPill.total, "mt-2 text-lg")}>
             Total: ${preview.total.toFixed(2)}
           </p>
           <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
             {preview.orders.map((o) => (
-              <div key={o.id} className="text-xs text-slate-500">
+              <div key={o.id} className="text-xs text-muted tabular-nums">
                 {o.date} — {o.patientName} — {o.zone} — ${o.price.toFixed(2)}
               </div>
             ))}

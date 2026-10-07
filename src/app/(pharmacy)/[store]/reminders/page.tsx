@@ -1,11 +1,9 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
+import RemindersView from "./RemindersView";
 import { resolveStore } from "@/lib/store";
 import { getVancouverDeliveryDateInfo } from "@/lib/cron";
 import { listReminders, toReminderView } from "@/lib/reminders";
-import { pageTitle, mutedText } from "@/lib/portalStyles";
-import ReminderForm from "./ReminderForm";
-import ReminderList from "./ReminderList";
 
 export default async function RemindersPage({
   params,
@@ -36,20 +34,10 @@ export default async function RemindersPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className={pageTitle}>Reminders</h1>
-        <p className={mutedText}>
-          Pop up on the day you choose, from 10 AM onward — fridge items, callbacks,
-          anything the team needs to catch before a delivery goes out.
-        </p>
-      </div>
-
-      <ReminderForm storeSlug={store.slug} profiles={profiles} />
-      <ReminderList
-        storeSlug={store.slug}
-        reminders={reminders.map((r) => toReminderView(r, dayStart))}
-      />
-    </div>
+    <RemindersView
+      storeSlug={store.slug}
+      profiles={profiles}
+      reminders={reminders.map((r) => toReminderView(r, dayStart))}
+    />
   );
 }
