@@ -5,6 +5,7 @@ import { requireStoreAdmin } from "@/lib/storeAccess";
 import {
   MAX_REMINDER_NOTE,
   getDueReminders,
+  listReminders,
   parseReminderDateKey,
   toReminderView,
 } from "@/lib/reminders";
@@ -24,19 +25,7 @@ export async function GET(
   }
 
   const { dayStart } = getVancouverDeliveryDateInfo();
-  const reminders = await prisma.reminder.findMany({
-    where: { storeId: access.store.id },
-    orderBy: [{ completedAt: "asc" }, { remindOn: "asc" }],
-    take: 200,
-    select: {
-      id: true,
-      note: true,
-      patientName: true,
-      remindOn: true,
-      repeatIntervalWeeks: true,
-      completedAt: true,
-    },
-  });
+  const reminders = await listReminders(access.store.id);
 
   return NextResponse.json({
     items: reminders.map((r) => toReminderView(r, dayStart)),

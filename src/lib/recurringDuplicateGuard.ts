@@ -68,7 +68,7 @@ export const recurringDuplicateSelect = {
   createdAt: true,
 } satisfies Prisma.RecurringOrderSelect;
 
-function normalizeText(value: string | null | undefined) {
+export function normalizeText(value: string | null | undefined) {
   return (value ?? "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
@@ -76,7 +76,7 @@ function normalizeText(value: string | null | undefined) {
     .trim();
 }
 
-function normalizeName(value: string | null | undefined) {
+export function normalizeName(value: string | null | undefined) {
   const normalized = normalizeText(value);
   if (!normalized) return "";
 
@@ -114,7 +114,7 @@ const ADDRESS_TOKEN_REPLACEMENTS: Record<string, string> = {
   circle: "circle",
 };
 
-function normalizeAddress(value: string | null | undefined) {
+export function normalizeAddress(value: string | null | undefined) {
   const normalized = normalizeText(value).replace(
     /\b(\d+)\s+([a-z])\b/g,
     "$1$2"
@@ -127,11 +127,11 @@ function normalizeAddress(value: string | null | undefined) {
     .join(" ");
 }
 
-function normalizePhone(value: string | null | undefined) {
+export function normalizePhone(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
 
-function normalizePostalCode(value: string | null | undefined) {
+export function normalizePostalCode(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/\s+/g, "").trim();
 }
 

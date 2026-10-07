@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { resolveStore } from "@/lib/store";
 import { getVancouverDeliveryDateInfo } from "@/lib/cron";
-import { toReminderView } from "@/lib/reminders";
+import { listReminders, toReminderView } from "@/lib/reminders";
 import { pageTitle, mutedText } from "@/lib/portalStyles";
 import ReminderForm from "./ReminderForm";
 import ReminderList from "./ReminderList";
@@ -19,19 +19,7 @@ export default async function RemindersPage({
   const { dayStart } = getVancouverDeliveryDateInfo();
 
   const [reminders, profiles] = await Promise.all([
-    prisma.reminder.findMany({
-      where: { storeId: store.id },
-      orderBy: [{ completedAt: "asc" }, { remindOn: "asc" }],
-      take: 200,
-      select: {
-        id: true,
-        note: true,
-        patientName: true,
-        remindOn: true,
-        repeatIntervalWeeks: true,
-        completedAt: true,
-      },
-    }),
+    listReminders(store.id),
     // The patient picker searches the recurring list, so names match the
     // profiles exactly. Small enough (under a few hundred) to filter in the
     // browser without a search round-trip per keystroke.

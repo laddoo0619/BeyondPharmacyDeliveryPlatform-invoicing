@@ -82,3 +82,36 @@ export async function getDueReminders(storeId: string, now = new Date()) {
     outstanding: reminders.length,
   };
 }
+
+export const RECENTLY_COMPLETED_LIMIT = 25;
+
+const reminderListSelect = {
+  id: true,
+  note: true,
+  patientName: true,
+  remindOn: true,
+  repeatIntervalWeeks: true,
+  completedAt: true,
+} as const;
+
+// Two queries on purpose. A single list sorted on completedAt put open
+// reminders (completedAt NULL) LAST — Postgres sorts NULLs last ascending — so
+// a row cap would eventually cut upcoming reminders off the page, and the
+// "recently completed" slice showed the oldest completions instead of the
+// newest. Open reminders are never capped; completed ones are newest-first.
+export async function listReminders(storeId: string) {
+  const [open, recentlyCompleted] = await Promise.all([
+    prisma.reminder.findMany({
+      where: { storeId, completedAt: null },
+      orderBy: [{ remindOn: "asc" }, { patientName: "asc" }],
+      select: reminderListSelect,
+    }),
+    prisma.reminder.findMany({
+      where: { storeId, completedAt: { not: null } },
+      orderBy: { completedAt: "desc" },
+      take: RECENTLY_COMPLETED_LIMIT,
+      select: reminderListSelect,
+    }),
+  ]);
+  return [...open, ...recentlyCompleted];
+}
