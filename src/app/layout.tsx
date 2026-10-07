@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Providers from "@/components/Providers";
-import { dmSans, dmSerif } from "./fonts";
+import { dmSans } from "./fonts";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${dmSerif.variable}`}>
+    <html lang="en" className={dmSans.variable}>
       <body className="antialiased">
         <Providers>{children}</Providers>
       </body>

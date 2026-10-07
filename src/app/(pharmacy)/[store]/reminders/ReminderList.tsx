@@ -142,7 +142,7 @@ export default function ReminderList({
         </div>
         {open.length === 0 ? (
           <div className={cn(emptyState, "m-4")}>
-            No <span className="italic text-navy">reminders</span> scheduled
+            No <span className="text-navy">reminders</span> scheduled
           </div>
         ) : (
           <div className="divide-y divide-hairline">{open.map(row)}</div>

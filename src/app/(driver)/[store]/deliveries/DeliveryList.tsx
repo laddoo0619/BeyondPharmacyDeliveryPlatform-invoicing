@@ -182,7 +182,7 @@ export default function DeliveryList({
 
       {filtered.length === 0 ? (
         <div className={emptyState}>
-          {search ? "No matching deliveries found." : <>No orders <span className="italic text-navy">scheduled</span> for this date.</>}
+          {search ? "No matching deliveries found." : <>No orders <span className="text-navy">scheduled</span> for this date.</>}
         </div>
       ) : (
         <>
@@ -195,7 +195,7 @@ export default function DeliveryList({
 
           {active.length === 0 && delivered.length > 0 && !search && (
             <div className={`${emptyState} mb-4`}>
-              All deliveries <span className="italic text-navy">completed</span>!
+              All deliveries <span className="text-navy">completed</span>!
             </div>
           )}
 

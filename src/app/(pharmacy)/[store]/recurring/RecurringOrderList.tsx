@@ -435,10 +435,10 @@ export default function RecurringOrderList({
       {displayOrders.length === 0 ? (
         <div className={cn(emptyState, "m-4")}>
           {isSearching
-            ? <>No recurring profiles match <span className="italic text-navy">&ldquo;{searchQuery.trim()}&rdquo;</span>.</>
+            ? <>No recurring profiles match <span className="text-navy">&ldquo;{searchQuery.trim()}&rdquo;</span>.</>
             : orders.length === 0
-              ? <>No recurring orders <span className="italic text-navy">configured</span>.</>
-              : <>No recurring orders for this <span className="italic text-navy">driver</span>.</>}
+              ? <>No recurring orders <span className="text-navy">configured</span>.</>
+              : <>No recurring orders for this <span className="text-navy">driver</span>.</>}
         </div>
       ) : (
         <div className="divide-y divide-hairline">

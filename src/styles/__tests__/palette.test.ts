@@ -30,6 +30,8 @@ const RULES: Array<[string, RegExp]> = [
   ["arbitrary shadow", /\bshadow-\[/],
   ["hex colour", /(?<!&)#[0-9a-fA-F]{3,8}\b/],
   ["rgb()/rgba() colour", /\brgba?\(/],
+  // The pharmacy asked for no italic text anywhere.
+  ["italic text", /\bitalic\b|font-style:\s*italic|className="accent"|<(?:em|i)[\s>]/],
   [
     "one-off type, stroke or motion value (use the theme tokens)",
     /\b(?:duration|text|tracking|leading|scale|backdrop-blur|backdrop-saturate|rounded)-\[|\bborder-\[\d/,

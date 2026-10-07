@@ -26,7 +26,7 @@ export default function RecurringView({
     <div>
       <PageHeader className="mb-8">
         <h1 className={pageTitle}>
-          Recurring Deliveries, <span className="accent">simplified</span>
+          Recurring Deliveries, simplified
         </h1>
       </PageHeader>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

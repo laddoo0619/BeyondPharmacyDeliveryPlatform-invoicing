@@ -38,7 +38,7 @@ export default function EarningsView({
     <div>
       <PageHeader className="mb-4">
         <h1 className={pageTitle}>
-          My Earnings, <span className="accent">tracked</span>
+          My Earnings, tracked
         </h1>
       </PageHeader>
 
@@ -91,7 +91,7 @@ export default function EarningsView({
       {/* Deliveries List */}
       {deliveries.length === 0 ? (
         <div className={`${emptyState} mt-4`}>
-          No completed deliveries in this <span className="italic text-navy">period</span>.
+          No completed deliveries in this <span className="text-navy">period</span>.
         </div>
       ) : (
         <div data-reveal="" className="space-y-2 mt-4">

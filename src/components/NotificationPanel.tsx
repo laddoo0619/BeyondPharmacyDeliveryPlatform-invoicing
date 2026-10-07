@@ -62,7 +62,7 @@ export default function NotificationPanel({ storeSlug }: { storeSlug: string }) 
       </div>
       {notifications.length === 0 ? (
         <div className={cn(emptyState, "m-4")}>
-          No <span className="italic text-navy">notifications</span>
+          No <span className="text-navy">notifications</span>
         </div>
       ) : (
         <div className="divide-y divide-hairline max-h-96 overflow-y-auto">
