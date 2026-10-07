@@ -52,6 +52,19 @@ export function defaultDeliveryDateKey(now: Date = new Date()) {
   return isAfterNextDayCutoff(now) ? addDaysToDateKey(today, 1) : today;
 }
 
+export interface DeliveryDateDefault {
+  dateKey: string;
+  // True when the noon rule moved the default to tomorrow.
+  nextDay: boolean;
+}
+
+// Worked out once on the server and handed to the form, so the server render
+// and the browser always agree (a browser clock can be skewed, and a render
+// straddling noon would otherwise disagree with its hydration).
+export function deliveryDateDefault(now: Date = new Date()): DeliveryDateDefault {
+  return { dateKey: defaultDeliveryDateKey(now), nextDay: isAfterNextDayCutoff(now) };
+}
+
 /** "today", "tomorrow" or "on Thu, Oct 8" — for messages about a delivery day. */
 export function describeDeliveryDay(dateKey: string, now: Date = new Date()) {
   const today = vancouverTodayKey(now);
@@ -62,6 +75,34 @@ export function describeDeliveryDay(dateKey: string, now: Date = new Date()) {
     weekday: "short",
     month: "short",
     day: "numeric",
+    // Only spell out the year when it isn't this one.
+    ...(dateKey.slice(0, 4) !== today.slice(0, 4) && { year: "numeric" }),
   });
   return `on ${label}`;
+}
+
+function isDateKey(value: string | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  // Rejects impossible dates like 2026-02-30 rather than rolling them over.
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * The day a delivery list shows: `?date=YYYY-MM-DD` when valid, else
+ * Vancouver's today. Bounds are UTC midnights, which is how scheduledDate is
+ * stored — server-local midnight (UTC on Vercel) would flip "today" to
+ * tomorrow at ~5 PM Pacific.
+ */
+export function deliveryDayRange(dateParam: string | undefined, now: Date = new Date()) {
+  const todayKey = vancouverTodayKey(now);
+  const selectedKey = isDateKey(dateParam) ? dateParam : todayKey;
+  return {
+    todayKey,
+    selectedKey,
+    isToday: selectedKey === todayKey,
+    todayStart: new Date(`${todayKey}T00:00:00.000Z`),
+    dayStart: new Date(`${selectedKey}T00:00:00.000Z`),
+    nextDayStart: new Date(`${addDaysToDateKey(selectedKey, 1)}T00:00:00.000Z`),
+  };
 }

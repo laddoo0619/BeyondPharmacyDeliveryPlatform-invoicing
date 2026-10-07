@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolveStore } from "@/lib/store";
 import { notFound } from "next/navigation";
+import { deliveryDayRange } from "@/lib/vancouverDate";
 import DeliveriesView from "./DeliveriesView";
 
 export default async function DeliveriesPage({
@@ -20,24 +21,16 @@ export default async function DeliveriesPage({
 
   const sp = await searchParams;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let selectedDate: Date;
-  if (sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date)) {
-    const parsed = new Date(sp.date + "T00:00:00");
-    selectedDate = isNaN(parsed.getTime()) ? new Date(today) : parsed;
-  } else {
-    selectedDate = new Date(today);
-  }
-  selectedDate.setHours(0, 0, 0, 0);
-
-  const nextDay = new Date(selectedDate);
-  nextDay.setDate(nextDay.getDate() + 1);
-
-  const isToday = selectedDate.getTime() === today.getTime();
-
-  const currentDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+  // Vancouver's day, with UTC-midnight bounds like the stored scheduledDate.
+  // (Server-local midnight — UTC on Vercel — rolled "today" over to tomorrow
+  // at ~5 PM Pacific, showing next-day orders as today's.)
+  const {
+    selectedKey: currentDateStr,
+    isToday,
+    todayStart: today,
+    dayStart: selectedDate,
+    nextDayStart: nextDay,
+  } = deliveryDayRange(sp.date);
 
   // Fetch deliveries for selected date + any FAILED orders from previous days (only when viewing today)
   const [dateDeliveries, failedFromPreviousDays] = await Promise.all([
@@ -81,6 +74,7 @@ export default async function DeliveriesPage({
       currentDateStr={currentDateStr}
       isToday={isToday}
       selectedDateLabel={selectedDate.toLocaleDateString("en-US", {
+        timeZone: "UTC",
         weekday: "short",
         month: "short",
         day: "numeric",

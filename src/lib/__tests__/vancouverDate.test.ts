@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   addDaysToDateKey,
   defaultDeliveryDateKey,
+  deliveryDateDefault,
+  deliveryDayRange,
   describeDeliveryDay,
   vancouverTodayKey,
 } from "@/lib/vancouverDate";
@@ -83,5 +85,49 @@ describe("describeDeliveryDay", () => {
   it("names any other day without shifting it a day", () => {
     expect(describeDeliveryDay("2026-10-12", now)).toBe("on Mon, Oct 12");
     expect(describeDeliveryDay("2026-10-06", now)).toBe("on Tue, Oct 6");
+  });
+});
+
+describe("deliveryDateDefault (handed from the server to the order form)", () => {
+  it("flags when the noon rule moved the date", () => {
+    expect(deliveryDateDefault(new Date("2026-10-07T18:00:00Z"))).toEqual({ dateKey: "2026-10-07", nextDay: false });
+    expect(deliveryDateDefault(new Date("2026-10-07T19:00:00Z"))).toEqual({ dateKey: "2026-10-08", nextDay: true });
+  });
+});
+
+describe("describeDeliveryDay across a year end", () => {
+  it("adds the year only when it differs", () => {
+    const newYearsEve = new Date("2026-12-31T20:00:00Z"); // Dec 31, 12 PM PST
+    expect(describeDeliveryDay("2027-01-01", newYearsEve)).toBe("tomorrow");
+    expect(describeDeliveryDay("2027-01-04", newYearsEve)).toBe("on Mon, Jan 4, 2027");
+    expect(describeDeliveryDay("2026-12-28", newYearsEve)).toBe("on Mon, Dec 28");
+  });
+});
+
+describe("deliveryDayRange (driver delivery list)", () => {
+  // 8 PM PDT on Oct 6 — already Oct 7 in UTC, where the server runs.
+  const evening = new Date("2026-10-07T03:00:00Z");
+
+  it("keeps Vancouver's today in the evening", () => {
+    const range = deliveryDayRange(undefined, evening);
+    expect(range.selectedKey).toBe("2026-10-06");
+    expect(range.isToday).toBe(true);
+    expect(range.dayStart.toISOString()).toBe("2026-10-06T00:00:00.000Z");
+    expect(range.nextDayStart.toISOString()).toBe("2026-10-07T00:00:00.000Z");
+    expect(range.todayStart.toISOString()).toBe("2026-10-06T00:00:00.000Z");
+  });
+
+  it("shows a requested day, which isn't today", () => {
+    const range = deliveryDayRange("2026-10-07", evening);
+    expect(range.selectedKey).toBe("2026-10-07");
+    expect(range.isToday).toBe(false);
+    expect(range.dayStart.toISOString()).toBe("2026-10-07T00:00:00.000Z");
+    expect(range.nextDayStart.toISOString()).toBe("2026-10-08T00:00:00.000Z");
+  });
+
+  it("falls back to today for malformed or impossible dates", () => {
+    for (const bad of ["2026-02-30", "2026-13-01", "tomorrow", "2026-1-5", ""]) {
+      expect(deliveryDayRange(bad, evening).selectedKey).toBe("2026-10-06");
+    }
   });
 });

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import NewOrderView from "./NewOrderView";
 import { isSelectedSpokeProvider } from "@/lib/spokeDispatch";
 import { getZoneSuggestionData } from "@/lib/zoneHistory";
+import { deliveryDateDefault } from "@/lib/vancouverDate";
 
 export default async function NewOrderPage({
   params,
@@ -46,6 +47,8 @@ export default async function NewOrderPage({
       }))}
       zoneHistory={history}
       fallbackZoneId={fallbackZoneId}
+      // Today before 12 PM Vancouver time, tomorrow from noon.
+      dateDefault={deliveryDateDefault()}
     />
   );
 }
