@@ -4,7 +4,9 @@ import {
   describeZoneSuggestion,
   normalizeCityKey,
   pickFallbackZoneId,
+  resolveZoneSelection,
   suggestZone,
+  zoneHint,
 } from "@/lib/zoneSuggestion";
 
 // Mirrors the Surrey store's real zones, including the trailing spaces some
@@ -137,5 +139,94 @@ describe("describeZoneSuggestion", () => {
     expect(
       describeZoneSuggestion({ zoneId: "z_whiterock", source: "name", count: 0 }, "White Rock", "White rock")
     ).toBe("Matched to the White rock zone by city — check before saving");
+  });
+});
+
+describe("resolveZoneSelection", () => {
+  const suggestion = { zoneId: "z_surrey", source: "history" as const, count: 52 };
+  const base = { suggestion, fallbackZoneId: "z_langley" };
+
+  it("pre-fills an in-house delivery from the suggestion and shows the select", () => {
+    expect(resolveZoneSelection({ ...base, isExternalDriver: false, manualZoneId: null })).toEqual({
+      selectedZoneId: "z_surrey",
+      showZoneSelect: true,
+    });
+  });
+
+  it("never uses the fallback zone for an invoiced (in-house) delivery", () => {
+    expect(
+      resolveZoneSelection({ ...base, suggestion: null, isExternalDriver: false, manualZoneId: null })
+    ).toEqual({ selectedZoneId: "", showZoneSelect: true });
+  });
+
+  it("keeps a hand-picked zone, even when the address suggests another", () => {
+    expect(
+      resolveZoneSelection({ ...base, isExternalDriver: false, manualZoneId: "z_daily" }).selectedZoneId
+    ).toBe("z_daily");
+  });
+
+  it("respects staff clearing the zone for an in-house delivery", () => {
+    expect(
+      resolveZoneSelection({ ...base, isExternalDriver: false, manualZoneId: "" }).selectedZoneId
+    ).toBe("");
+  });
+
+  it("hides the select for Anchor and assigns the suggestion, else the fallback", () => {
+    expect(resolveZoneSelection({ ...base, isExternalDriver: true, manualZoneId: null })).toEqual({
+      selectedZoneId: "z_surrey",
+      showZoneSelect: false,
+    });
+    expect(
+      resolveZoneSelection({ ...base, suggestion: null, isExternalDriver: true, manualZoneId: null })
+    ).toEqual({ selectedZoneId: "z_langley", showZoneSelect: false });
+  });
+
+  it("never blocks Anchor: a cleared zone still resolves, and the select reappears only if nothing does", () => {
+    expect(
+      resolveZoneSelection({ ...base, isExternalDriver: true, manualZoneId: "" }).selectedZoneId
+    ).toBe("z_surrey");
+    expect(
+      resolveZoneSelection({ suggestion: null, fallbackZoneId: null, isExternalDriver: true, manualZoneId: null })
+    ).toEqual({ selectedZoneId: "", showZoneSelect: true });
+  });
+});
+
+describe("zoneHint", () => {
+  const suggestion = { zoneId: "z_langley", source: "history" as const, count: 6 };
+  const hint = (overrides: Partial<Parameters<typeof zoneHint>[0]>) =>
+    zoneHint({
+      isExternalDriver: false,
+      manualZoneId: null,
+      suggestion,
+      city: "Langley Township",
+      zones,
+      ...overrides,
+    });
+
+  it("explains a pre-filled zone", () => {
+    expect(hint({})).toBe("Suggested from 6 past deliveries to Langley Township — check before saving");
+  });
+
+  it("flags a hand-picked zone that differs from how the city is usually priced", () => {
+    expect(hint({ manualZoneId: "z_aldergrove" })).toBe(
+      "Past deliveries to Langley Township used the Langley zone — check this is right"
+    );
+  });
+
+  it("flags a hand-picked zone that differs from a name match", () => {
+    expect(
+      hint({
+        manualZoneId: "z_surrey",
+        city: "Richmond",
+        suggestion: { zoneId: "z_richmond", source: "name", count: 0 },
+      })
+    ).toBe("The Richmond zone matches Richmond — check this is right");
+  });
+
+  it("says nothing when the pick agrees, the zone was cleared, there is no suggestion, or it is Anchor", () => {
+    expect(hint({ manualZoneId: "z_langley" })).toBeNull();
+    expect(hint({ manualZoneId: "" })).toBeNull();
+    expect(hint({ suggestion: null })).toBeNull();
+    expect(hint({ isExternalDriver: true })).toBeNull();
   });
 });

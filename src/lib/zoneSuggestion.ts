@@ -38,7 +38,7 @@ export interface ZoneSuggestion {
 export function normalizeCityKey(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "");
 }
@@ -137,4 +137,70 @@ export function describeZoneSuggestion(
   return suggestion.source === "history"
     ? `Suggested from ${suggestion.count} past deliver${suggestion.count === 1 ? "y" : "ies"} to ${place} — check before saving`
     : `Matched to the ${zoneName.trim()} zone by city — check before saving`;
+}
+
+export interface ZoneSelection {
+  // The zone the form submits (and, for in-house drivers, shows).
+  selectedZoneId: string;
+  // False only for Anchor when a zone could be worked out — Anchor prices are
+  // never invoiced, so staff don't need to see or confirm the zone.
+  showZoneSelect: boolean;
+}
+
+/**
+ * Which zone a delivery form uses.
+ * - manualZoneId: null = follow the suggestion; "" = staff cleared it; an id =
+ *   staff picked it. A manual pick is never overwritten.
+ * - Anchor: manual pick, else suggestion, else the store's fallback zone.
+ * - In-house: manual pick (even ""), else suggestion, else "" (staff choose) —
+ *   the fallback is never used for an invoiced delivery.
+ */
+export function resolveZoneSelection(input: {
+  isExternalDriver: boolean;
+  manualZoneId: string | null;
+  suggestion: ZoneSuggestion | null;
+  fallbackZoneId: string | null;
+}): ZoneSelection {
+  const anchorZoneId =
+    input.manualZoneId || input.suggestion?.zoneId || input.fallbackZoneId || "";
+
+  if (input.isExternalDriver) {
+    // Shown only if nothing could be worked out, so a delivery can never be
+    // blocked by a required field staff can't see.
+    return { selectedZoneId: anchorZoneId, showZoneSelect: !anchorZoneId };
+  }
+
+  return {
+    selectedZoneId:
+      input.manualZoneId !== null ? input.manualZoneId : (input.suggestion?.zoneId ?? ""),
+    showZoneSelect: true,
+  };
+}
+
+/**
+ * The note under an in-house zone select: where a pre-filled zone came from,
+ * or — when staff picked a zone by hand that differs from how this city is
+ * usually priced — what the address suggests, so a stale pick gets noticed.
+ */
+export function zoneHint(input: {
+  isExternalDriver: boolean;
+  manualZoneId: string | null;
+  suggestion: ZoneSuggestion | null;
+  city: string;
+  zones: SuggestableZone[];
+}) {
+  if (input.isExternalDriver || !input.suggestion) return null;
+  const suggested = input.zones.find((zone) => zone.id === input.suggestion!.zoneId);
+  if (!suggested) return null;
+
+  if (input.manualZoneId === null) {
+    return describeZoneSuggestion(input.suggestion, input.city, suggested.name);
+  }
+  if (input.manualZoneId && input.manualZoneId !== input.suggestion.zoneId) {
+    const place = input.city.trim();
+    return input.suggestion.source === "history"
+      ? `Past deliveries to ${place} used the ${suggested.name.trim()} zone — check this is right`
+      : `The ${suggested.name.trim()} zone matches ${place} — check this is right`;
+  }
+  return null;
 }

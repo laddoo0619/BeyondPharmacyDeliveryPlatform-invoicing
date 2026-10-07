@@ -17,8 +17,9 @@ import {
 import { EMPTY_ADDRESS, addressFromPatient } from "@/lib/addressForm";
 import { vancouverTodayKey } from "@/lib/vancouverDate";
 import {
-  describeZoneSuggestion,
+  resolveZoneSelection,
   suggestZone,
+  zoneHint as buildZoneHint,
   type ZoneHistory,
 } from "@/lib/zoneSuggestion";
 
@@ -60,7 +61,7 @@ export default function NewOrderForm({
   const [preferredAddressId, setPreferredAddressId] = useState<string | null>(null);
   const [editingSavedAddress, setEditingSavedAddress] = useState(false);
   // null = follow the suggestion from the address; a string = staff picked
-  // a zone by hand, which is never overwritten.
+  // a zone by hand, which is never overwritten — not even by a new patient.
   const [manualZoneId, setManualZoneId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -79,24 +80,24 @@ export default function NewOrderForm({
   // Anchor: the zone is assigned automatically (its price is never invoiced).
   // In-house (Derek): pre-filled from the address, but staff confirm it —
   // it sets the price on his invoice.
-  const anchorZoneId = manualZoneId || zoneSuggestion?.zoneId || fallbackZoneId || "";
-  const selectedZoneId = isExternalDriver
-    ? anchorZoneId
-    : manualZoneId !== null
-      ? manualZoneId
-      : (zoneSuggestion?.zoneId ?? "");
-  // Shown for Anchor only if no zone could be worked out at all, so a
-  // delivery can never be blocked by a field staff can't see.
-  const showZoneSelect = !isExternalDriver || !anchorZoneId;
+  const { selectedZoneId, showZoneSelect } = resolveZoneSelection({
+    isExternalDriver,
+    manualZoneId,
+    suggestion: zoneSuggestion,
+    fallbackZoneId,
+  });
 
   const selectedZone = useMemo(
     () => zones.find((z) => z.id === selectedZoneId) ?? null,
     [zones, selectedZoneId]
   );
-  const zoneHint =
-    !isExternalDriver && manualZoneId === null && zoneSuggestion && selectedZone
-      ? describeZoneSuggestion(zoneSuggestion, address.city, selectedZone.name)
-      : null;
+  const zoneHint = buildZoneHint({
+    isExternalDriver,
+    manualZoneId,
+    suggestion: zoneSuggestion,
+    city: address.city,
+    zones,
+  });
 
   const zoneDefaultDriverId = selectedZone?.defaultDriverId ?? null;
 
@@ -112,8 +113,6 @@ export default function NewOrderForm({
 
   const handleSelectPatient = useCallback((p: Patient) => {
     setSelectedPatient(p);
-    // A new patient means a new address: follow its suggestion again.
-    setManualZoneId(null);
     setPatientPhone(p.phone ?? "");
     setAddress(addressFromPatient(p));
     setSaveAddress(false);
@@ -123,7 +122,6 @@ export default function NewOrderForm({
 
   const handleClearPatient = useCallback(() => {
     setSelectedPatient(null);
-    setManualZoneId(null);
     setPatientNameFreeText("");
     setPatientPhone("");
     setAddress(EMPTY_ADDRESS);

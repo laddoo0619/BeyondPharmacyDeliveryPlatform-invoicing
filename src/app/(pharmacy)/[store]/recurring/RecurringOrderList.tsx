@@ -11,7 +11,11 @@ import {
   sectionTitle,
   statusBadgeClasses,
 } from "@/lib/portalStyles";
-import { suggestZone, type ZoneHistory } from "@/lib/zoneSuggestion";
+import {
+  describeZoneSuggestion,
+  suggestZone,
+  type ZoneHistory,
+} from "@/lib/zoneSuggestion";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -217,7 +221,13 @@ export default function RecurringOrderList({
     !!driverId && !!drivers.find((d) => d.id === driverId)?.isExternal;
 
   const reassignDriver = async (order: RecurringOrderItem, assignedDriverId: string | null) => {
+    const pending = zoneConfirm?.orderId === order.id ? zoneConfirm : null;
     if (isExternalDriver(order.assignedDriverId) && !isExternalDriver(assignedDriverId)) {
+      if (pending) {
+        // Changing the target driver keeps the zone staff may have adjusted.
+        setZoneConfirm({ ...pending, driverId: assignedDriverId });
+        return;
+      }
       const suggestion = suggestZone({
         city: order.deliveryCity,
         zones,
@@ -233,7 +243,17 @@ export default function RecurringOrderList({
       return;
     }
     setZoneConfirm(null);
+    // Picking the current driver again just closes a pending confirmation.
+    if (assignedDriverId === order.assignedDriverId) return;
     await patchRecurring(order.id, { assignedDriverId });
+  };
+
+  const zoneConfirmHint = (order: RecurringOrderItem) => {
+    const suggestion = suggestZone({ city: order.deliveryCity, zones, history: zoneHistory });
+    const zone = suggestion && zones.find((z) => z.id === suggestion.zoneId);
+    return suggestion && zone
+      ? describeZoneSuggestion(suggestion, order.deliveryCity, zone.name)
+      : `No past deliveries to ${order.deliveryCity} — choose the zone`;
   };
 
   const confirmZoneAndReassign = async () => {
@@ -505,7 +525,11 @@ export default function RecurringOrderList({
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-slate-400">Driver:</span>
                             <select
-                              value={order.assignedDriverId || ""}
+                              value={
+                                zoneConfirm?.orderId === order.id
+                                  ? (zoneConfirm.driverId ?? "")
+                                  : order.assignedDriverId || ""
+                              }
                               onChange={(e) => reassignDriver(order, e.target.value || null)}
                               disabled={loading === order.id}
                               className={`${input} text-xs py-1`}
@@ -553,6 +577,7 @@ export default function RecurringOrderList({
                               >
                                 Cancel
                               </button>
+                              <p className="w-full text-xs text-slate-500">{zoneConfirmHint(order)}</p>
                             </div>
                           )}
                         </div>
