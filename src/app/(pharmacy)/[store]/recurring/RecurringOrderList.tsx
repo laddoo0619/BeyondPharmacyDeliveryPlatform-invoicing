@@ -11,6 +11,7 @@ import {
   sectionTitle,
   statusBadgeClasses,
 } from "@/lib/portalStyles";
+import { suggestZone, type ZoneHistory } from "@/lib/zoneSuggestion";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -20,6 +21,13 @@ const UNASSIGNED = "__unassigned__";
 interface Driver {
   id: string;
   name: string;
+  isExternal?: boolean;
+}
+
+interface ZoneOption {
+  id: string;
+  name: string;
+  price: number;
 }
 
 interface RecurringOrderItem {
@@ -27,6 +35,7 @@ interface RecurringOrderItem {
   patientName: string;
   deliveryAddress: string;
   deliveryCity: string;
+  deliveryZoneId: string;
   zoneName: string;
   zonePrice: number;
   activeDays: number[];
@@ -56,10 +65,14 @@ export default function RecurringOrderList({
   orders,
   drivers,
   storeSlug,
+  zones,
+  zoneHistory,
 }: {
   orders: RecurringOrderItem[];
   drivers: Driver[];
   storeSlug: string;
+  zones: ZoneOption[];
+  zoneHistory: ZoneHistory;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -71,6 +84,13 @@ export default function RecurringOrderList({
   const [editingDaysId, setEditingDaysId] = useState<string | null>(null);
   const [draftActiveDays, setDraftActiveDays] = useState<number[]>([]);
   const [daysError, setDaysError] = useState("");
+  // Moving a profile from Anchor to an in-house driver: staff confirm the zone
+  // first, because from then on it sets the price on that driver's invoice.
+  const [zoneConfirm, setZoneConfirm] = useState<{
+    orderId: string;
+    driverId: string | null;
+    zoneId: string;
+  } | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     () => new Set()
   );
@@ -193,8 +213,34 @@ export default function RecurringOrderList({
     await patchRecurring(id, { isActive: !isActive });
   };
 
-  const reassignDriver = async (id: string, assignedDriverId: string | null) => {
-    await patchRecurring(id, { assignedDriverId });
+  const isExternalDriver = (driverId: string | null) =>
+    !!driverId && !!drivers.find((d) => d.id === driverId)?.isExternal;
+
+  const reassignDriver = async (order: RecurringOrderItem, assignedDriverId: string | null) => {
+    if (isExternalDriver(order.assignedDriverId) && !isExternalDriver(assignedDriverId)) {
+      const suggestion = suggestZone({
+        city: order.deliveryCity,
+        zones,
+        history: zoneHistory,
+      });
+      setZoneConfirm({
+        orderId: order.id,
+        driverId: assignedDriverId,
+        zoneId:
+          suggestion?.zoneId ??
+          (zones.some((z) => z.id === order.deliveryZoneId) ? order.deliveryZoneId : ""),
+      });
+      return;
+    }
+    setZoneConfirm(null);
+    await patchRecurring(order.id, { assignedDriverId });
+  };
+
+  const confirmZoneAndReassign = async () => {
+    if (!zoneConfirm?.zoneId) return;
+    const { orderId, driverId, zoneId } = zoneConfirm;
+    setZoneConfirm(null);
+    await patchRecurring(orderId, { assignedDriverId: driverId, deliveryZoneId: zoneId });
   };
 
   const startEditingDays = (order: RecurringOrderItem) => {
@@ -460,7 +506,7 @@ export default function RecurringOrderList({
                             <span className="text-xs text-slate-400">Driver:</span>
                             <select
                               value={order.assignedDriverId || ""}
-                              onChange={(e) => reassignDriver(order.id, e.target.value || null)}
+                              onChange={(e) => reassignDriver(order, e.target.value || null)}
                               disabled={loading === order.id}
                               className={`${input} text-xs py-1`}
                             >
@@ -470,6 +516,45 @@ export default function RecurringOrderList({
                               ))}
                             </select>
                           </div>
+                          {zoneConfirm?.orderId === order.id && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                              <span className="text-xs font-semibold text-amber-800">
+                                Confirm the zone for{" "}
+                                {drivers.find((d) => d.id === zoneConfirm.driverId)?.name ??
+                                  "the zone default driver"}
+                                &apos;s invoice:
+                              </span>
+                              <select
+                                value={zoneConfirm.zoneId}
+                                onChange={(e) =>
+                                  setZoneConfirm({ ...zoneConfirm, zoneId: e.target.value })
+                                }
+                                className={`${input} w-auto text-xs py-1`}
+                              >
+                                <option value="">Select zone...</option>
+                                {zones.map((z) => (
+                                  <option key={z.id} value={z.id}>
+                                    {z.name} — ${z.price.toFixed(2)}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={confirmZoneAndReassign}
+                                disabled={!zoneConfirm.zoneId || loading === order.id}
+                                className="text-xs font-semibold text-[#6f8f72] hover:text-[#5f7d62] disabled:opacity-50"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setZoneConfirm(null)}
+                                className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                           {order.isOnHold && (

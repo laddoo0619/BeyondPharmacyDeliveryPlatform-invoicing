@@ -149,6 +149,23 @@ export async function PATCH(
     updateData.assignedDriverId = assignedDriverId;
   }
 
+  // Delivery zone — sets the price on in-house invoices. Sent when a profile
+  // moves from Anchor to an in-house driver, so staff confirm the zone that
+  // driver is paid by instead of inheriting one that never affected money.
+  if ("deliveryZoneId" in body) {
+    const deliveryZoneId = normalizeOptionalId(body.deliveryZoneId);
+    const zone = deliveryZoneId
+      ? await prisma.deliveryZone.findFirst({
+          where: { id: deliveryZoneId, storeId: store.id, isActive: true },
+          select: { id: true },
+        })
+      : null;
+    if (!zone) {
+      return NextResponse.json({ error: "Invalid delivery zone" }, { status: 400 });
+    }
+    updateData.deliveryZoneId = zone.id;
+  }
+
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json(
       { error: "No valid fields to update" },
@@ -219,7 +236,8 @@ export async function PATCH(
       let effectiveDriverId = newDriverId;
       if (!effectiveDriverId) {
         const zone = await prisma.deliveryZone.findUnique({
-          where: { id: existing.deliveryZoneId },
+          // The zone sent in this same request wins over the stored one.
+          where: { id: (updateData.deliveryZoneId as string | undefined) ?? existing.deliveryZoneId },
           select: {
             defaultDriver: {
               select: { id: true, role: true, isActive: true, storeId: true },
