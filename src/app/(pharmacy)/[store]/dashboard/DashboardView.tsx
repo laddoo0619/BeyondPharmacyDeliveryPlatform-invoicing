@@ -45,7 +45,7 @@ export default function DashboardView({
     <div>
       <PageHeader className="flex items-center justify-between mb-8">
         <h1 className={pageTitle}>
-          Pharmacy <span className="accent">flow</span>
+          Pharmacy flow
         </h1>
         <Link
           href={`/${storeSlug}/orders/new`}
@@ -63,7 +63,7 @@ export default function DashboardView({
           </div>
           {deliveries.length === 0 ? (
             <div className={cn(emptyState, "m-4")}>
-              No deliveries <span className="italic text-navy">scheduled</span> for today.
+              No deliveries <span className="text-navy">scheduled</span> for today.
             </div>
           ) : (
             <div className="overflow-x-auto">

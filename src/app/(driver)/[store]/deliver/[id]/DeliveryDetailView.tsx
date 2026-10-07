@@ -28,7 +28,7 @@ export default function DeliveryDetailView({
       <PageHeader className="mb-4">
         <h1 className={pageTitle}>
           {order.status === "FAILED" ? "Re-attempt: " : "Deliver to "}
-          <span className="accent">{order.patientName}</span>
+          {order.patientName}
         </h1>
       </PageHeader>
 

@@ -52,7 +52,7 @@ export default function ZoneList({ zones, storeSlug, drivers }: { zones: Zone[];
       </div>
       {zones.length === 0 ? (
         <div className={cn(emptyState, "m-4")}>
-          No delivery zones <span className="italic text-navy">configured</span> yet.
+          No delivery zones <span className="text-navy">configured</span> yet.
         </div>
       ) : (
         <div className="overflow-x-auto">

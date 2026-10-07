@@ -69,7 +69,12 @@ export default function NewOrderForm({
   // null = follow the suggestion from the address; a string = staff picked
   // a zone by hand, which is never overwritten — not even by a new patient.
   const [manualZoneId, setManualZoneId] = useState<string | null>(null);
-  const [selectedDriverId, setSelectedDriverId] = useState("");
+  // Anchor (the Spoke courier) is preselected; staff can switch to another
+  // driver before creating the order. Stores without one start empty.
+  const [preselectedDriverId] = useState(() => drivers.find((d) => d.isExternal)?.id ?? "");
+  const [selectedDriverId, setSelectedDriverId] = useState(preselectedDriverId);
+  // Cleared as soon as the driver changes for any reason (staff or zone).
+  const [driverIsPreselected, setDriverIsPreselected] = useState(preselectedDriverId !== "");
   const [instructions, setInstructions] = useState("");
   const fieldId = useId();
   const [scheduledDate, setScheduledDate] = useState(dateDefault.dateKey);
@@ -112,6 +117,7 @@ export default function NewOrderForm({
       setManualZoneId(id);
       const zone = zones.find((z) => z.id === id);
       setSelectedDriverId(zone?.defaultDriverId ?? "");
+      setDriverIsPreselected(false);
     },
     [zones]
   );
@@ -155,6 +161,7 @@ export default function NewOrderForm({
 
   const handleDriverChange = useCallback((id: string) => {
     setSelectedDriverId(id);
+    setDriverIsPreselected(false);
   }, []);
 
   const buildInput = (allowDuplicate: boolean) => ({
@@ -302,7 +309,14 @@ export default function NewOrderForm({
         value={selectedDriverId}
         onChange={handleDriverChange}
         autoFilledFromZone={
-          !!zoneDefaultDriverId && selectedDriverId === zoneDefaultDriverId
+          !driverIsPreselected &&
+          !!zoneDefaultDriverId &&
+          selectedDriverId === zoneDefaultDriverId
+        }
+        note={
+          driverIsPreselected
+            ? `${drivers.find((d) => d.id === preselectedDriverId)?.name ?? "Anchor"} is selected by default — pick another driver if needed.`
+            : undefined
         }
         required
       />

@@ -76,7 +76,7 @@ export default function OrdersView({
       {poll && <OrdersPoller />}
       <PageHeader className="flex items-center justify-between mb-8">
         <h1 className={pageTitle}>
-          Orders, <span className="accent">organized</span>
+          Orders, organized
         </h1>
         <Link
           href={`/${storeSlug}/orders/new`}
@@ -131,7 +131,7 @@ export default function OrdersView({
       {/* Grouped Orders */}
       {orderCount === 0 ? (
         <div className={emptyState}>
-          {search ? `No orders found for "${search}".` : <>No orders <span className="italic text-navy">found</span>.</>}
+          {search ? `No orders found for "${search}".` : <>No orders <span className="text-navy">found</span>.</>}
         </div>
       ) : (
         <OrdersList

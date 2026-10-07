@@ -92,7 +92,7 @@ export default function StyleGuide() {
           <PageHeader>
             <span className={cn(eyebrow, "drop-in mb-4")}>Design system</span>
             <h1 className={pageTitle}>
-              Style <span className="accent">guide</span>
+              Style guide
             </h1>
             <p className={cn(mutedText, "drop-in drop-in--2 mt-2")}>Shared primitives with fixture content.</p>
           </PageHeader>
@@ -249,7 +249,7 @@ export default function StyleGuide() {
                 <p className={mutedText}>Hover to lift.</p>
               </div>
               <div className={emptyState}>
-                No <span className="italic text-navy">reminders</span> scheduled
+                No <span className="text-navy">reminders</span> scheduled
               </div>
               <div className={`${panel} p-6`}>
                 <h3 className={sectionTitle}>Cream panel</h3>
@@ -271,7 +271,7 @@ export default function StyleGuide() {
               <div className="relative space-y-4">
                 <p className="text-label font-bold uppercase tracking-label">Dark feature card</p>
                 <h3 className="text-h2 font-extrabold leading-h2 tracking-h2">
-                  Deliveries, <span className="accent">sorted</span>
+                  Deliveries, sorted
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {["Surrey", "Delta", "Langley"].map((chip) => (

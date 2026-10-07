@@ -52,7 +52,7 @@ export default function InvoiceList({
       </div>
       {invoices.length === 0 ? (
         <div className={cn(emptyState, "m-4")}>
-          No invoices <span className="italic text-navy">generated</span> yet.
+          No invoices <span className="text-navy">generated</span> yet.
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -73,7 +73,7 @@ export default function InvoiceList({
                 <tr key={inv.id} className={tableRow}>
                 <td className="px-6 py-4 text-sm font-semibold text-navy">{inv.invoiceNumber}</td>
                 <td className="px-6 py-4 text-sm text-ink">
-                  {inv.driverName ?? <span className="text-muted italic">All drivers</span>}
+                  {inv.driverName ?? <span className="text-muted">All drivers</span>}
                 </td>
                 <td className="px-6 py-4 text-sm text-ink tabular-nums">
                   {new Date(inv.periodStart).toLocaleDateString()} – {new Date(inv.periodEnd).toLocaleDateString()}

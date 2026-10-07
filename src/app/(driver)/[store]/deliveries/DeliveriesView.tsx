@@ -37,7 +37,7 @@ export default function DeliveriesView({
       <PageHeader className="mb-4">
         <h1 className={`${pageTitle} mb-4`}>
           {isToday
-            ? <>Your Deliveries, <span className="accent">sorted</span></>
+            ? <>Your Deliveries, sorted</>
             : `Deliveries for ${selectedDateLabel}`}
         </h1>
 

@@ -13,17 +13,20 @@ interface Props {
   value: string;
   onChange: (id: string) => void;
   autoFilledFromZone: boolean;
+  // A short note under the select (e.g. that the driver was preselected).
+  note?: string;
   required?: boolean;
 }
 
-function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone, required }: Props) {
+function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone, note, required }: Props) {
   const selectId = useId();
+  const hint = autoFilledFromZone ? "Auto-filled from zone default" : note;
   return (
     <div>
       <label htmlFor={selectId} className={label}>Assign Driver{required ? " *" : ""}</label>
       <select
         id={selectId}
-        aria-describedby={autoFilledFromZone ? `${selectId}-hint` : undefined}
+        aria-describedby={hint ? `${selectId}-hint` : undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={input}
@@ -38,8 +41,8 @@ function DriverSelectInner({ drivers, value, onChange, autoFilledFromZone, requi
           </option>
         ))}
       </select>
-      {autoFilledFromZone && (
-        <p id={`${selectId}-hint`} className="mt-1 text-xs font-medium text-muted">Auto-filled from zone default</p>
+      {hint && (
+        <p id={`${selectId}-hint`} className="mt-1 text-xs font-medium text-muted">{hint}</p>
       )}
     </div>
   );
