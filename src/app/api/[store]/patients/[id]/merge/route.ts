@@ -42,7 +42,9 @@ export async function POST(
     const summary = await prisma.$transaction(async (tx) => {
       // Lock both rows in a fixed order (no deadlock between opposite merges);
       // a concurrent merge or address delete on either patient waits here.
-      await tx.$queryRaw`SELECT id FROM "Patient" WHERE id IN (${targetId}, ${sourceId}) ORDER BY id FOR UPDATE`;
+      // Store-scoped, so a request naming another store's patient can't even
+      // briefly lock that row before the checks below reject it.
+      await tx.$queryRaw`SELECT id FROM "Patient" WHERE id IN (${targetId}, ${sourceId}) AND "storeId" = ${storeId} ORDER BY id FOR UPDATE`;
 
       // Sequential on purpose: an interactive transaction runs on one
       // connection, so its queries must not be issued in parallel.

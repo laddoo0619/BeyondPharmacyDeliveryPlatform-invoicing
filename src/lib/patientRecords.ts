@@ -2,11 +2,9 @@
 // merging duplicate patient records. No database imports, so the browser can
 // apply the same rules the server enforces.
 import {
-  normalizeAddress,
   normalizeName,
   normalizePhone,
-  normalizePostalCode,
-  normalizeText,
+  sameDeliveryAddress,
 } from "./recurringDuplicateGuard";
 
 // Deliveries in these states are finished: they can no longer be redirected,
@@ -61,20 +59,10 @@ export function phonesConflict(a: string | null | undefined, b: string | null | 
   return left !== "" && right !== "" && left !== right;
 }
 
-/**
- * Street must match ("144 A St" = "144A Street"); then either the postal code
- * or the city is enough, so one mistyped field doesn't hide a real match.
- */
+// "Same address" is defined once, beside the normalizers, and shared with the
+// recurring guard and the cron so the whole app agrees on it.
 export function sameAddress(a: AddressFields, b: AddressFields) {
-  const street = normalizeAddress(a.address);
-  if (!street || street !== normalizeAddress(b.address)) return false;
-
-  const postalA = normalizePostalCode(a.postalCode);
-  const postalB = normalizePostalCode(b.postalCode);
-  if (postalA && postalA === postalB) return true;
-
-  const cityA = normalizeText(a.city);
-  return cityA !== "" && cityA === normalizeText(b.city);
+  return sameDeliveryAddress(a, b);
 }
 
 export interface RecurringProfileAddress {
